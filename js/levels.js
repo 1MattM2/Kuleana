@@ -530,7 +530,16 @@
   // ------------------------------------------------------------------ props
   const gateArt = {}, crystalArt = {}, colArt = {};
   let brazArt = null, keeperArt = null, shrineArt = null, tikiArt = null, smallFrames = null;
-  const glowAt = (g, cx, cy, R2, rgb, a) => { const gr = g.createRadialGradient(cx, cy, 0, cx, cy, R2); gr.addColorStop(0, `rgba(${rgb},${a})`); gr.addColorStop(1, `rgba(${rgb},0)`); g.fillStyle = gr; g.fillRect(cx - R2, cy - R2, R2 * 2, R2 * 2); };
+  // glows are pre-rendered once per size and colour, then stamped with an alpha (building a fresh
+  // radial gradient for every mote, crystal and brazier every frame was a steady cost)
+  const glowCache = new Map();
+  const glowAt = (g, cx, cy, R2, rgb, a) => {
+    const R = Math.max(2, Math.round(R2)), key = R + ":" + rgb;
+    let c = glowCache.get(key);
+    if (!c) { const [cv, x] = K.canvas(R * 2, R * 2), gr = x.createRadialGradient(R, R, 0, R, R, R); gr.addColorStop(0, `rgba(${rgb},1)`); gr.addColorStop(1, `rgba(${rgb},0)`); x.fillStyle = gr; x.fillRect(0, 0, R * 2, R * 2); glowCache.set(key, (c = cv)); }
+    if (a <= 0) return;
+    const ga = g.globalAlpha; g.globalAlpha = Math.min(1, a); g.drawImage(c, cx - R, cy - R); g.globalAlpha = ga;
+  };
   function makeProp(p, L) {
     const x = p.x * T, y = p.y * T, o = { x, y, k: p.k };
     const sway = (t, st) => K.sway(o, t, x, y, st || 14, 7, 4);

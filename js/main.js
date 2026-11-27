@@ -562,7 +562,7 @@
 
   // ------------------------------------------------------------------ resize
   function resize() {
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);   // past 2x the extra pixels cost frames, not sharpness (the art is pixel art)
     const w = Math.floor(innerWidth * dpr), h = Math.floor(innerHeight * dpr);
     screen.width = w; screen.height = h;
     screen.style.width = innerWidth + "px"; screen.style.height = innerHeight + "px";
