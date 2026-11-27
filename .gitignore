@@ -1,0 +1,4 @@
+# loose screenshots dropped into assets/ (the references are backed up in docs/)
+assets/Screenshot*
+.DS_Store
+__pycache__/
