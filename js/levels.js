@@ -645,14 +645,15 @@
     if (!keeperArt) keeperArt = Ruins.keeper();
     const L = { name, def, ...b, props: [], npcs: [], enemies: [], shots: [], fx: [], pickups: [], seals: [],
       portalOpen: !(def.portal && def.portal.needsTalk) || !!Level.portalUnlocked, shrineTaken: !!Level.heelTaken,
-      arenas: (def.arenas || []).map((a) => ({ ...a, state: "idle", wave: -1, live: [], sealT: 0 })), banner: null };
+      arenas: (def.arenas || []).map((a) => ({ ...a, waves: arenaWaves(a.waves), state: "idle", wave: -1, live: [], sealT: 0 })), banner: null };
     for (const p of def.props) L.props.push(makeProp(p, L));
     for (const n of def.npcs || []) {
       const npc = { ...n, x: n.x * T, y: n.y * T, kind: "npc", phase: Math.random() * 6, lines: n.lines };
       npc.draw = (ctx, ox, oy, t, g) => drawKeeper(npc, ctx, ox, oy, t, g);
       L.npcs.push(npc);
     }
-    Enemies.hpScale = Level.coop ? COOP.hp : 1;
+    const np = Level.players || 1;
+    Enemies.hpScale = np >= 3 ? COOP.hp3 : np === 2 ? COOP.hp : 1; Enemies.bossScale = np;
     if (!Level.netGuest) for (const e of coopRoster(def.enemies || [], b)) { const en = Enemies.spawn(e.e, e.x * T, e.y * T, e.tribe || 0, L); if (en) L.enemies.push(en); }
     L.solids = [];
     for (const p of L.props) if (p.solids) L.solids.push(...p.solids);
@@ -699,19 +700,35 @@
   Level.flyBlocked = (x, y) => tAt(x, y) === WALL;
 
   // ------------------------------------------------------------------ co-op scaling
-  // With a partner the host adds about two more creatures for every five, and each is a little
-  // tougher: enough that two heroes are pressed, not so many that the screen floods.
-  const COOP = { extra: 0.5, hp: 1.25 };
+  // Each extra hero adds about half as many creatures again, and each is a little tougher. The extra
+  // creatures are spread out over the ground around the ones they are copied from (not stacked on
+  // them), so a bigger crowd arrives as a wider front instead of a single clump. With three heroes,
+  // arenas get one more wave rather than ever more creatures per wave. Bosses and mini-bosses
+  // (spec `boss: true`) instead get one health bar per hero: see Enemies.bossScale.
+  const COOP = { extra: 0.5, hp: 1.25, hp3: 1.4 };
   Level.COOP = COOP;
   function coopRoster(list, b) {
-    if (!Level.coop) return list;
-    const out = list.slice(), n = Math.round(list.length * COOP.extra), r = K.rng(list.length * 7 + 3);
+    const np = Level.players || 1;
+    if (np < 2 || !list.length) return list;
+    const out = list.slice(), n = Math.round(list.length * COOP.extra * (np - 1)), r = K.rng(list.length * 7 + 3 + np);
     const ok = (x, y) => { x = (x * T) | 0; y = (y * T) | 0; return x > 0 && y > 0 && x < b.W && y < b.H && walk(b.terr[y * b.W + x]); };
+    const clear = (x, y, gap) => out.every((o) => Math.hypot(o.x - x, (o.y - y) / 0.8) > gap);
     for (let k = 0; k < n; k++) {
       const src = list[Math.floor((k + 0.5) * list.length / n) % list.length];
-      for (let tries = 0; tries < 12; tries++) { const a = r() * 6.28, d = 0.7 + r() * 0.8, x = src.x + Math.cos(a) * d, y = src.y + Math.sin(a) * d * 0.7; if (ok(x, y) && ok(x - 0.3, y) && ok(x + 0.3, y)) { out.push({ ...src, x, y }); break; } }
+      let placed = false;
+      for (let tries = 0; tries < 40 && !placed; tries++) {
+        const a = r() * 6.28, d = 1.6 + r() * (1.4 + np * 0.6), x = src.x + Math.cos(a) * d, y = src.y + Math.sin(a) * d * 0.75;
+        if (ok(x, y) && ok(x - 0.3, y) && ok(x + 0.3, y) && clear(x, y, tries < 30 ? 1.3 : 0.8)) { out.push({ ...src, x, y }); placed = true; }
+      }
     }
     return out;
+  }
+  // with three heroes an arena gains a final wave, mixed from the creatures of the ones before it
+  function arenaWaves(waves) {
+    if ((Level.players || 1) < 3 || !waves.length) return waves;
+    const mix = [];
+    waves.forEach((w, wi) => w.forEach((s, i) => { if ((i + wi) % 2 === 0) mix.push({ ...s, tribe: s.tribe ? s.tribe + 40 : 0 }); }));
+    return waves.concat([mix]);
   }
 
   // ------------------------------------------------------------------ arenas, pickups, birds (per frame)
@@ -731,7 +748,7 @@
         const mx = (x0 + x1 + 1) / 2 * T, my = (y0 + y1 + 1) / 2 * T;
         for (const q of heroes) {
           // a partner left outside is pulled in beside the one who sprang it
-          if (q !== P && !isIn(q)) { api.teleport(q, P.x + (q.isRemote ? 18 : -18), P.y); if (!q.isRemote) { q.x = P.x - 18; q.y = P.y; } }
+          if (q !== P && !isIn(q)) { const off = (heroes.indexOf(q) % 2 ? 18 : -18) * (heroes.indexOf(q) > 1 ? 1.8 : 1); api.teleport(q, P.x + off, P.y); if (!q.isRemote) { q.x = P.x + off; q.y = P.y; } }
           // and nobody is ever sealed inside a doorway
           for (let k = 0; k < 200 && !q.isRemote && L.seals.some((s) => q.x > s[0] - 8 && q.x < s[2] + 8 && q.y > s[1] - 6 && q.y < s[3] + 6); k++) { const a2 = Math.atan2(my - q.y, mx - q.x); q.x += Math.cos(a2) * 2; q.y += Math.sin(a2) * 2; }
         }
@@ -743,7 +760,7 @@
         if (a.wave >= a.waves.length) {
           a.state = "done"; L.seals = []; api.sfx("sealDown");
           L.banner = { title: "THE WAY IS OPEN", t0: t };
-          const Pc = heroes.find((q) => !q.dead) || P0, nb = heroes.length > 1 ? 5 : 3;
+          const Pc = heroes.find((q) => !q.dead) || P0, nb = 3 + 2 * (heroes.length - 1);
           for (let k = 0; k < nb; k++) L.pickups.push({ x: Pc.x + (k - (nb - 1) / 2) * 18, y: Pc.y - 16, t0: t, vy: -60 });
           Combat.momentum = Math.min(100, Combat.momentum + 30);
         } else {

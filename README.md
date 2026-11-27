@@ -63,16 +63,25 @@ with the weapon to fill its Surge diamonds; the next combo finisher becomes the 
     Tidecutter and Glowtide gush and bubble, and Starfall plays a plucked harp (Karplus-Strong strings).
   - Hits land with a distorted crunch and a sub-bass thud, and every enemy sounds like what it's made of.
 
-## Co-op
+## Co-op (up to 3 heroes)
 - Press **Esc** for Settings (or **C** to jump to its Co-op tab). One player picks **Host a game** and shares the
-  5-letter code; the other types it and presses **Join**. Both of you need to be online.
-- Connection: browser to browser over WebRTC. The free PeerJS broker (0.peerjs.com) only introduces the two players;
-  after that, game data goes directly between you. The PeerJS library loads from unpkg the first time you host or join.
-- The host runs the world (creatures, arenas, berries). Each of you moves and swings for yourself, and your
-  partner's swings play out on your screen. Doors, gates and exits take you both.
-- **Scaling:** with two heroes, each area has about 50% more creatures, each with 25% more health
-  (`Level.COOP` in `js/levels.js`). Bot tests of the Sun Court arena put each player's damage taken close to solo.
-- If you fall, you get back up beside your partner. If you both fall, the area starts over.
+  5-letter code; up to two others type it and press **Join**. Everyone needs to be online.
+- Connection: browser to browser over WebRTC, as a star. Each guest talks only to the host, and the host passes on
+  what each guest needs to know about the other. The free PeerJS broker (0.peerjs.com) only introduces players.
+- The host runs the world (creatures, arenas, berries). Each hero moves and swings for themselves, and partners'
+  swings play out on your screen. Doors, gates and exits take the whole party.
+- Heroes are told apart by colour: the host wears red, the second hero gold and the third teal.
+- **Scaling:** each extra hero adds about 50% more creatures, spawned spread out instead of in clumps. Creatures
+  get +25% health with two heroes and +40% with three. With three heroes every arena gains an extra wave. Bosses and
+  mini-bosses (`boss: true`) get ×2 or ×3 health instead.
+- **Knocked down:** in co-op, falling knocks you down. A partner revives you by standing over you and holding
+  **E** (**USE** on a phone) for 3 seconds, and you get up with half your hearts. If everyone falls, the area
+  starts over.
+
+## Phones and tablets
+- On a touch screen the game shows touch controls (`js/touch.js`): a floating thumbstick on the left half (push it
+  far to run) plus **ATK**, **ROLL**, **USE** (hold to revive) and **WPN** buttons, with **MENU** and **CO-OP** at
+  the top right. Play in landscape.
 
 ## Settings and controls
 - **Esc** opens Settings (it pauses solo play). Tabs: Co-op, Controls (every gameplay control), Sound (volume and
@@ -95,10 +104,13 @@ with the weapon to fill its Surge diamonds; the next combo finisher becomes the 
 | `js/enemies.js` | Highlands creatures: AI, per-pixel bodies (verlet vine, flame wisp, carved tiki masks), projectiles |
 | `js/audio.js` | Synthesised ambience and all sound effects (elemental weapon layers, harp, enemy voices) |
 | `js/charart.js` | Hand-made hero (island warrior) + merchant pixel art |
-| `js/net.js` | Co-op networking: host/join codes, connection (PeerJS over WebRTC) |
+| `js/net.js` | Co-op networking: host/join codes, up to 3 heroes (PeerJS over WebRTC, host relays) |
+| `js/touch.js` | Touch controls for phones/tablets: thumbstick and action buttons |
 | `js/menu.js` | Settings menu: co-op, controls, sound, menu keys |
 | `js/main.js` | Game loop, player, camera, HUD, dialogue, co-op sync |
 
 Colour and style rules are in `STYLE.md`; edit ramps in `tools/palette.py` and run it to regenerate `js/palette.js`.
 
 After changing anything in `docs/`, rebuild the assets with `python3 tools/build_assets.py`. This needs Pillow and numpy.
+
+Planned next stages (zones, the Sun Gate map, new levels and bosses, spot loading) are in `ROADMAP.md`.

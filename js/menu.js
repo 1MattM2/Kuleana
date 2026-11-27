@@ -18,16 +18,16 @@
       <div class="mn-head"><span class="mn-title">SETTINGS</span><span class="mn-x" data-a="close">Esc ✕</span></div>
       <div class="mn-tabs">${TABS.map(([k, n]) => `<button class="mn-tab" data-tab="${k}">${n}</button>`).join("")}</div>
       <div class="mn-page" data-page="coop">
-        <p class="mn-note">Play with a friend over the internet. One of you hosts and shares the 5-letter code; the other joins with it.</p>
+        <p class="mn-note">Play with up to two friends over the internet. One of you hosts and shares the 5-letter code; the others join with it.</p>
         <div class="mn-row"><button data-a="host">Host a game</button><button data-a="leave">Leave co-op</button></div>
         <div class="mn-row"><input class="mn-code" maxlength="5" placeholder="CODE" spellcheck="false" autocomplete="off"><button data-a="join">Join</button></div>
         <div class="mn-status"></div>
         <ul class="mn-list">
-          <li>The host leads: when either of you uses a door, gate or exit, you both go.</li>
-          <li>Creatures fight whoever is closest. With two heroes there are about half as many again, and they are a little tougher.</li>
-          <li>Fall in battle and you get back up beside your partner. If you both fall, the area starts over.</li>
+          <li>The host leads: when anyone uses a door, gate or exit, the whole party goes.</li>
+          <li>Creatures fight whoever is closest. Each extra hero brings about half as many creatures again, spread wider and a little tougher. With three heroes, arenas gain an extra wave, and bosses get one health bar per hero.</li>
+          <li>Fall in battle and you are knocked down. A partner revives you by standing over you and holding E (USE on a phone) for 3 seconds; you get up with half your hearts. If everyone falls, the area starts over.</li>
           <li>Berries heal whoever grabs them. Pele's shrine gives the Ember Heel to you both.</li>
-          <li>Your partner wears a gold headband; a gold arrow at the screen edge points to them.</li>
+          <li>The host wears red, the second hero gold and the third teal; arrows in their colour at the screen edge point to partners off screen.</li>
         </ul>
       </div>
       <div class="mn-page" data-page="controls"><table class="mn-table">${CONTROLS.map(([a, k]) => `<tr><td>${a}</td><td>${k}</td></tr>`).join("")}</table></div>
@@ -96,7 +96,7 @@
   M.refresh = function () {
     if (!M.el) return;
     const s = M.el.querySelector(".mn-status"), N = window.Net;
-    const code = N && N.role === "host" && N.code && !N.active() ? `<div class="mn-big">${N.code}</div>` : "";
+    const code = N && N.role === "host" && N.code && N.count() < N.MAX ? `<div class="mn-big">${N.code}</div>` : "";
     s.innerHTML = code + ((N && N.status) || "Playing solo.");
     const mb = M.el.querySelector('[data-a="mute"]'); if (mb) mb.textContent = window.Ambience && Ambience.muted ? "Unmute" : "Mute";
   };

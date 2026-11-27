@@ -119,9 +119,11 @@
   };
   E.nextId = 1;
   E.hpScale = 1;     // set above 1 for co-op
+  E.bossScale = 1;   // = the number of heroes
   E.spawn = function (type, x, y, tribe, L) {
     const s = STATS[type]; if (!s) return null;
-    const hp = Math.round(s.hp * E.hpScale);
+    // bosses and mini-bosses get a full health bar per hero (x2 with two, x3 with three)
+    const hp = Math.round(s.hp * (s.boss ? E.bossScale || 1 : E.hpScale));
     const e = { id: E.nextId++, type, x, y, hx: x, hy: y, rx: x, ry: y, tribe, hp, max: hp, r: s.r, fly: !!s.fly, mat: s.mat, colors: s.colors,
       enemy: true, dead: false, flash: 0, hitT: -9, ang: 0, angV: 0, face: 1, state: "idle", st: 0, kx: 0, ky: 0, stun: 0, alerted: false,
       ph: Math.random() * 6, t: Math.random() * 2, trail: [], seed: Math.random() * 99, introT: 0, moving: false, armor: 1 };
@@ -197,7 +199,7 @@
     for (const r of L.fx) {
       r.t += dt;
       for (let qi = 0; qi < alive.length; qi++) {
-        const q = alive[qi], key = q.isRemote ? "r" : "l";
+        const q = alive[qi], key = q.isRemote ? "r" + q.slot : "l";
         if (r.kind === "pulse") { const rad = (r.t / r.dur) * r.R; r.hits = r.hits || {}; if (!r.hits[key] && Math.abs(Math.hypot(q.x - r.x, (q.y - 6 - r.y) / 0.7) - rad) < 7) { if (q._api.hurt(1, r.x, r.y, "pulse")) r.hits[key] = 1; } }
         if (r.kind === "spores") { if (typeof r.hitT !== "object") r.hitT = {}; if (Math.hypot(q.x - r.x, (q.y - r.y) / 0.7) < r.R && t - (r.hitT[key] ?? -9) > 0.9) { if (q._api.hurt(1, r.x, r.y, "spores")) r.hitT[key] = t; } }
         if (r.kind === "beam" && r.t > 0.7 && !r.a.dead && !r.b.dead) {

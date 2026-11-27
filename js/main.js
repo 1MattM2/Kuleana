@@ -1,7 +1,8 @@
 // Kuleana: stage 1. Walk around the island outside the temple.
 (function () {
   const T = K.TILE;
-  const BASE_W = 480, BASE_H = 270;      // minimum internal resolution (game pixels)
+  const TOUCH = !!(window.TouchPad && TouchPad.enabled);
+  const BASE_W = TOUCH ? 400 : 480, BASE_H = TOUCH ? 225 : 270;      // minimum internal resolution (game pixels); a little closer on phones
   const screen = document.getElementById("game");
   const sctx = screen.getContext("2d");
   const HARD_FILTER = typeof sctx.filter === "string" && !!document.getElementById("hardAlpha");
@@ -68,27 +69,34 @@
     for (const k of ["down", "up", "side", "left"]) heroSil[k] = heroFrames[k].map((pair) => pair.map(sil));
   }
 
-  // the co-op partner: the same hero, in a sun-gold headband and a red kapa vest
-  const partnerFrames = {};
+  // co-op heroes: the same warrior, told apart by headband and kapa vest. Slot 0 (the host) wears the
+  // island red, slot 1 sun-gold and red, slot 2 sea-teal and violet.
+  const SLOT_COL = ["#e8644c", "#f2c040", "#5ad0c8"];
+  const slotFrames = [null, {}, {}];
+  const SLOT_PAL = [null, { r: [236, 170, 50], R: [176, 108, 34], v: [150, 40, 44], V: [100, 26, 34], l: [206, 90, 80] }, { r: [80, 206, 196], R: [40, 132, 132], v: [92, 62, 164], V: [58, 36, 112], l: [146, 116, 214] }];
   function buildPartner() {
-    const PP = Object.assign({}, C.PAL, { r: [236, 170, 50], R: [176, 108, 34], v: [150, 40, 44], V: [100, 26, 34], l: [206, 90, 80] });
-    for (const dir of ["down", "up", "side"]) {
-      partnerFrames[dir] = [];
-      for (let f = 0; f < 4; f++) {
-        const pair = [];
-        for (let tv = 0; tv < 2; tv++) {
-          const [c, ctx] = K.canvas(24, 32), bob = f === 1 || f === 3 ? 1 : 0, swing = f === 1 ? 1 : f === 3 ? -1 : 0;
-          K.pixmap(ctx, C.LEGS[dir][f], PP, 0, 25); K.pixmap(ctx, C.HERO[dir], PP, 0, bob);
-          for (const [x, y, ch] of C.TAILS[dir][tv]) { ctx.fillStyle = K.css(PP[ch]); ctx.fillRect(x, y + bob, 1, 1); }
-          if (dir === "side") K.pixmap(ctx, C.ARM_SIDE, PP, 11 + swing, 17 + bob, false, 4);
-          else { K.pixmap(ctx, C.ARM_L, PP, 2, 17 + bob + swing, false, 4); K.pixmap(ctx, C.ARM_R, PP, 18, 17 + bob - swing, false, 4); }
-          pair.push(c);
+    for (let s = 1; s < 3; s++) {
+      const PP = Object.assign({}, C.PAL, SLOT_PAL[s]), F = slotFrames[s];
+      for (const dir of ["down", "up", "side"]) {
+        F[dir] = [];
+        for (let f = 0; f < 4; f++) {
+          const pair = [];
+          for (let tv = 0; tv < 2; tv++) {
+            const [c, ctx] = K.canvas(24, 32), bob = f === 1 || f === 3 ? 1 : 0, swing = f === 1 ? 1 : f === 3 ? -1 : 0;
+            K.pixmap(ctx, C.LEGS[dir][f], PP, 0, 25); K.pixmap(ctx, C.HERO[dir], PP, 0, bob);
+            for (const [x, y, ch] of C.TAILS[dir][tv]) { ctx.fillStyle = K.css(PP[ch]); ctx.fillRect(x, y + bob, 1, 1); }
+            if (dir === "side") K.pixmap(ctx, C.ARM_SIDE, PP, 11 + swing, 17 + bob, false, 4);
+            else { K.pixmap(ctx, C.ARM_L, PP, 2, 17 + bob + swing, false, 4); K.pixmap(ctx, C.ARM_R, PP, 18, 17 + bob - swing, false, 4); }
+            pair.push(c);
+          }
+          F[dir].push(pair);
         }
-        partnerFrames[dir].push(pair);
       }
+      F.left = F.side.map((p) => p.map((c) => K.flipped(c)));
     }
-    partnerFrames.left = partnerFrames.side.map((p) => p.map((c) => K.flipped(c)));
+    slotFrames[0] = heroFrames;
   }
+  const framesFor = (slot) => slotFrames[slot] || heroFrames;
 
   // ------------------------------------------------------------------ input
   const keys = {};
@@ -102,15 +110,15 @@
     window.Ambience && Ambience.start();
     if (e.code === "KeyM") Ambience.toggleMute();
     if (e.code === "KeyE" || e.code === "Enter") pressedE = true;
-    if (e.code === "KeyJ" && !e.repeat && !dialog && fade.dir === 0) Combat.attack();
-    if ((e.code === "Space" || e.code === "KeyK") && !e.repeat && !dialog && fade.dir === 0) startRoll();
+    if (e.code === "KeyJ" && !e.repeat && !dialog && fade.dir === 0 && !player.dead) Combat.attack();
+    if ((e.code === "Space" || e.code === "KeyK") && !e.repeat && !dialog && fade.dir === 0 && !player.dead) startRoll();
     if (e.code === "KeyQ" && !e.repeat) Combat.cycle(-1);
     if (e.code === "KeyR" && !e.repeat) Combat.cycle(1);
     if (/^Digit[0-9]$/.test(e.code)) { const n = +e.code.slice(5); Combat.select(n === 0 ? 9 : n - 1); }
     if (e.code.startsWith("Arrow") || e.code === "Space" || e.code === "Tab") e.preventDefault();
   });
   addEventListener("keyup", (e) => (keys[e.code] = false));
-  addEventListener("pointerdown", (e) => { window.Ambience && Ambience.start(); if (window.Menu && Menu.open) return; if (e.button === 0 && !dialog && fade.dir === 0) Combat.attack(); if (e.button === 2 && !dialog && fade.dir === 0) startRoll(); });
+  addEventListener("pointerdown", (e) => { window.Ambience && Ambience.start(); if (window.Menu && Menu.open) return; if (e.pointerType !== "mouse" || player.dead) return; if (e.button === 0 && !dialog && fade.dir === 0) Combat.attack(); if (e.button === 2 && !dialog && fade.dir === 0) startRoll(); });
   addEventListener("contextmenu", (e) => e.preventDefault());
   addEventListener("wheel", (e) => Combat.cycle(e.deltaY > 0 ? 1 : -1), { passive: true });
   addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
@@ -122,6 +130,7 @@
     if (player.rolling || player.rollCd > 0 || Combat.busy || scene === "island" && false) return;
     let ix = 0, iy = 0;
     if (keys.KeyA || keys.ArrowLeft) ix -= 1; if (keys.KeyD || keys.ArrowRight) ix += 1; if (keys.KeyW || keys.ArrowUp) iy -= 1; if (keys.KeyS || keys.ArrowDown) iy += 1;
+    if (TOUCH && TouchPad.mag > 0) { ix = TouchPad.x; iy = TouchPad.y; }
     if (!ix && !iy) { const a = player.dir === "down" ? Math.PI / 2 : player.dir === "up" ? -Math.PI / 2 : player.dir === "left" ? Math.PI : 0; ix = Math.cos(a); iy = Math.sin(a); }
     const l = Math.hypot(ix, iy); player.rollA = Math.atan2(iy / l, ix / l);
     player.rolling = true; player.rollT = 0; player.rollCd = 0.55;
@@ -141,34 +150,58 @@
     Combat.shake = Math.min(1, Combat.shake + 0.6); Combat.lastStop = -9; Combat.stopFor(0.06); Combat.flash = 0.3; Combat.flashCol = "255,80,80";
     Combat.loseMomentum(0.35);
     Ambience.sfx && Ambience.sfx("hurt");
-    if (player.hp <= 0) { player.hp = 0; player.dead = true; deathT = time; }
+    if (player.hp <= 0) { player.hp = 0; player.dead = true; deathT = time; player.downed = scene === "level" && mateHere(); }
     return true;
   }
   let perfectT = -9, deathT = -9;
   // ------------------------------------------------------------------ co-op
-  // The partner as this machine knows them: their latest reported state, smoothed between packets.
-  const mate = { x: 0, y: 0, tx: 0, ty: 0, dir: "down", frame: 0, moving: false, rolling: false, rollA: 0, rollT: 0, hp: 10, maxHp: 10, dead: false, inv: 0, hitInv: 0, isRemote: true, sc: null, lv: null, w: 0, busy: false, tier: 0, tailT: 0, seen: -9 };
-  const mateHere = () => window.Net && Net.active() && time - mate.seen < 3 && mate.sc === scene && (scene !== "level" || (Level.cur && mate.lv === Level.cur.name));
+  // Partners as this machine knows them (up to two), keyed by slot: their latest reported state,
+  // smoothed between packets. The host is slot 0; guests are 1 and 2.
+  const mates = new Map();
+  const newMate = (slot) => ({ slot, x: 0, y: 0, tx: 0, ty: 0, dir: "down", frame: 0, moving: false, rolling: false, rollA: 0, rollT: 0, hp: 10, maxHp: 10, dead: false, inv: 0, hitInv: 0, isRemote: true, sc: null, lv: null, w: 0, busy: false, tier: 0, tailT: 0, seen: -9, rv: -1, rp: 0 });
+  const mateOf = (slot) => { let m = mates.get(slot); if (!m) mates.set(slot, (m = newMate(slot))); return m; };
+  const isHere = (q) => window.Net && Net.active() && time - q.seen < 3 && q.sc === scene && (scene !== "level" || (Level.cur && q.lv === Level.cur.name));
+  const matesHere = () => [...mates.values()].filter(isHere);
+  const mateHere = () => matesHere().length > 0;
+  const mySlot = () => (window.Net && Net.active() ? Net.slot || 0 : 0);
   let netSendT = 0, netSnapT = 0, netGo = false, guestAsked = -9;
   const sfxQ = [];
   function sceneName() { return scene === "level" ? Level.cur.name : scene; }
-  function onNet(m) {
+  // a message for one hero, wherever they are: the host delivers it; a guest asks the host to
+  function deliver(slot, m) {
+    if (slot === mySlot()) { onNet(m, mySlot()); return; }
+    if (Net.isHost()) Net.sendTo(slot, m); else Net.send({ ...m, fw: slot });
+  }
+  function onNet(m, from) {
+    // the host passes on what one guest says for another
+    if (window.Net && Net.isHost() && m.fw !== undefined) { const to = m.fw; delete m.fw; if (to === 0) onNet(m, from); else Net.sendTo(to, m); return; }
+    const id = m.id !== undefined ? m.id : from;
     switch (m.t) {
-      case "p": {     // the partner's hero
-        const jump = Math.hypot(m.x - mate.tx, m.y - mate.ty) > 90 || mate.sc !== m.sc || time - mate.seen > 1;
-        Object.assign(mate, { tx: m.x, ty: m.y, dir: m.d, frame: m.f, moving: !!m.mv, rolling: !!m.ro, rollA: m.ra, rollT: m.rt, hp: m.hp, maxHp: m.mx, dead: !!m.dd, inv: m.iv, w: m.w, busy: !!m.b, attacking: !!m.b, tier: m.tr, sc: m.sc, lv: m.lv, seen: time });
-        if (jump) { mate.x = m.x; mate.y = m.y; }
+      case "p": {     // a partner's hero
+        if (id === mySlot()) break;
+        if (Net.isHost()) Net.send(m, id);                // let the other guest see them too
+        const q = mateOf(id), jump = Math.hypot(m.x - q.tx, m.y - q.ty) > 90 || q.sc !== m.sc || time - q.seen > 1;
+        Object.assign(q, { tx: m.x, ty: m.y, dir: m.d, frame: m.f, moving: !!m.mv, rolling: !!m.ro, rollA: m.ra, rollT: m.rt, hp: m.hp, maxHp: m.mx, dead: !!m.dd, inv: m.iv, w: m.w, busy: !!m.b, attacking: !!m.b, tier: m.tr, sc: m.sc, lv: m.lv, seen: time, rv: m.rv ?? -1, rp: m.rp || 0 });
+        if (jump) { q.x = m.x; q.y = m.y; }
         break;
       }
-      case "atk": if (mateHere()) Combat.ghost(mate, m.w, m.m, m.a, Net.isHost()); break;
+      case "atk": {
+        if (id === mySlot()) break;
+        if (Net.isHost()) Net.send(m, id);
+        const q = mates.get(id); if (q && isHere(q)) Combat.ghost(q, m.w, m.m, m.a, Net.isHost());
+        break;
+      }
       case "snap": if (Net.isGuest() && scene === "level" && Level.cur && Level.cur.name === m.lv) { Enemies.applySnap(Level.cur, m.en); Level.applySnap(Level.cur, m.lvl, time); for (const k of m.sfx || []) Ambience.sfx && Ambience.sfx(k); } break;
-      case "scene": if (Net.isGuest()) { netGo = true; fade.dir = 0; goTo(m.to); netGo = false; } break;
+      case "scene": if (Net.isGuest()) { netGo = true; fade.dir = 0; Level.players = m.n || Net.count(); goTo(m.to); netGo = false; } break;
       case "hurt": hurtPlayer(m.d, m.x, m.y, m.s); break;
       case "heal": player.hp = Math.min(player.maxHp, player.hp + m.n); break;
       case "tp": player.x = m.x; player.y = m.y; if (blocked(player.x, player.y)) unstick(); break;
       case "banner": banner = { title: m.title, sub: m.sub || "", t0: time }; break;
+      case "revive":   // a partner held you up for long enough: back on your feet with half your hearts
+        if (player.dead && player.downed) { player.dead = false; player.downed = false; player.hp = Math.ceil(player.maxHp / 2); player.inv = 2; banner = { title: "REVIVED", sub: (m.by || "A partner") + " got you back up", t0: time }; Ambience.sfx && Ambience.sfx("berry"); }
+        break;
       case "sync": if (m.portal) { Level.portalUnlocked = true; if (Level.cur) Level.cur.portalOpen = true; } if (m.heel) { Level.heelTaken = true; Combat.unlocked.add("heel"); if (Level.cur) Level.cur.shrineTaken = true; } break;
-      case "act":     // the guest asks the host to do something that changes the shared world
+      case "act":     // a guest asks the host to do something that changes the shared world
         if (!Net.isHost()) break;
         if (m.k === "go") goTo(m.to);
         else if (m.k === "talk") { Level.portalUnlocked = true; if (Level.cur) Level.cur.portalOpen = true; Net.send({ t: "sync", portal: 1 }); Ambience.sfx && Ambience.sfx("portal"); }
@@ -177,13 +210,26 @@
     }
   }
   function unstick() { const sx = player.x, sy = player.y; for (let r = 4; r < 160; r += 4) for (let a = 0; a < Math.PI * 2; a += 0.3) { const x = sx + Math.cos(a) * r, y = sy + Math.sin(a) * r; if (!blocked(x, y)) { player.x = x; player.y = y; return; } } }
+  // ---- knocked down, and reviving: in co-op a fallen hero stays down until a partner stands over
+  // them holding E (or the touch Use button) for three seconds.
+  const REVIVE_T = 3, REVIVE_R = 38;
+  const rev = { target: -1, t: 0 };
+  function updateRevive(dt) {
+    const holding = (keys.KeyE || keys.Enter) && !player.dead && !dialog && fade.dir === 0;
+    let tgt = null, bd = REVIVE_R;
+    if (!player.dead) for (const q of matesHere()) if (q.dead) { const d = Math.hypot(q.x - player.x, q.y - player.y); if (d < bd) { bd = d; tgt = q; } }
+    if (tgt && tgt.slot !== rev.target) { rev.target = tgt.slot; rev.t = 0; }
+    if (!tgt) { rev.target = -1; rev.t = 0; return; }
+    if (!holding) { rev.t = Math.max(0, rev.t - dt * 2); return; }
+    rev.t += dt;
+    if (rev.t >= REVIVE_T) { deliver(tgt.slot, { t: "revive", by: "Your partner" }); tgt.dead = false; rev.t = 0; rev.target = -1; Ambience.sfx && Ambience.sfx("berry"); }
+  }
   function netTick(dt) {
     if (!window.Net || !Net.active()) return;
-    mate.hitInv = Math.max(0, mate.hitInv - dt);
-    const k = Math.min(1, dt * 12); mate.x += (mate.tx - mate.x) * k; mate.y += (mate.ty - mate.y) * k;
+    for (const q of mates.values()) { q.hitInv = Math.max(0, q.hitInv - dt); const k = Math.min(1, dt * 12); q.x += (q.tx - q.x) * k; q.y += (q.ty - q.y) * k; }
     if (time > netSendT) {
       netSendT = time + 0.05;
-      Net.send({ t: "p", sc: scene, lv: scene === "level" ? Level.cur.name : null, x: Math.round(player.x * 10) / 10, y: Math.round(player.y * 10) / 10, d: player.dir, f: player.frame, mv: player.moving ? 1 : 0, ro: player.rolling ? 1 : 0, ra: player.rollA || 0, rt: player.rollT || 0, hp: player.hp, mx: player.maxHp, dd: player.dead ? 1 : 0, iv: player.inv > 0 ? 1 : 0, w: Combat.cur, b: Combat.busy ? 1 : 0, tr: Combat.momTier() });
+      Net.send({ t: "p", id: mySlot(), sc: scene, lv: scene === "level" ? Level.cur.name : null, x: Math.round(player.x * 10) / 10, y: Math.round(player.y * 10) / 10, d: player.dir, f: player.frame, mv: player.moving ? 1 : 0, ro: player.rolling ? 1 : 0, ra: player.rollA || 0, rt: player.rollT || 0, hp: player.hp, mx: player.maxHp, dd: player.dead ? 1 : 0, iv: player.inv > 0 ? 1 : 0, w: Combat.cur, b: Combat.busy ? 1 : 0, tr: Combat.momTier(), rv: rev.target, rp: Math.round((rev.t / REVIVE_T) * 100) / 100 });
     }
     if (Net.isHost() && scene === "level" && time > netSnapT && fade.dir === 0) {
       netSnapT = time + 1 / 15;
@@ -193,24 +239,29 @@
   }
   if (window.Net) {
     Net.onData = onNet;
-    Net.onConnect = () => {
-      banner = { title: "CO-OP", sub: Net.isHost() ? "Your partner has joined" : "You joined your partner", t0: time };
-      if (Net.isHost()) { Net.send({ t: "scene", to: sceneName() }); Net.send({ t: "sync", portal: Level.portalUnlocked ? 1 : 0, heel: Level.heelTaken ? 1 : 0 }); }
+    Net.onConnect = (slot) => {
+      if (Net.isHost()) {
+        banner = { title: "CO-OP", sub: `A partner has joined (${Net.count()} heroes)`, t0: time };
+        Net.sendTo(slot, { t: "scene", to: sceneName(), n: Net.count() }); Net.sendTo(slot, { t: "sync", portal: Level.portalUnlocked ? 1 : 0, heel: Level.heelTaken ? 1 : 0 });
+      } else banner = { title: "CO-OP", sub: "You joined the party", t0: time };
     };
-    Net.onDisconnect = (was) => {
-      banner = { title: "CO-OP", sub: "Your partner has left", t0: time };
-      mate.sc = null;
+    Net.onRoster = (slots) => { for (const s of [...mates.keys()]) if (!slots.includes(s)) mates.delete(s); };
+    Net.onDisconnect = (was, slot) => {
+      banner = { title: "CO-OP", sub: was === "host" && slot >= 0 ? "A partner has left" : "Co-op has ended", t0: time };
+      if (was === "host" && slot >= 0) { mates.delete(slot); return; }
+      mates.clear();
+      if (player.dead && player.downed) { player.dead = false; player.downed = false; player.hp = Math.ceil(player.maxHp / 2); }
       if (was === "guest" && scene === "level") { fade.dir = 0; goTo(Level.cur.name); }   // the creatures here were the host's: bring the area back to life solo
     };
-    Combat.onMoveStart = (w, m, a) => Net.send({ t: "atk", w, m, a: Math.round(a * 1000) / 1000 });
+    Combat.onMoveStart = (w, m, a) => Net.send({ t: "atk", id: mySlot(), w, m, a: Math.round(a * 1000) / 1000 });
   }
   const levelApi = {
     hurt: hurtPlayer,
     sfx: (k) => { Ambience.sfx && Ambience.sfx(k); if (window.Net && Net.isHost()) sfxQ.push(k); },
-    heal: (n, q) => { if (q && q.isRemote) { Net.send({ t: "heal", n }); return; } player.hp = Math.min(player.maxHp, player.hp + n); healT = time; },
-    teleport: (q, x, y) => { if (q.isRemote) Net.send({ t: "tp", x, y }); },
-    // the partner is hit on the host's screen: tell them (their own roll may still save them)
-    hurtRemote: (q, d, sx, sy, src) => { if (q.dead || q.hitInv > 0) return false; Net.send({ t: "hurt", d, x: sx, y: sy, s: src }); if (q.rolling || q.inv) return false; q.hitInv = 0.9; return true; },
+    heal: (n, q) => { if (q && q.isRemote) { Net.sendTo(q.slot, { t: "heal", n }); return; } player.hp = Math.min(player.maxHp, player.hp + n); healT = time; },
+    teleport: (q, x, y) => { if (q.isRemote) Net.sendTo(q.slot, { t: "tp", x, y }); },
+    // a partner is hit on the host's screen: tell them (their own roll may still save them)
+    hurtRemote: (q, d, sx, sy, src) => { if (q.dead || q.hitInv > 0) return false; Net.sendTo(q.slot, { t: "hurt", d, x: sx, y: sy, s: src }); if (q.rolling || q.inv) return false; q.hitInv = 0.9; return true; },
   };
   let healT = -9;
   // fallen enemies sometimes leave an ʻōhelo berry behind
@@ -258,7 +309,8 @@
     if (keys.KeyD || keys.ArrowRight) ix += 1;
     if (keys.KeyW || keys.ArrowUp) iy -= 1;
     if (keys.KeyS || keys.ArrowDown) iy += 1;
-    const run = keys.ShiftLeft || keys.ShiftRight;
+    let run = keys.ShiftLeft || keys.ShiftRight;
+    if (TOUCH && TouchPad.mag > 0) { ix = TouchPad.x; iy = TouchPad.y; run = TouchPad.mag > 0.85; }
     player.moving = ix !== 0 || iy !== 0;
     if (player.moving) player.moveA = Math.atan2(iy, ix);
     if (player.moving) {
@@ -352,7 +404,7 @@
   let banner = { title: "KULEANA", sub: "The Sunward Shore", t0: 0 };
   function goTo(to) {
     if (window.Net && Net.isGuest() && !netGo) { if (time - guestAsked > 1) { guestAsked = time; Net.send({ t: "act", k: "go", to }); } return; }
-    if (fade.dir === 0) { fade.dir = 1; fade.to = to; fade.from = scene; if (window.Net && Net.isHost()) Net.send({ t: "scene", to }); }
+    if (fade.dir === 0) { fade.dir = 1; fade.to = to; fade.from = scene; if (window.Net && Net.isHost()) Net.send({ t: "scene", to, n: Net.count() }); }
   }
   function updateFade(dt) {
     if (fade.dir === 0) return;
@@ -363,15 +415,15 @@
         scene = "cave"; player.x = Cave.ENTRY.x; player.y = Cave.ENTRY.y + 18; player.dir = "down";
         banner = { title: "ANA ʻŌLINO", sub: "The Glowing Sea Cave", t0: time + 0.3 };
       } else if (fade.to === "sanctum" || fade.to === "highlands") {
-        scene = "level"; Level.coop = !!(window.Net && Net.active()); Level.netGuest = !!(window.Net && Net.isGuest()); const L = Level.load(fade.to);
+        scene = "level"; Level.players = window.Net && Net.active() ? (Net.isHost() ? Net.count() : Level.players || Net.count()) : 1; Level.coop = Level.players > 1; Level.netGuest = !!(window.Net && Net.isGuest()); const L = Level.load(fade.to);
         const from = fade.from === "level" ? Level.prev : null;
         let sp = L.spawn;
         if (fade.to === "sanctum" && from === "highlands") sp = { x: L.def.returnAt.x * 32, y: L.def.returnAt.y * 32 };
         player.x = sp.x; player.y = sp.y; player.dir = fade.to === "sanctum" && from !== "highlands" ? "up" : "down";
-        if (window.Net && Net.isGuest()) player.x += 20;                     // arrive beside the host, not on top of them
+        if (window.Net && Net.isGuest()) player.x += 20 * (Net.slot === 2 ? -1 : 1);                     // arrive beside the host, not on top of them
         // never arrive inside rock or a prop: spiral out to the nearest free footing
         if (blocked(player.x, player.y)) { search: for (let r = 4; r < 160; r += 4) for (let a = 0; a < Math.PI * 2; a += 0.3) { const x = sp.x + Math.cos(a) * r, y = sp.y + Math.sin(a) * r; if (!blocked(x, y)) { player.x = x; player.y = y; break search; } } }
-        player.hp = player.maxHp; player.dead = false;
+        player.hp = player.maxHp; player.dead = false; player.downed = false;
         Level.prev = fade.to;
         banner = { title: L.def.title, sub: L.def.sub, t0: time + 0.3 };
       } else if (fade.to === "dojo") {
@@ -612,22 +664,27 @@
   // hearts (each = 2 HP) + the Momentum bar with its tier pips
   const HEART_E = [".oo.oo.", "oaaoaao", "oaaaaao", "oaaaaao", ".oaaao.", "..oao..", "...o..."];
   function drawMateHUD(ctx) {
-    if (!(window.Net && Net.active()) || time - mate.seen > 3) return;
-    const y = 24;
-    ctx.fillStyle = "#f2c040"; ctx.fillRect(6, y + 2, 2, 3); ctx.fillRect(8, y + 1, 1, 1);
-    for (let k = 0; k < mate.maxHp / 2; k++) {
-      const v = mate.hp - k * 2, x = 12 + k * 7;
-      ctx.fillStyle = "#281018"; ctx.fillRect(x, y, 6, 5);
-      ctx.fillStyle = v >= 2 ? "#f2c040" : v === 1 ? "#a8822a" : "#4a2a34"; ctx.fillRect(x + 1, y + 1, 4, 3);
+    if (!(window.Net && Net.active())) return;
+    let row = 0;
+    for (const q of mates.values()) {
+      if (time - q.seen > 3) continue;
+      const y = 24 + row * 8, col = SLOT_COL[q.slot] || "#f2c040"; row++;
+      ctx.fillStyle = col; ctx.fillRect(6, y + 2, 2, 3); ctx.fillRect(8, y + 1, 1, 1);
+      for (let k = 0; k < q.maxHp / 2; k++) {
+        const v = q.hp - k * 2, x = 12 + k * 7;
+        ctx.fillStyle = "#281018"; ctx.fillRect(x, y, 6, 5);
+        ctx.fillStyle = q.dead ? (Math.floor(time * 4) % 2 ? "#ff5a4a" : "#4a2a34") : v >= 2 ? col : v === 1 ? "#8a7050" : "#4a2a34"; ctx.fillRect(x + 1, y + 1, 4, 3);
+      }
+      if (!isHere(q)) continue;
+      // an arrow at the screen edge for a partner who is off screen
+      const sx = q.x - cam.fx, sy = q.y - 14 - cam.fy;
+      if (sx > 4 && sx < VW - 4 && sy > 4 && sy < VH - 4) continue;
+      const cx = VW / 2, cy = VH / 2, a = Math.atan2(sy - cy, sx - cx), m = 10;
+      const tx = K.clamp(sx, m, VW - m), ty = K.clamp(sy, m, VH - m);
+      ctx.save(); ctx.translate(Math.round(tx), Math.round(ty)); ctx.rotate(a);
+      ctx.fillStyle = "#140c16"; ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(-4, -5); ctx.lineTo(-4, 5); ctx.fill();
+      ctx.fillStyle = q.dead && Math.floor(time * 4) % 2 ? "#ff5a4a" : col; ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(-3, -3); ctx.lineTo(-3, 3); ctx.fill(); ctx.restore();
     }
-    if (!mateHere()) return;
-    const sx = mate.x - cam.fx, sy = mate.y - 14 - cam.fy;
-    if (sx > 4 && sx < VW - 4 && sy > 4 && sy < VH - 4) return;
-    const cx = VW / 2, cy = VH / 2, a = Math.atan2(sy - cy, sx - cx), m = 10;
-    const tx = K.clamp(sx, m, VW - m), ty = K.clamp(sy, m, VH - m);
-    ctx.save(); ctx.translate(Math.round(tx), Math.round(ty)); ctx.rotate(a);
-    ctx.fillStyle = "#140c16"; ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(-4, -5); ctx.lineTo(-4, 5); ctx.fill();
-    ctx.fillStyle = "#f2c040"; ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(-3, -3); ctx.lineTo(-3, 3); ctx.fill(); ctx.restore();
   }
   function drawHearts(ctx) {
     drawMateHUD(ctx);
@@ -652,7 +709,7 @@
     drawHearts(ctx);
     // minimap
     const mm = World.minimap, mw = Math.round(mm.width / 2), mh = Math.round(mm.height / 2);
-    const mx = VW - mw - 8, my = VH - mh - 8;
+    const mx = VW - mw - 8, my = TOUCH ? 46 : VH - mh - 8;
     ctx.fillStyle = "#1a1220"; ctx.fillRect(mx - 3, my - 3, mw + 6, mh + 6);
     ctx.fillStyle = "#c08a3e"; ctx.fillRect(mx - 2, my - 2, mw + 4, mh + 4);
     ctx.fillStyle = "#1a1220"; ctx.fillRect(mx - 1, my - 1, mw + 2, mh + 2);
@@ -731,7 +788,7 @@
       sctx.drawImage(tinted(heroFrames[a.dir][2][0], col), Math.round((a.x - cam.fx) * SCALE) - 12 * SCALE, Math.round((a.y - cam.fy) * SCALE) - 30 * SCALE, 24 * SCALE, 32 * SCALE);
     }
     sctx.globalAlpha = 1;
-    if (frames === heroFrames) {
+    if (frames !== heroSil) {
       const sh = Props.shadow(7, 2);
       sctx.globalAlpha = 0.32; sctx.drawImage(sh, hx - 7 * SCALE, hy - 2 * SCALE, sh.width * SCALE, sh.height * SCALE); sctx.globalAlpha = 1;
     }
@@ -749,17 +806,26 @@
     // momentum aura: embers in the weapon's colour rise off the hero at tier II+
     if (Combat.momTier() >= 2 && Math.random() < 0.35) Combat.addPart({ x: player.x + (Math.random() - 0.5) * 12, y: player.y - Math.random() * 24, vx: 0, vy: -30, g: -10, life: 0.6, col: Combat.weapons[Combat.cur].col, size: 1, kind: "ember", glow: true });
   }
-  function drawMate(ox, oy, t) {
-    if (!mateHere()) return;
-    const ctx = mate.y < player.y ? actx : bctx, x = Math.round(mate.x - ox), y = Math.round(mate.y - oy);
+  function drawMate(ox, oy, t) { for (const q of matesHere()) drawOneMate(q, ox, oy, t); }
+  function drawOneMate(q, ox, oy, t) {
+    const ctx = q.y < player.y ? actx : bctx, x = Math.round(q.x - ox), y = Math.round(q.y - oy), F = framesFor(q.slot);
     const sh = Props.shadow(7, 2); ctx.globalAlpha = 0.32; ctx.drawImage(sh, x - 7, y - 2); ctx.globalAlpha = 1;
-    mate.tailT += (1 / 60) * (2 + 7 * K.windStrength(t) + (mate.moving ? 4 : 0));
-    const fr = partnerFrames[mate.dir] || partnerFrames.down, img = fr[(mate.frame || 0) % 4][Math.floor(mate.tailT) % 2];
-    if (mate.dead) { ctx.save(); ctx.globalAlpha = 0.75; ctx.translate(x, y - 4); ctx.rotate(Math.PI / 2); ctx.drawImage(img, -16, -12); ctx.restore(); ctx.globalAlpha = 1; }
-    else if (mate.rolling) { const spin = ((mate.rollT || 0) / 0.34) * Math.PI * 2 * (Math.cos(mate.rollA || 0) >= 0 ? 1 : -1); ctx.save(); ctx.translate(x, y - 12); ctx.rotate(spin); ctx.scale(1, 0.8); ctx.drawImage(img, -12, -18); ctx.restore(); }
-    else { if (mate.inv && Math.floor(t * 14) % 2) ctx.globalAlpha = 0.45; ctx.drawImage(img, x - 12, y - 30); ctx.globalAlpha = 1; }
-    // a small sun-gold pip over their head, so you can always pick them out
-    ctx.fillStyle = "#140c16"; ctx.fillRect(x - 3, y - 38, 7, 4); ctx.fillStyle = "#f2c040"; ctx.fillRect(x - 2, y - 37, 5, 1); ctx.fillRect(x - 1, y - 36, 3, 1); ctx.fillRect(x, y - 35, 1, 1);
+    q.tailT += (1 / 60) * (2 + 7 * K.windStrength(t) + (q.moving ? 4 : 0));
+    const fr = F[q.dir] || F.down, img = fr[(q.frame || 0) % 4][Math.floor(q.tailT) % 2];
+    if (q.dead) { ctx.save(); ctx.globalAlpha = 0.75; ctx.translate(x, y - 4); ctx.rotate(Math.PI / 2); ctx.drawImage(img, -16, -12); ctx.restore(); ctx.globalAlpha = 1; }
+    else if (q.rolling) { const spin = ((q.rollT || 0) / 0.34) * Math.PI * 2 * (Math.cos(q.rollA || 0) >= 0 ? 1 : -1); ctx.save(); ctx.translate(x, y - 12); ctx.rotate(spin); ctx.scale(1, 0.8); ctx.drawImage(img, -12, -18); ctx.restore(); }
+    else { if (q.inv && Math.floor(t * 14) % 2) ctx.globalAlpha = 0.45; ctx.drawImage(img, x - 12, y - 30); ctx.globalAlpha = 1; }
+    // a small pip in their colour over their head, so you can always pick them out
+    ctx.fillStyle = "#140c16"; ctx.fillRect(x - 3, y - 38, 7, 4); ctx.fillStyle = SLOT_COL[q.slot] || "#f2c040"; ctx.fillRect(x - 2, y - 37, 5, 1); ctx.fillRect(x - 1, y - 36, 3, 1); ctx.fillRect(x, y - 35, 1, 1);
+    if (q.dead) drawReviveRing(ctx, x, y, q.slot === rev.target ? rev.t / REVIVE_T : Math.max(0, ...matesHere().filter((o) => o.rv === q.slot).map((o) => o.rp)), t, true);
+  }
+  // a ring over a downed hero that fills as someone holds them up
+  function drawReviveRing(ctx, x, y, u, t, prompt) {
+    const cy = y - 46;
+    ctx.fillStyle = "#140c16"; ctx.fillRect(x - 13, cy - 1, 26, 5);
+    ctx.fillStyle = "#4a2a34"; ctx.fillRect(x - 12, cy, 24, 3);
+    ctx.fillStyle = u > 0 ? "#7cf08a" : Math.floor(t * 3) % 2 ? "#ff8a6a" : "#ffd27a"; ctx.fillRect(x - 12, cy, Math.round(24 * Math.min(1, u)), 3);
+    if (u <= 0 && prompt) { ctx.fillStyle = "#ffd27a"; ctx.fillRect(x - 1, cy - 6, 2, 3); ctx.fillRect(x - 1, cy - 2, 2, 1); }
   }
   // weapon + slash effects: crisp pixel layer, then additive glow, then the impact flash
   function composeFx(ox, oy, sx, sy) {
@@ -865,7 +931,7 @@
     sctx.imageSmoothingEnabled = false;
     drawMate(ox, oy, t);
     sctx.drawImage(layerA, -sx, -sy, LW * SCALE, LH * SCALE);
-    drawHero(t, heroFrames);
+    drawHero(t, framesFor(mySlot()));
     sctx.drawImage(layerB, -sx, -sy, LW * SCALE, LH * SCALE);
     composeFx(ox, oy, sx, sy);
     sctx.drawImage(hud, 0, 0, VW * SCALE, VH * SCALE);
@@ -903,7 +969,7 @@
     sctx.imageSmoothingEnabled = false;
     drawMate(ox, oy, t);
     sctx.drawImage(layerA, -sx, -sy, LW * SCALE, LH * SCALE);
-    drawHero(t, heroFrames);
+    drawHero(t, framesFor(mySlot()));
     sctx.drawImage(layerB, -sx, -sy, LW * SCALE, LH * SCALE);
     composeFx(ox, oy, sx, sy);
     if (flowT > 0) { sctx.fillStyle = `rgba(120,200,255,${0.12 * Math.min(1, flowT * 4)})`; sctx.fillRect(0, 0, screen.width, screen.height); }
@@ -913,7 +979,23 @@
     drawCombatTexts(SCALE);
     const u = SCALE;
     if (t - perfectT < 0.9) { sctx.globalAlpha = 1 - (t - perfectT) / 0.9; sctx.textAlign = "center"; sctx.font = `${10 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#120c16"; sctx.fillText("PERFECT DODGE", (VW / 2) * u + u, 100 * u + u); sctx.fillStyle = "#9ee6ff"; sctx.fillText("PERFECT DODGE", (VW / 2) * u, 100 * u); sctx.textAlign = "left"; sctx.globalAlpha = 1; }
-    if (player.dead) { sctx.textAlign = "center"; sctx.font = `${16 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#ffd0c0"; sctx.fillText("YOU FALL...", (VW / 2) * u, (VH / 2 - 10) * u); sctx.textAlign = "left"; }
+    if (player.dead) {
+      sctx.textAlign = "center"; sctx.font = `${16 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#ffd0c0";
+      const waiting = player.downed && matesHere().some((q) => !q.dead);
+      sctx.fillText(waiting ? "KNOCKED DOWN" : "YOU FALL...", (VW / 2) * u, (VH / 2 - 10) * u);
+      if (waiting) {
+        const helping = matesHere().filter((q) => q.rv === mySlot()).reduce((m, q) => Math.max(m, q.rp), 0);
+        sctx.font = `${8 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#fff6dc";
+        sctx.fillText(helping > 0 ? `Being revived... ${Math.round(helping * 100)}%` : "Hold on! A partner can revive you.", (VW / 2) * u, (VH / 2 + 10) * u);
+      }
+      sctx.textAlign = "left";
+    }
+    if (rev.target >= 0 && !player.dead) {
+      sctx.textAlign = "center"; sctx.font = `${8 * u}px 'Pixelify Sans', monospace`;
+      const msg = rev.t > 0 ? `Reviving... ${Math.round((rev.t / REVIVE_T) * 100)}%` : TOUCH ? "Hold USE to revive" : "Hold E to revive";
+      sctx.fillStyle = "#120c16"; sctx.fillText(msg, (VW / 2) * u + u, (VH - 74) * u + u); sctx.fillStyle = "#7cf08a"; sctx.fillText(msg, (VW / 2) * u, (VH - 74) * u);
+      sctx.textAlign = "left";
+    }
   }
   function render(t) {
     gctx.clearRect(0, 0, VW + 1, VH + 1);
@@ -992,7 +1074,7 @@
     sctx.imageSmoothingEnabled = false;
     drawMate(ox, oy, t);
     sctx.drawImage(layerA, -sx, -sy, LW * SCALE, LH * SCALE);
-    drawHero(t, heroFrames);
+    drawHero(t, framesFor(mySlot()));
     sctx.drawImage(layerB, -sx, -sy, LW * SCALE, LH * SCALE);
     composeFx(ox, oy, sx, sy);
     sctx.drawImage(hud, 0, 0, VW * SCALE, VH * SCALE);
@@ -1040,7 +1122,7 @@
     if (hintTimer > 0 && !dialog) {
       sctx.globalAlpha = Math.min(1, hintTimer);
       sctx.font = `${7 * u}px 'Pixelify Sans', monospace`;
-      const msg = "WASD move  Shift run  J/Click attack  Space dodge  Q/R weapon  E talk  Esc settings  C co-op";
+      const msg = TOUCH ? "Left thumb: move (push far to run)   ATK attack   ROLL dodge   USE talk / revive   WPN weapon" : "WASD move  Shift run  J/Click attack  Space dodge  Q/R weapon  E talk/revive  Esc settings  C co-op";
       const w = sctx.measureText(msg).width;
       sctx.fillStyle = "rgba(20,14,24,0.7)";
       sctx.fillRect(6 * u, (VH - 58) * u, w + 10 * u, 14 * u);
@@ -1076,17 +1158,17 @@
       updatePlayer(gdt); Combat.update(gdt, player, tryMove);
       if (scene === "level" && fade.dir !== 1) {
         if (Level.netGuest && window.Net && Net.isGuest()) { Enemies.netUpdate(gdt, time, Level.cur); Level.update(gdt, time, player, levelApi, []); }
-        else { const others = mateHere() ? [mate] : []; Enemies.update(gdt, time, player, Level.cur, levelApi, others); Level.update(gdt, time, player, levelApi, others); }
+        else { const others = matesHere(); Enemies.update(gdt, time, player, Level.cur, levelApi, others); Level.update(gdt, time, player, levelApi, others); }
         if (Level.cur.banner) { banner = { title: Level.cur.banner.title, sub: "", t0: time }; if (window.Net && Net.isHost()) Net.send({ t: "banner", title: Level.cur.banner.title }); Level.cur.banner = null; }
       }
     }
+    updateRevive(dt);
     if (player.dead && time - deathT > 1.6) {
-      if (mateHere() && !mate.dead) {                 // co-op: get back up beside your partner
-        player.dead = false; player.hp = Math.ceil(player.maxHp / 2); player.inv = 2; player.x = mate.x; player.y = mate.y + 8; if (blocked(player.x, player.y)) unstick();
-        banner = { title: "BACK ON YOUR FEET", sub: "", t0: time };
-      } else if (!(window.Net && Net.isGuest() && mateHere())) {      // fallen: wake at the start of the area
-        player.dead = false; player.hp = player.maxHp; player.inv = 1.5;
-        if (scene === "level") { const n = Level.cur.name; scene = "level"; fade.dir = 1; fade.to = n; fade.from = "dead"; if (window.Net && Net.isHost()) Net.send({ t: "scene", to: n }); }
+      const up = matesHere().filter((q) => !q.dead);
+      if (player.downed && up.length) { /* knocked down: wait for a partner to revive you */ }
+      else if (!(window.Net && Net.isGuest() && mateHere())) {      // everyone is down (or solo): wake at the start of the area
+        player.dead = false; player.downed = false; player.hp = player.maxHp; player.inv = 1.5;
+        if (scene === "level") { const n = Level.cur.name; scene = "level"; fade.dir = 1; fade.to = n; fade.from = "dead"; if (window.Net && Net.isHost()) Net.send({ t: "scene", to: n, n: Net.count() }); }
         else { player.x = World.START.x; player.y = World.START.y; }
       }
     }
@@ -1141,6 +1223,6 @@
     addEventListener("resize", resize);
     requestAnimationFrame((n) => { last = n; frame(n); });
   }
-  window.__kuleana = { player, cam, keys, mate, goTo: (s) => goTo(s), get scene() { return scene; } };
+  window.__kuleana = { player, cam, keys, mates, rev, goTo: (s) => goTo(s), get scene() { return scene; } };
   boot().catch((e) => { console.error(e); document.body.insertAdjacentHTML("beforeend", `<pre style="color:#f88;position:fixed;top:0;left:0">${e.stack || e}</pre>`); });
 })();
