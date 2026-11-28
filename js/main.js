@@ -1212,6 +1212,15 @@
       sctx.textAlign = "left";
     }
   }
+  // the title screen's backdrop: open deep sea, top down, drifting slowly
+  function renderTitleSea(t) {
+    if (!worldReady) return;
+    const fx = 6000 + t * 7, fy = 3000 + t * 3.2, ox = Math.floor(fx), oy = Math.floor(fy), sx = Math.round((fx - ox) * SCALE), sy = Math.round((fy - oy) * SCALE);
+    Water.renderDeep(actx, ox, oy, VW + 1, VH + 1, t);
+    sctx.imageSmoothingEnabled = false;
+    sctx.drawImage(layerA, -sx, -sy, (VW + 1) * SCALE, (VH + 1) * SCALE);
+  }
+  let worldReady = false;
   function render(t) {
     gctx.clearRect(0, 0, VW + 1, VH + 1);
     if (scene === "cave") renderCave(t);
@@ -1366,7 +1375,7 @@
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000 || 0);
     last = now;
-    if (window.Title && Title.open) { requestAnimationFrame(frame); return; }   // the title screen is up: the world waits
+    if (window.Title && Title.open) { renderTitleSea(now / 1000); requestAnimationFrame(frame); return; }   // the title screen is up: the world waits
     time += dt; playT += dt;
     if (time - saveT > 60) Game.save();
     if (flowT > 0) flowT -= dt;
@@ -1428,7 +1437,7 @@
     const t0 = performance.now();
     World.build(A);
     await step(0.48, "Filling the sea");
-    Water.init(A);
+    Water.init(A); worldReady = true; window.Title && Title.live && setTimeout(Title.live, 50);
     await step(0.56, "Planting the palms");
     Props.build(A);
     for (const b of World.bridges) makeBridge(b);

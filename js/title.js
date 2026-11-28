@@ -17,74 +17,23 @@
   };
   Title.store = store;
 
-  // ---------------------------------------------------------------- pixel art for the sea
-  const cv = (w, h) => { const c = document.createElement("canvas"); c.width = w; c.height = h; return [c, c.getContext("2d")]; };
-  const hash = (x, y, s) => { const v = Math.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453; return v - Math.floor(v); };
-  // one seamless strip of waves: a body colour, darker troughs and a lit crest with flecks of foam
-  function waveStrip(w, h, cols, amp, freq, seed, foam) {
-    const [c, x] = cv(w, h), img = x.createImageData(w, h), d = img.data;
-    for (let px = 0; px < w; px++) {
-      const k = (px / w) * Math.PI * 2, crest = Math.round(h * 0.35 + Math.sin(k * freq + seed) * amp + Math.sin(k * freq * 2 + seed * 3) * amp * 0.4);
-      for (let py = 0; py < h; py++) {
-        let ci = -1;
-        if (py >= crest) ci = py - crest < 1 ? 3 : py - crest < 3 ? 2 : py > h * 0.75 ? 0 : 1;
-        if (ci === 1 && hash(px, py, seed) > 0.93) ci = 2;
-        if (foam && py === crest - 1 && hash(px, 0, seed) > 0.4) ci = 4;
-        if (ci < 0) continue;
-        const col = cols[ci], i = (py * w + px) * 4; d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = 255;
-      }
-    }
-    x.putImageData(img, 0, 0); return c.toDataURL();
-  }
-  function cloud(w, h, seed) {
-    const [c, x] = cv(w, h), img = x.createImageData(w, h), d = img.data;
-    for (let py = 0; py < h; py++) for (let px = 0; px < w; px++) {
-      const dx = (px - w / 2) / (w / 2), dy = (py - h * 0.65) / (h * 0.6), v = 1 - dx * dx - dy * dy * 1.8 + (hash(px >> 2, py >> 2, seed) - 0.5) * 0.25;
-      if (v <= 0 || py > h * 0.85) continue;
-      const lit = py < h * 0.45 ? [255, 196, 150] : py < h * 0.65 ? [226, 132, 120] : [150, 84, 110], i = (py * w + px) * 4;
-      d[i] = lit[0]; d[i + 1] = lit[1]; d[i + 2] = lit[2]; d[i + 3] = 255;
-    }
-    x.putImageData(img, 0, 0); return c.toDataURL();
-  }
-  function island(w, h) {
-    const [c, x] = cv(w, h), img = x.createImageData(w, h), d = img.data;
-    for (let px = 0; px < w; px++) {
-      const u = px / w, top = h - Math.round(h * (Math.max(0, 1 - Math.abs(u - 0.38) * 3.2) * 0.9 + Math.max(0, 1 - Math.abs(u - 0.7) * 5) * 0.45) + hash(px, 1, 3) * 1.5);
-      for (let py = Math.max(0, top); py < h; py++) { const i = (py * w + px) * 4, f = py - top < 1 ? [92, 52, 78] : [52, 30, 58]; d[i] = f[0]; d[i + 1] = f[1]; d[i + 2] = f[2]; d[i + 3] = 255; }
-    }
-    // a palm on the near point
-    const palm = [[47, 0, 1, 9], [44, 0, 7, 1], [42, 1, 3, 1], [50, 1, 3, 1], [41, 2, 2, 1], [52, 2, 2, 1]];
-    for (const [a, b, ww, hh] of palm) for (let yy = 0; yy < hh; yy++) for (let xx = 0; xx < ww; xx++) { const px = Math.round(w * 0.38) - 47 + a + xx, py = Math.round(h * 0.08) + b + yy; if (px >= 0 && py >= 0 && px < w && py < h) { const i = (py * w + px) * 4; d[i] = 52; d[i + 1] = 30; d[i + 2] = 58; d[i + 3] = 255; } }
-    x.putImageData(img, 0, 0); return c.toDataURL();
-  }
-
   // ---------------------------------------------------------------- the page
   const PX = innerHeight < 560 ? 2 : innerHeight < 820 ? 3 : 4;   // one art pixel on screen (smaller on short screens)
   const st = document.createElement("style");
   st.textContent = `
-  #title{position:fixed;inset:0;z-index:20;overflow:hidden;background:#1b1030;font-family:'Josefin Sans',system-ui,sans-serif;color:#f6ead2;user-select:none;-webkit-user-select:none;transition:opacity .9s ease}
+  #title{position:fixed;inset:0;z-index:20;overflow:hidden;background:transparent;font-family:'Josefin Sans',system-ui,sans-serif;color:#f6ead2;user-select:none;-webkit-user-select:none;transition:opacity .9s ease}
   #title.gone{opacity:0;pointer-events:none}
-  #title .sky{position:absolute;inset:0 0 54% 0;background:linear-gradient(#140c2c 0%,#3a1a4a 38%,#8a3a58 66%,#e0785a 88%,#ffb56a 100%);image-rendering:pixelated}
-  #title .stars{position:absolute;inset:0 0 70% 0;background-image:radial-gradient(1px 1px at 12% 20%,#fff8 50%,transparent 51%),radial-gradient(1px 1px at 38% 12%,#fff6 50%,transparent 51%),radial-gradient(1px 1px at 67% 26%,#fff8 50%,transparent 51%),radial-gradient(1px 1px at 84% 9%,#fff5 50%,transparent 51%),radial-gradient(1px 1px at 55% 33%,#fff4 50%,transparent 51%);animation:tw 5s ease-in-out infinite alternate}
-  @keyframes tw{to{opacity:.4}}
-  #title .sun{position:absolute;left:50%;top:calc(46% - ${18 * PX}px);width:${36 * PX}px;height:${18 * PX}px;transform:translateX(-50%);overflow:hidden;image-rendering:pixelated}
-  #title .sun i{position:absolute;left:0;top:0;width:${36 * PX}px;height:${36 * PX}px;border-radius:50%;background:radial-gradient(circle,#fff2c0 0 38%,#ffd27a 39% 62%,#ff9a4a 63% 100%)}
-  #title .glow{position:absolute;left:50%;top:30%;width:70vmax;height:40vmax;transform:translateX(-50%);background:radial-gradient(ellipse at 50% 60%,#ffb06a55,transparent 60%);pointer-events:none}
-  #title .cloud{position:absolute;height:${14 * PX}px;width:${56 * PX}px;background-size:100% 100%;image-rendering:pixelated;animation:drift linear infinite;opacity:.9}
-  @keyframes drift{from{transform:translateX(-30vw)}to{transform:translateX(130vw)}}
-  #title .isle{position:absolute;bottom:54%;height:${18 * PX}px;width:${96 * PX}px;background-size:100% 100%;image-rendering:pixelated}
-  #title .sea{position:absolute;inset:46% 0 0 0;background:#1a2a5a;overflow:hidden;z-index:1}
-  #title .band{position:absolute;left:0;height:var(--h);width:calc(100% + var(--w));background-repeat:repeat-x;background-size:var(--w) var(--h);image-rendering:pixelated;animation:roll var(--t) linear infinite}
-  @keyframes roll{from{transform:translateX(0)}to{transform:translateX(calc(var(--w) * -1))}}
-  #title .band.rev{animation-direction:reverse}
-  #title .glint{position:absolute;height:${PX}px;background:#ffe6a8;animation:glint var(--t) steps(2) infinite;opacity:0}
-  @keyframes glint{0%,40%{opacity:0}50%,90%{opacity:1}100%{opacity:0}}
-  #title .vig{position:absolute;inset:0;z-index:2;background:radial-gradient(ellipse at 50% 45%,transparent 45%,#0a061488 100%);pointer-events:none}
+  /* while the world is built: deep water, slowly breathing; it fades out to reveal the live sea */
+  #title .deep{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,#0f5a78 0%,#0a3f5e 45%,#062a44 100%);transition:opacity 1.6s ease}
+  #title .deep::after{content:"";position:absolute;inset:-20%;background:repeating-linear-gradient(115deg,#ffffff00 0 38px,#ffffff0a 38px 40px,#ffffff00 40px 90px);animation:swell 9s linear infinite}
+  @keyframes swell{from{transform:translateY(0)}to{transform:translateY(90px)}}
+  #title.live .deep{opacity:0}
+  #title .vig{position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(ellipse at 50% 42%,#02101e00 30%,#02101e99 100%),linear-gradient(#02101e66,#02101e00 35%,#02101e00 60%,#02101e88)}
   #title .head{position:absolute;left:0;right:0;top:9vh;text-align:center;pointer-events:none;z-index:5}
-  #title h1{margin:0;font-family:'Marcellus SC',Georgia,serif;font-weight:400;font-size:clamp(46px,9vw,118px);letter-spacing:.16em;color:#fbecd0;text-shadow:0 2px 0 #6a2a3a,0 0 40px #ff9a5a66;padding-left:.16em}
-  #title .tag{margin-top:6px;font-size:clamp(11px,1.5vw,15px);letter-spacing:.42em;text-transform:uppercase;color:#f2cfa0;opacity:.85;padding-left:.42em}
-  #title .rule{width:min(320px,50vw);height:1px;margin:18px auto 0;background:linear-gradient(90deg,transparent,#f2cfa0aa,transparent)}
-  #title .panel{position:absolute;left:50%;bottom:7vh;transform:translateX(-50%);width:min(440px,88vw);text-align:center;z-index:6;padding:18px 22px 14px;background:linear-gradient(#0a0c2a00,#0a0c2acc 18%,#0a0c2ae6);border-radius:2px}
+  #title h1{margin:0;font-family:'Marcellus SC',Georgia,serif;font-weight:400;font-size:clamp(46px,9vw,118px);letter-spacing:.16em;color:#fbecd0;text-shadow:0 3px 0 #06243c,0 0 36px #02101ecc,0 0 2px #02101e;padding-left:.16em}
+  #title .tag{margin-top:6px;font-size:clamp(11px,1.5vw,15px);letter-spacing:.42em;text-transform:uppercase;color:#cfe9ee;opacity:.9;padding-left:.42em;text-shadow:0 1px 8px #02101e}
+  #title .rule{width:min(320px,50vw);height:1px;margin:18px auto 0;background:linear-gradient(90deg,transparent,#cfe9eeaa,transparent)}
+  #title .panel{position:absolute;left:50%;bottom:7vh;transform:translateX(-50%);width:min(440px,88vw);text-align:center;z-index:6;padding:18px 22px 14px;background:linear-gradient(#03142400,#031424b8 18%,#031424d9);border-radius:2px}
   #title .load{font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:#f2cfa0}
   #title .bar{margin:12px auto 0;width:min(300px,70vw);height:2px;background:#ffffff22;overflow:hidden}
   #title .bar i{display:block;height:100%;width:0;background:#ffd27a;transition:width .35s ease}
@@ -98,8 +47,8 @@
   #title .slots{display:none;flex-direction:column;gap:10px;width:100%}
   #title.slotsOpen .slots{display:flex} #title.slotsOpen .menu{display:none}
   #title .slotsHead{font-size:12px;letter-spacing:.34em;text-transform:uppercase;color:#f2cfa0;margin-bottom:2px}
-  #title .slot{display:flex;align-items:center;gap:14px;text-align:left;background:#120a1ccc;border:1px solid #f2cfa033;color:#f6ead2;padding:12px 16px;cursor:pointer;font:inherit;transition:border-color .15s,background .15s}
-  #title .slot.on{border-color:#ffd27a;background:#24142ee6}
+  #title .slot{display:flex;align-items:center;gap:14px;text-align:left;background:#04182acc;border:1px solid #f2cfa033;color:#f6ead2;padding:12px 16px;cursor:pointer;font:inherit;transition:border-color .15s,background .15s}
+  #title .slot.on{border-color:#ffd27a;background:#0a2a40e6}
   #title .slot .n{font-family:'Marcellus SC',Georgia,serif;font-size:26px;color:#ffd27a;width:22px;text-align:center}
   #title .slot .t{flex:1} #title .slot .a{font-size:15px;letter-spacing:.08em} #title .slot .b{font-size:12px;opacity:.65;margin-top:3px;letter-spacing:.04em}
   #title .slot .x{background:none;border:1px solid #f2cfa044;color:#f2cfa0;font:11px 'Josefin Sans',sans-serif;letter-spacing:.15em;padding:5px 8px;cursor:pointer;text-transform:uppercase}
@@ -115,44 +64,15 @@
   document.head.appendChild(st);
 
   const el = document.createElement("div"); el.id = "title";
-  el.innerHTML = `<div class="sky"></div><div class="stars"></div><div class="glow"></div><div class="sun"><i></i></div><div class="isle"></div><div class="sea"></div><div class="vig"></div>
+  el.innerHTML = `<div class="deep"></div><div class="vig"></div>
     <div class="head"><h1>Kuleana</h1><div class="tag">Tales of the Sunward Shore</div><div class="rule"></div></div>
     <div class="panel">
       <div class="loading"><div class="load">Charting the reef</div><div class="bar"><i></i></div></div>
       <div class="menu"></div>
       <div class="slots"><div class="slotsHead">Choose a voyage</div><div class="list"></div><div class="confirm"></div><button class="item back" data-a="back">Back</button></div>
       <div class="hint"></div>
-    </div><div class="foot">v0.4 &middot; Zone 1</div>`;
+    </div><div class="foot">v0.5 &middot; Zone 1</div>`;
   document.body.appendChild(el);
-
-  // the sea: far bands are small, dark and slow; near bands are big, bright and quick
-  const sea = el.querySelector(".sea");
-  const BANDS = [
-    { top: 0, h: 6, w: 48, cols: [[26, 32, 82], [36, 46, 106], [92, 82, 140], [190, 120, 120]], amp: 1, f: 3, t: 26, rev: 0 },
-    { top: 5, h: 8, w: 64, cols: [[24, 40, 96], [32, 58, 122], [86, 104, 160], [224, 150, 120]], amp: 1.5, f: 3, t: 19, rev: 1 },
-    { top: 12, h: 11, w: 80, cols: [[20, 48, 110], [28, 70, 140], [70, 126, 180], [246, 186, 130], [255, 240, 210]], amp: 2, f: 2, t: 14, rev: 0, foam: 1 },
-    { top: 21, h: 14, w: 104, cols: [[16, 56, 120], [24, 84, 154], [60, 140, 190], [240, 206, 160], [255, 246, 226]], amp: 2.5, f: 2, t: 10, rev: 1, foam: 1 },
-    { top: 33, h: 18, w: 128, cols: [[12, 62, 126], [20, 98, 166], [56, 156, 200], [236, 222, 190], [255, 250, 236]], amp: 3, f: 2, t: 7.5, rev: 0, foam: 1 },
-    { top: 49, h: 30, w: 160, cols: [[10, 66, 128], [16, 110, 176], [52, 170, 210], [230, 236, 220], [255, 255, 245]], amp: 4, f: 2, t: 5.5, rev: 1, foam: 1 },
-  ];
-  BANDS.forEach((b, i) => {
-    const d = document.createElement("div"); d.className = "band" + (b.rev ? " rev" : "");
-    d.style.cssText = `top:${b.top * PX}px;--h:${b.h * PX}px;--w:${b.w * PX}px;--t:${b.t}s;background-image:url(${waveStrip(b.w, b.h, b.cols, b.amp, b.f, i * 1.7 + 1, b.foam)});z-index:${i}`;
-    sea.appendChild(d);
-  });
-  const deep = document.createElement("div"); deep.style.cssText = `position:absolute;left:0;right:0;top:${78 * PX}px;bottom:0;background:linear-gradient(#0a4280,#082a58)`; sea.appendChild(deep);
-  // the sun's glitter path: short streaks that wink on and off
-  for (let k = 0; k < 46; k++) {
-    const g = document.createElement("i"), y = Math.pow(Math.random(), 1.3) * 70, spread = 6 + y * 1.4, w = (2 + Math.random() * (2 + y * 0.12)) | 0;
-    g.className = "glint"; g.style.cssText = `top:${Math.round(y) * PX}px;left:calc(50% + ${Math.round((Math.random() - 0.5) * spread) * PX}px);width:${w * PX}px;--t:${(1.2 + Math.random() * 2).toFixed(2)}s;animation-delay:${(-Math.random() * 3).toFixed(2)}s;z-index:9`;
-    sea.appendChild(g);
-  }
-  for (let k = 0; k < 4; k++) {
-    const c = document.createElement("div"); c.className = "cloud";
-    c.style.cssText = `top:${6 + k * 8 + Math.random() * 6}%;background-image:url(${cloud(56, 14, k + 1)});animation-duration:${80 + k * 30}s;animation-delay:${-k * 35}s;transform:scale(${1 - k * 0.12})`;
-    el.insertBefore(c, el.querySelector(".sun"));
-  }
-  const isle = el.querySelector(".isle"); isle.style.backgroundImage = `url(${island(96, 18)})`; isle.style.left = "12%";
 
   // ---------------------------------------------------------------- loading
   const LINES = ["Charting the reef", "Raising the island", "Planting the palms", "Waking the sea cave", "Lighting the sun gate", "Calling the tribe"];
@@ -229,6 +149,7 @@
   // joining a friend's game from the title: start straight into their world (an unsaved guest session)
   Title.quickStart = () => { if (Title.open && Title.isReady) start(0, null); };
   Title.show = () => { Title.open = true; el.style.display = "block"; requestAnimationFrame(() => el.classList.remove("gone")); mode = "menu"; el.classList.remove("slotsOpen"); buildMenu(); };
+  Title.live = () => el.classList.add("live");
   Title.ready = () => { Title.isReady = true; Title.progress(1, "Ready"); setTimeout(() => { el.classList.add("ready"); buildMenu(); }, 250); };
 
   addEventListener("keydown", (e) => {

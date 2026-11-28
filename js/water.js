@@ -58,6 +58,53 @@
     return rushing ? Math.sin((ph / 0.33) * Math.PI * 0.5) : Math.cos(((ph - 0.33) / 0.67) * Math.PI * 0.5);
   }
 
+  // Open ocean far from any shore (the title screen): the same water texture and shimmer as the
+  // island's sea, in its deep tones, with slow trenches and shoals, long swells that sometimes break
+  // into whitecaps, sparkles, and the shadows of sea life passing underneath.
+  let patch = null, pw = 0, ph2 = 0;
+  Water.renderDeep = function (dst, camX, camY, vw, vh, t) {
+    ensure(vw, vh);
+    const deep = RAMPS.deep, mid = RAMPS.mid, G = 4, gw = Math.ceil(vw / G) + 2, gh = Math.ceil(vh / G) + 2;
+    if (!patch || pw !== gw || ph2 !== gh) { patch = new Float32Array(gw * gh); pw = gw; ph2 = gh; }
+    const ox = Math.floor(camX / G), oy = Math.floor(camY / G);
+    for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) patch[gy * gw + gx] = K.fbm((ox + gx) * G / 260 + t * 0.012, (oy + gy) * G / 260, 3);
+    const aX = t * 1.3, aY = t * 0.55, bX = -t * 0.9 + 13, bY = t * 0.75 + 7, sparkFrame = Math.floor(t * 2);
+    for (let y = 0; y < vh; y++) {
+      const wy = camY + y, row = y * vw, gy = ((wy >> 2) - oy) * gw;
+      for (let x = 0; x < vw; x++) {
+        const wx = camX + x;
+        const la = level[(((wx + aX) | 0) & TM) + ((((wy + aY) | 0) & TM) * TS)];
+        const lb = level[(TM - (((wx + bX) | 0) & TM)) + ((((wy + bY) | 0) & TM) * TS)];
+        const lv = la > lb ? la : lb, dith = BAYER[(wx & 3) | ((wy & 3) << 2)];
+        const pv = patch[gy + (wx >> 2) - ox] + dith * 0.08;
+        let c = pv > 0.64 ? mid[lv] : pv < 0.36 ? deep[lv > 0 ? lv - 1 : 0] : deep[lv];
+        // long swells rolling across, now and then cresting white
+        const ph = (wx * 0.55 + wy) * 0.016 - t * 0.32 + K.noise(wx * 0.008, wy * 0.008) * 0.9;
+        const f = ph - Math.floor(ph);
+        if (f < 0.07) {
+          const brk = K.noise(wx * 0.025 + t * 0.04, wy * 0.025);
+          if (brk > 0.71) c = f < 0.03 ? CREST : RAMPS.vshallow[2];
+          else if (brk > 0.5) c = mid[lv < 3 ? lv + 1 : 3];
+        }
+        if (lv >= 2 && K.hash2(wx >> 1, wy >> 1, sparkFrame) > 0.9975) c = SPARK;
+        out[row + x] = c;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    dst.drawImage(canvas, 0, 0);
+    // shadows under the surface: a school of fish wheeling, and a whale shark gliding by
+    dst.fillStyle = "rgba(4,22,44,0.42)";
+    for (let k = 0; k < 2; k++) {
+      const cx = ((k * 300 + t * 14) % (vw + 200)) - 100, cy = vh * (0.3 + k * 0.4) + Math.sin(t * 0.4 + k) * 20;
+      for (let f2 = 0; f2 < 14; f2++) { const a = t * 0.9 + f2 * 0.45 + k, r = 10 + (f2 % 5) * 4; dst.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.6), 3, 1); }
+    }
+    const sx = ((t * 9) % (vw + 260)) - 130, sy = vh * 0.62 + Math.sin(t * 0.13) * 30;
+    dst.fillStyle = "rgba(4,20,40,0.3)";
+    for (let i = 0; i < 46; i++) { const u = i / 46, w = Math.sin(Math.min(1, u * 1.3) * Math.PI) * 7 + 1, sw = Math.sin(t * 1.4 - u * 4) * u * 4; dst.fillRect(Math.round(sx - i * 1.6), Math.round(sy + sw - w / 2), 2, Math.round(w)); }
+    for (const sg of [-1, 1]) dst.fillRect(Math.round(sx - 14), Math.round(sy + sg * 9), 6, 2);
+    dst.fillRect(Math.round(sx - 74 + Math.sin(t * 1.4) * 2), Math.round(sy - 6 + Math.sin(t * 1.4 - 4) * 4), 3, 12);
+  };
+
   Water.render = function (dst, camX, camY, vw, vh, t) {
     ensure(vw, vh);
     const W = World.W, H = World.H, terr = World.terr, wd = World.waterDist, ld = World.landDist, ocean = World.oceanMask, nearO = World.nearOcean;
