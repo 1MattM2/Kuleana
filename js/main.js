@@ -1414,10 +1414,11 @@
     // the battle pack, top right: the heal (H) and the talisman (T) you're carrying; in a level each is
     // spent once (the slot empties); outside a level they show what's packed for the next fight
     if (!Gear.battle) Gear.packTidy(true);
-    const pk2 = Gear.pack(), heal = pk2.find((q) => Gear.isHeal(q)), tal = pk2.find((q) => !Gear.isHeal(q)), y = 6;
+    const pk2 = Gear.pack(), heal = pk2.find((q) => Gear.isHeal(q)), tal = pk2.find((q) => !Gear.isHeal(q)), y = TOUCH ? 36 : 6;
     itemsHud = { battle: true, slots: [] };
     [[heal, TOUCH ? "HEAL" : "H", "#ff8a8a"], [tal, TOUCH ? "SUPER" : "T", "#ffd27a"]].forEach(([id, key, col], i) => {
-      const x = VW - 60 + i * 28, ready = !!id, pulse = ready && i === 0 && Gear.battle && player.hp <= player.maxHp / 3 ? 0.5 + 0.5 * Math.sin(time * 8) : 0;
+      // (on touch screens the top right holds the INV / CO-OP / MENU buttons: the slots sit under the hearts instead)
+      const x = TOUCH ? 6 + i * 28 : VW - 60 + i * 28, ready = !!id, pulse = ready && i === 0 && Gear.battle && player.hp <= player.maxHp / 3 ? 0.5 + 0.5 * Math.sin(time * 8) : 0;
       ctx.fillStyle = "#140c16"; ctx.fillRect(x - 1, y - 1, 26, 26); ctx.fillStyle = ready ? (pulse > 0.5 ? "#ff8a8a" : "#5a3a4a") : "#241a26"; ctx.fillRect(x, y, 24, 24); ctx.fillStyle = "#1e1420"; ctx.fillRect(x + 1, y + 1, 22, 22);
       if (ready) ctx.drawImage(ItemArt.item(id, 16), x + 4, y + 3);
       else { ctx.globalAlpha = 0.35; ctx.fillStyle = "#8a7a8a"; ctx.fillRect(x + 6, y + 11, 12, 2); ctx.globalAlpha = 1; }
