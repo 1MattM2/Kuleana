@@ -217,7 +217,6 @@
       case "heal": player.hp = Math.min(player.maxHp, player.hp + m.n); break;
       case "shard": gotShard(m.el); break;
       case "shell": gotShell(m.k); break;
-      case "gold": gotGold(m.n); break;
       case "blast": if (Net.isHost()) { const q = mates.get(m.id !== undefined ? m.id : from); if (q) Combat.blast(q, m.x, m.y, m.r, m.o, true); } break;
       case "tp": player.x = m.x; player.y = m.y; if (blocked(player.x, player.y)) unstick(); break;
       case "banner": banner = { title: m.title, sub: m.sub || "", t0: time }; break;
@@ -283,7 +282,6 @@
   const levelApi = {
     hurt: hurtPlayer,
     sfx: (k) => { Ambience.sfx && Ambience.sfx(k); if (window.Net && Net.isHost()) sfxQ.push(k); },
-    gold: (n, q) => { if (q && q.isRemote) { Net.sendTo(q.slot, { t: "gold", n }); return; } gotGold(n); },
     shell: (k, q) => { if (q && q.isRemote) { Net.sendTo(q.slot, { t: "shell", k }); return; } gotShell(k); },
     shard: (el, q) => { if (q && q.isRemote) { Net.sendTo(q.slot, { t: "shard", el }); return; } gotShard(el); },
     heal: (n, q) => { if (q && q.isRemote) { Net.sendTo(q.slot, { t: "heal", n }); return; } player.hp = Math.min(player.maxHp, player.hp + n); healT = time; },
@@ -315,7 +313,17 @@
     beach.length = 0; for (const b of S.beach || []) beach.push({ x: b.x, y: b.y, k: b.k });
   }
   // a level counts as an expedition once at least half its arenas are cleared
-  Level.onProgress = (L) => { const n = L.arenas.length, done = L.arenas.filter((a) => a.state === "done").length; if (n && done >= Math.ceil(n / 2)) Gear.state().beachDue = true; };
+  Level.onProgress = (L) => {
+    const n = L.arenas.length, done = L.arenas.filter((a) => a.state === "done").length;
+    if (n && done >= Math.ceil(n / 2)) Gear.state().beachDue = true;
+    // the land is won: a handful of shells (more and rarer in harder lands; repeat clears pay about half)
+    if (n && done === n && !L.paid && !playtest) {
+      L.paid = true; const r = Gear.payout(L.name); if (!r) return;
+      const parts = [`${r.nc} common`].concat(r.nu ? [`${r.nu} uncommon`] : []).concat(r.rare ? ["a rare one!"] : []);
+      setTimeout(() => { banner = { title: "SHELLS", sub: parts.join(", ") + (r.first ? "" : "  (a repeat clear)"), t0: time }; Ambience.sfx && Ambience.sfx("pickup"); }, 5500);
+      Game.save();
+    }
+  };
   const blockedIsland = (x, y) => { for (const b of Props.colliders) if (x > b[0] - 6 && x < b[2] + 6 && y > b[1] - 6 && y < b[3] + 6) return true; return false; };
   function useHeal() {
     if (player.hp >= player.maxHp) return;
@@ -333,7 +341,6 @@
     banner = { title: Tm.name.toUpperCase(), sub: Combat.weapons[wi].ult.name, t0: time };
     Combat.flash = 0.6; Combat.flashCol = E.glow; Combat.shake = 1;
   }
-  function gotGold(n) { Gear.addGold(n); Combat.nums.push({ x: player.x, y: player.y - 40, v: "+" + n + " gold", crit: n >= 20, t0: Combat.clock, col: "#ffd84a" }); Ambience.sfx && Ambience.sfx("clack"); }
   function gotShell(k) {
     Gear.addShell(k); const sh = Gear.SHELLS[k];
     Combat.nums.push({ x: player.x, y: player.y - 44, v: "+" + sh.name, crit: sh.tier === 2, t0: Combat.clock, col: ["#f4e6c8", "#9ae0ff", "#ffd27a"][sh.tier] });
@@ -382,7 +389,7 @@
   }
   // ------------------------------------------------------------------ playtesting
   // Kilo the Wayfinder, at the island's top-left: pick any level and go with every weapon, every suit and
-  // cloth, full heals and every talisman, shards, shells and gold. It's a sandbox: your real gear and
+  // cloth, full heals and every talisman, shards and shells. It's a sandbox: your real gear and
   // progress are set aside, nothing is saved while you test, and it all comes back when you land home.
   const tester = { x: 12.5 * 32, y: 8.6 * 32, name: "Kilo the Wayfinder", lines: ["Aloha! I'm Kilo. I can send you anywhere the sun has touched.", "You'll go with everything: every weapon, every cloth, every talisman. Just to try things out.", "Nothing you do there will be kept, and your own gear will be waiting when you come home."], kind: "npc", tester: true, phase: 1.3, box: [12.5 * 32 - 7, 8.6 * 32 - 5, 12.5 * 32 + 7, 8.6 * 32 + 1] };
   const testUI = { open: false, sel: 0, hit: [] };
@@ -398,7 +405,6 @@
     S.pack = ["salve", "t_star"];
     for (const k of Gear.ORDER) S.shards[k] = 9;
     for (const k of Object.keys(Gear.SHELLS)) S.shells[k] = 30;
-    S.gold = 999;
     for (const n of TEST_LEVELS) Level.unlocked.add(n);
     Level.portalUnlocked = true;
     Gear.changed(); player.hp = player.maxHp;
@@ -443,7 +449,7 @@
     sctx.textAlign = "left";
   }
   // ------------------------------------------------------------------ the inventory (I)
-  // What you carry: weapons in hand and all you own, the armour you wear, your purse (gold and every
+  // What you carry: weapons in hand and all you own, the armour you wear, your purse (every kind of
   // shell), your shards, and your items with the two packed for battle.
   const invUI = { open: false };
   function drawInventory(t) {
@@ -469,9 +475,9 @@
     else T2("Island clothes", lx + 2, y + 1, 7, "#a89880");
     const st = Gear.stats(); T2(`${player.maxHp / 2} hearts${st.block ? `  ·  ${Math.round(st.block * 100)}% block` : ""}${st.speed !== 1 ? `  ·  +${Math.round((st.speed - 1) * 100)}% speed` : ""}${st.el ? `  ·  ${Gear.ELEMENTS[st.el].name} weapons +${Math.round((st.elMul - 1) * 100)}%` : ""}`, lx + 20, y + 11, 5, "#c8b890");
     if (A2) T2(A2.desc, lx, y + 22, 5, "#a89880");
-    // the purse: gold and every shell
+    // the purse: every shell you have
     y = py0 + 22; T2("PURSE", rx, y, 6, "#a89880"); y += 10;
-    R("#140c16", rx, y, 9, 9); R("#e8b830", rx + 1, y + 1, 7, 7); R("#fff0a0", rx + 2, y + 2, 3, 3); T2(`${Gear.gold()} gold`, rx + 13, y + 1, 7, "#ffe08a");
+    T2(`${Gear.shellTotal()} shells`, rx, y + 1, 7, "#ffe08a");
     y += 14;
     Object.entries(Gear.SHELLS).forEach(([k, sh], i) => { const x = rx + (i % 2) * (colW / 2), yy = y + Math.floor(i / 2) * 15; sctx.drawImage(Gear.shellArt(k), x * u, yy * u, 13 * u, 13 * u); T2(`${Gear.state().shells[k]}  ${sh.name}`, x + 15, yy + 3, 5, ["#f4e6c8", "#9ae0ff", "#ffd27a"][sh.tier]); });
     y += 64;
@@ -768,11 +774,6 @@
     if (d.type !== "runner" && Math.random() < (d.boss ? 1 : 0.3)) Level.dropBerry(x, y, time);
     // creatures of an element sometimes leave a shard of it
     const el = Gear.ELEMENT_OF[d.type]; if (el && Math.random() < Gear.dropChance()) Level.dropShard(x + 8, y, el, time);
-    // shells: now and then a common one; great beasts carry rare ones
-    if (d.boss) { const drops = [[2, 1], [1, 2], [0, 3]]; let k = 0; for (const [tier, n] of drops) for (let i = 0; i < n; i++, k++) Level.dropShell(x + Math.cos(k * 1.3) * 20, y + Math.sin(k * 1.3) * 12, Gear.randomShell(tier), time); }
-    else if (d.type !== "runner" && d.type !== "rayling") { const r = Math.random(); if (r < 0.012) Level.dropShell(x - 8, y, Gear.randomShell(1), time); else if (r < 0.06) Level.dropShell(x - 8, y, Gear.randomShell(0), time); }
-    // coins: a few from most creatures, a hoard from the great ones
-    if (d.type !== "runner" && d.type !== "rayling" && (d.boss || Math.random() < 0.4)) Level.dropGold(x + 4, y + 4, d.boss ? 25 + ((Math.random() * 10) | 0) : 1 + ((Math.random() * 3) | 0), time);
     Gear.noteKill(d.type);
   };
   Combat.onHeal = (n) => { player.hp = Math.min(player.maxHp, player.hp + n); healT = time; };
@@ -1259,11 +1260,10 @@
     itemsHud = { x, y, nt, ns, pk };
   }
   let itemsHud = null;
-  // gold and shells, under the hearts
+  // your shells, under the hearts
   function drawPurse(ctx) {
     const y = scene === "level" || Combat.momentum > 0 ? 22 : 16, x = 6;
-    ctx.fillStyle = "#140c16"; ctx.fillRect(x, y, 7, 7); ctx.fillStyle = "#e8b830"; ctx.fillRect(x + 1, y + 1, 5, 5); ctx.fillStyle = "#fff0a0"; ctx.fillRect(x + 2, y + 2, 2, 2); ctx.fillStyle = "#a87818"; ctx.fillRect(x + 4, y + 4, 2, 2);
-    ctx.drawImage(Gear.shellArt("clam"), x + 40, y - 3);
+    ctx.drawImage(Gear.shellArt("clam"), x - 2, y - 3);
     purseHud = { x, y };
   }
   let purseHud = null;
@@ -1486,7 +1486,7 @@
   const hexRGB = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   function drawCombatTexts(u) {
     if (dialog) return;
-    if (purseHud && !globe.open && !loadoutUI.open) { sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.textAlign = "left"; sctx.fillStyle = "#ffe08a"; sctx.fillText(String(Gear.gold()), (purseHud.x + 10) * u, (purseHud.y) * u); sctx.fillStyle = "#f4e6c8"; sctx.fillText(String(Gear.shellTotal()), (purseHud.x + 55) * u, (purseHud.y) * u); }
+    if (purseHud && !globe.open && !loadoutUI.open) { sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.textAlign = "left"; sctx.fillStyle = "#f4e6c8"; sctx.fillText(String(Gear.shellTotal()), (purseHud.x + 13) * u, (purseHud.y) * u); }
     if (itemsHud && !globe.open && !loadoutUI.open) {
       const I = itemsHud; sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.textAlign = "right"; sctx.fillStyle = "#fff6dc";
       if (I.pk) sctx.fillText(String(Gear.count(I.pk)), (VW - 9) * u, (I.y + 10) * u);

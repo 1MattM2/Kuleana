@@ -8,5 +8,5 @@ shards, armour and cloth, the forge, shells, gold and the shop, battle prep, the
   armour suits 3-6 (Koa Bark Mail, Niho Mano Coat, ʻAhu ʻUla, Obsidian Guard) on each second land; a rescue on
   each third land.
 - Creatures for the elements not yet represented (glowing water, blood, celestial, stone), so their shards drop.
-- Building the village with gold: plots are already staked on the island (Gear.PLOTS).
+- Building the village with shells: plots are already staked on the island (Gear.PLOTS).
 - The Ember Heel: currently only in the dojo; give it a home (a later fire land).

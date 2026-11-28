@@ -130,27 +130,29 @@ with the weapon to fill its Surge diamonds; the next combo finisher becomes the 
   at Kamaka's forge.
 - **Armour:** one worn at a time. Six battle suits (one from each zone's second land), nine elemental cloth sets
   (from shards). Each changes your stats and the colour of your vest.
-- **Shells and gold:** shells are the currency (common: clam, lance auger, Hawaiian limpet; uncommon: leopard
-  cone, Nicobar triton, episcopal miter; rare: horned helmet, triton's trumpet). They drop now and then; bosses
-  carry rare ones; they wash up on beaches. The island's beach brings a new lot only after an expedition (at
-  least halfway through a level): bare 35% of the time, otherwise 1-5 shells (70% common, 25% uncommon, 5% rare).
-  Gold drops from creatures and is saved for building the village.
+- **Shells (the currency):** common (clam, lance auger, Hawaiian limpet), uncommon (leopard cone, Nicobar triton,
+  episcopal miter), rare (horned helmet, triton's trumpet). Creatures don't drop them: you earn a handful by
+  finishing a level, more and rarer the harder the land (Zone 1 level 1: 3 common ... Zone 2 level 3: 7 common,
+  3 uncommon and a rare). Repeat clears pay about half. A few wash up on beaches: the island's beach brings a new
+  lot only after an expedition (at least halfway through a level): bare 35% of the time, otherwise 1-5 shells
+  (70% common, 25% uncommon, 5% rare); each Archipelago land has 3 to find.
 - **The village:** each zone's third land rescues someone. Zone 1: Makani the trader reopens his stall. Zone 2:
   Kamaka the smith raises his forge. More plots wait for later buildings.
 - **Makani's trades:** heals and the bestiary always; two shards and two talismans that change each time you come
-  home. A common shell is worth about 1, an uncommon about 6, a rare about 25.
+  home. A common shell is worth about 1, an uncommon about 4, a rare about 15: a tonic is 2 commons, a shard or
+  talisman one or two levels' earnings, the bestiary 3 Nicobar tritons and a triton's trumpet.
 - **Battle prep:** before Kahu Lā sends you, choose up to five weapons, the armour to wear, and two items to
   pack (each heal or talisman takes a slot). In battle, only packed items can be used: H heals, T unleashes a
   talisman (its element's special, grander), Y picks which.
-- **Inventory (I):** weapons in hand and owned, armour, gold, shells, shards and items. The HUD shows your gold
-  and total shells under your hearts. Settings has Gear and Bestiary tabs.
+- **Inventory (I):** weapons in hand and owned, armour, shells, shards and items. The HUD shows your shells
+  under your hearts. Settings has Gear and Bestiary tabs.
 
 ## Playtesting
 - **Kilo the Wayfinder** stands on the beach at the island's top-left (sky-blue cloak, a marker over his head).
   Talk to him and pick any of the six levels. You go with a full kit:
   - every weapon, all battle suits and cloth sets (Obsidian Guard worn)
   - 5 tonics, 3 salves, 3 of every talisman
-  - 9 of every shard, 30 of every shell, 999 gold
+  - 9 of every shard, 30 of every shell
   The prepare screen opens so you can choose your five weapons, armour and two packed items.
 - It's a sandbox: your real gear and progress are put aside, nothing is saved during the trip, and your own kit
   comes back as soon as you land on the island again.
