@@ -34,10 +34,10 @@
     // a slightly larger audio buffer than the default: a stall on the main thread (building an area, a
     // busy fight) no longer starves the sound card, which is what made the sound cut in and out
     const touch = window.TouchPad && TouchPad.enabled;
-    try { ac = new AC({ latencyHint: touch ? "playback" : 0.05 }); } catch (e) { ac = new AC(); }
+    try { ac = new AC({ latencyHint: touch ? "playback" : 0.08 }); } catch (e) { ac = new AC(); }
     Amb.started = true;
     master = gain(0);
-    const lim = ac.createDynamicsCompressor(); lim.threshold.value = -4; lim.knee.value = 2; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.12;
+    const lim = ac.createDynamicsCompressor(); lim.threshold.value = -1; lim.knee.value = 0; lim.ratio.value = 12; lim.attack.value = 0.001; lim.release.value = 0.3;
     master.connect(lim); lim.connect(ac.destination);
     set(master.gain, Amb.muted ? 0 : 0.7 * Amb.volume, 0.08);
     // small outdoor "space" for the birds
@@ -148,7 +148,7 @@
     if (sfxBus) return sfxBus;
     comp = ac.createDynamicsCompressor();
     comp.threshold.value = -16; comp.knee.value = 8; comp.ratio.value = 5; comp.attack.value = 0.003; comp.release.value = 0.18;
-    const makeup = ac.createGain(); makeup.gain.value = 1.3;
+    const makeup = ac.createGain(); makeup.gain.value = 1.1;
     sfxBus = ac.createGain(); sfxBus.connect(comp); comp.connect(makeup); makeup.connect(master);
     const ir = (secs, decay) => { const b = ac.createBuffer(2, ac.sampleRate * secs, ac.sampleRate); for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); let lp = 0; for (let i = 0; i < d.length; i++) { lp = lp * 0.6 + (Math.random() * 2 - 1) * 0.4; d[i] = lp * Math.pow(1 - i / d.length, decay); } } return b; };
     const rv = ac.createConvolver(); rv.buffer = ir(1.8, 3);
@@ -379,10 +379,10 @@
   const lastKind = {}, voices = [];
   const allow = (kind) => {
     const now = ac.currentTime;
-    if (lastKind[kind] !== undefined && now - lastKind[kind] < 0.04) return false;
+    if (lastKind[kind] !== undefined && now - lastKind[kind] < 0.03) return false;
     while (voices.length && voices[0] < now) voices.shift();
-    if (voices.length > 26) return false;
-    lastKind[kind] = now; voices.push(now + 0.5); voices.sort((a, b) => a - b);
+    if (voices.length > 64) return false;
+    lastKind[kind] = now; voices.push(now + 0.3); voices.sort((a, b) => a - b);
     return true;
   };
   Amb.sfx = function (kind) {
@@ -453,6 +453,11 @@
       case "sealDown":  grind(t, 0.6, 0.7); noiseLayer(pinkB, "bandpass", t + 0.2, 1.0, 2400, 300, 0.9, 0.05, 0.6, 0, true); thoom(t, 0.4); break;
       case "warcry":    shout(t, 0.75, 118, 0.3, -0.4); shout(t + 0.04, 0.72, 134, 0.26, 0.4); shout(t + 0.08, 0.7, 152, 0.2, 0); pahu(t, 0.9); pahu(t + 0.28, 0.8); break;
       case "stampede":  for (let k = 0; k < 14; k++) { impact(t + k * 0.05 + Math.random() * 0.03, 0.35); } noiseLayer(brownB, "lowpass", t, 0.9, 260, 90, 0.7, 0.1, 0.9); break;   // a herd thundering in
+      case "geyser":    noiseLayer(brownB, "lowpass", t, 1.3, 300, 900, 0.8, 0.05, 1.0); noiseLayer(white, "bandpass", t + 0.05, 1.2, 1800, 3200, 0.8, 0.1, 0.5); bubbles(t, 0.9, 30, 200, 600, 0.3); break;
+      case "zap":       arc(t, 0.3, 0.9, 1400, 3000); zapChirp(t, 0.16, 2400, 120, 0.25); break;
+      case "screech":   oscLayer("sawtooth", t, 1400, 2200, 0.35, 0.02, 0.06); noiseLayer(white, "bandpass", t, 0.4, 3000, 4500, 3, 0.02, 0.35); break;
+      case "splash":    splash(t, 0.9); bubbles(t + 0.05, 0.3, 12, 300, 900, 0.3); break;
+      case "clack":     knock(t, 0.7); noiseLayer(white, "bandpass", t, 0.04, 3500, 3500, 4, 0.001, 0.5); break;
       case "land":      impact(t, 0.6); noiseLayer(brownB, "lowpass", t, 0.3, 600, 150, 0.7, 0.005, 0.7); break;
       // ---- creatures
       case "mat_wood":  knock(t, 0.9); crackle(t, 0.12, 4, 0.5); break;                          // a blade biting carved koa
@@ -561,6 +566,7 @@
     }
     set(droneG.gain, 0, 0.8); set(lapG.gain, 0, 0.8);
     if (Amb.scene === "highlands") { oceanProx = 0; riverProx = 0; nearTrees = 0.6; proxT = t + 1e9; }
+    else if (Amb.scene === "sea") { oceanProx = 0.85; riverProx = 0; nearTrees = 0.35; proxT = t + 1e9; }
     else if (proxT > t + 1e8) proxT = 0;
     const s = K.windStrength(t, px, py);
     const hi = Amb.scene === "highlands";     // up high the wind is stronger, lower and more hollow

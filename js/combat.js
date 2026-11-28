@@ -141,10 +141,10 @@
       { dur: 0.58, lunge: 18, start: (s) => { jaw(s, 34); hitCircle(s, 0.26, { fwd: 34, r: 22, dmg: 28, stop: 0.12, shake: 0.6 }); sfx("bite", 0.24); } },
     ] },
     { id: "pahoa", name: "Pāhoa", cls: "Hawaiian · Dagger", col: "#e8b878", unlock: "Leilani's stall", moves: [
-      { dur: 0.16, lunge: 8, start: (s) => { thrust(s, 26, P.koa); hitLine(s, 0.04, { len: 30, w: 10, dmg: 5 }); sfx("slash"); } },
-      { dur: 0.16, lunge: 8, start: (s) => { arc(s, { span: 1.7, r: 16, W: 5, pal: P.koa, dir: 1, dur: 0.18, style: "thin" }); hitArc(s, 0.04, { range: 30, span: 2, dmg: 5 }); sfx("slash"); } },
-      { dur: 0.16, lunge: 8, start: (s) => { thrust(s, 28, P.koa); hitLine(s, 0.04, { len: 32, w: 10, dmg: 6 }); sfx("slash"); } },
-      { dur: 0.5, lunge: 30, dash: true, start: (s) => { arc(s, { span: 3.4, r: 20, W: 7, pal: P.koa, dir: -1, dur: 0.3, style: "jag" }); iai(s, 50, P.koa); hitLine(s, 0.14, { len: 52, w: 14, dmg: 16, stop: 0.08, shake: 0.45 }); sfx("slash", 0.12); } },
+      { dur: 0.16, lunge: 8, start: (s) => { thrust(s, 26, P.koa); hitLine(s, 0.04, { len: 30, w: 10, dmg: 6 }); sfx("slash"); } },
+      { dur: 0.16, lunge: 8, start: (s) => { arc(s, { span: 1.7, r: 16, W: 5, pal: P.koa, dir: 1, dur: 0.18, style: "thin" }); hitArc(s, 0.04, { range: 30, span: 2, dmg: 6 }); sfx("slash"); } },
+      { dur: 0.16, lunge: 8, start: (s) => { thrust(s, 28, P.koa); hitLine(s, 0.04, { len: 32, w: 10, dmg: 7 }); sfx("slash"); } },
+      { dur: 0.5, lunge: 30, dash: true, start: (s) => { arc(s, { span: 3.4, r: 20, W: 7, pal: P.koa, dir: -1, dur: 0.3, style: "jag" }); iai(s, 50, P.koa); hitLine(s, 0.14, { len: 52, w: 14, dmg: 19, stop: 0.08, shake: 0.45 }); sfx("slash", 0.12); } },
     ] },
     { id: "newa", name: "Newa", cls: "Hawaiian · War club", col: "#c8883a", unlock: "Village chief's longhouse", moves: [
       { dur: 0.4, lunge: 6, start: (s) => { arc(s, { span: 2.2, r: 20, W: 11, pal: P.koa, dir: 1, dur: 0.36 }); hitArc(s, 0.12, { range: 38, span: 2.4, dmg: 14, stop: 0.07, shake: 0.35 }); sfx("heavy"); } },
@@ -228,9 +228,9 @@
   function at(t) { return C.clock + t; }
   function sfx(kind, delay) { if (!window.Ambience || !Ambience.sfx) return; if (delay) C.events.push({ t: at(delay), fn: () => Ambience.sfx(kind) }); else Ambience.sfx(kind); }
 
-  function hitArc(s, t, o) { C.events.push({ t: at(t), fn: () => { const hx = C.p.x, hy = C.p.y - 10; for (const d of C.targets) { if (d.dead) continue; const dx = d.x - hx, dy = (d.y - 12 - hy) / 0.8, dist = Math.hypot(dx, dy); let da = Math.atan2(dy, dx) - s.a; da = Math.atan2(Math.sin(da), Math.cos(da)); if (dist < o.range * 1.25 + 8 + (d.big || 0) && Math.abs(da) < o.span / 2 + 0.3 + (d.big ? Math.min(0.8, d.big / Math.max(dist, 1)) : 0)) damage(d, o, Math.atan2(dy, dx)); } } }); }
-  function hitLine(s, t, o) { C.events.push({ t: at(t), fn: () => { const hx = C.p.x, hy = C.p.y - 10, ux = Math.cos(s.a), uy = Math.sin(s.a); for (const d of C.targets) { if (d.dead) continue; const dx = d.x - hx, dy = d.y - 12 - hy, along = dx * ux + dy * uy, perp = Math.abs(-dx * uy + dy * ux); if (along > -8 - (d.big || 0) && along < o.len + 8 + (d.big || 0) && perp < o.w + 6 + (d.big || 0)) damage(d, o, s.a); } } }); }
-  function hitCircle(s, t, o) { C.events.push({ t: at(t), fn: () => { let cx = C.p.x, cy = C.p.y - 10; if (o.at) { cx = o.at.x; cy = o.at.y; } else if (o.fwd) { cx += Math.cos(s.a) * o.fwd; cy += Math.sin(s.a) * o.fwd * 0.8; } for (const d of C.targets) { if (d.dead) continue; if (Math.hypot(d.x - cx, (d.y - 12 - cy) / 0.85) < o.r + 8 + (d.big || 0)) damage(d, o, Math.atan2(d.y - cy, d.x - cx)); } } }); }
+  function hitArc(s, t, o) { C.events.push({ t: at(t), fn: () => { const hx = C.p.x, hy = C.p.y - 10; for (const d of C.targets) { if (d.dead || d.untouchable) continue; const dx = d.x - hx, dy = (d.y - 12 - hy) / 0.8, dist = Math.hypot(dx, dy); let da = Math.atan2(dy, dx) - s.a; da = Math.atan2(Math.sin(da), Math.cos(da)); if (dist < o.range * 1.25 + 8 + (d.big || 0) && Math.abs(da) < o.span / 2 + 0.3 + (d.big ? Math.min(0.8, d.big / Math.max(dist, 1)) : 0)) damage(d, o, Math.atan2(dy, dx)); } } }); }
+  function hitLine(s, t, o) { C.events.push({ t: at(t), fn: () => { const hx = C.p.x, hy = C.p.y - 10, ux = Math.cos(s.a), uy = Math.sin(s.a); for (const d of C.targets) { if (d.dead || d.untouchable) continue; const dx = d.x - hx, dy = d.y - 12 - hy, along = dx * ux + dy * uy, perp = Math.abs(-dx * uy + dy * ux); if (along > -8 - (d.big || 0) && along < o.len + 8 + (d.big || 0) && perp < o.w + 6 + (d.big || 0)) damage(d, o, s.a); } } }); }
+  function hitCircle(s, t, o) { C.events.push({ t: at(t), fn: () => { let cx = C.p.x, cy = C.p.y - 10; if (o.at) { cx = o.at.x; cy = o.at.y; } else if (o.fwd) { cx += Math.cos(s.a) * o.fwd; cy += Math.sin(s.a) * o.fwd * 0.8; } for (const d of C.targets) { if (d.dead || d.untouchable) continue; if (Math.hypot(d.x - cx, (d.y - 12 - cy) / 0.85) < o.r + 8 + (d.big || 0)) damage(d, o, Math.atan2(d.y - cy, d.x - cx)); } } }); }
 
   // Co-op: a move can be played for a partner's hero (a "ghost" replay). Everything it schedules or
   // spawns is bound to that hero, so its effects follow them and its hits come from where they stand.
@@ -495,7 +495,7 @@
       C.swing = { final: finale && m !== w.ult, counted: false, w };
       let a = facingAngle(p);
       let best = null, bd = 120;
-      for (const d of C.targets) { if (d.dead) continue; const dx = d.x - p.x, dy = d.y - p.y, dist = Math.hypot(dx, dy); let da = Math.atan2(dy, dx) - a; da = Math.atan2(Math.sin(da), Math.cos(da)); if (dist < bd && Math.abs(da) < 1.4) { bd = dist; best = Math.atan2(dy, dx); } }
+      for (const d of C.targets) { if (d.dead || d.untouchable) continue; const dx = d.x - p.x, dy = d.y - p.y, dist = Math.hypot(dx, dy); let da = Math.atan2(dy, dx) - a; da = Math.atan2(Math.sin(da), Math.cos(da)); if (dist < bd && Math.abs(da) < 1.4) { bd = dist; best = Math.atan2(dy, dx); } }
       if (best !== null) a = best;
       p.dir = dirFromAngle(a);
       C.move = m; C.moveIdx = idx; C.moveT = 0; C.aim = a;

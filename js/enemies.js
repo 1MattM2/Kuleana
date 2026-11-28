@@ -176,6 +176,7 @@
   };
 
   function tryMove(e, dx, dy) {
+    if (!e.fly && !e.swim && Level.slowAt) { const k = Level.slowAt(e.x, e.y); dx *= k; dy *= k; }   // wading slows them too
     const ok = (x, y) => (e.fly ? !Level.flyBlocked(x, y) : !Level.solidAt(x, y) && !Level.solidAt(x - e.r * 0.6, y) && !Level.solidAt(x + e.r * 0.6, y));
     let moved = false;
     if (ok(e.x + dx, e.y)) { e.x += dx; moved = true; }
@@ -220,7 +221,7 @@
       if (s.kind === "gourd") { s.h += s.vh * dt; s.vh -= 300 * dt; if (s.h <= 0) { s.dead = true; L.fx.push({ kind: "spores", x: s.x, y: s.y, t: 0, dur: 3.2, R: 24, hitT: {} }); sfx(api, "spores"); continue; } }
       s.x += s.vx * dt; s.y += s.vy * dt;
       if (s.t > (s.life || 1.8) || (s.kind !== "gourd" && Level.flyBlocked(s.x, s.y))) { s.dead = true; continue; }
-      if (s.kind !== "gourd") for (const q of alive) if (Math.hypot(s.x - q.x, s.y - 10 - q.y) < (s.kind === "mote" ? 7 : 8)) { if (q._api.hurt(1, s.x - s.vx * 0.05, s.y - s.vy * 0.05, s.kind)) { s.dead = true; break; } }
+      if (s.kind !== "gourd") for (const q of alive) if (Math.hypot(s.x - q.x, s.y - 10 - q.y) < (s.kind === "mote" ? 7 : s.r || 8)) { if (q._api.hurt(s.dmg || 1, s.x - s.vx * 0.05, s.y - s.vy * 0.05, s.kind)) { s.dead = true; break; } }
     }
     L.shots = L.shots.filter((s) => !s.dead);
     // ground hazards
@@ -229,6 +230,7 @@
       for (let qi = 0; qi < alive.length; qi++) {
         const q = alive[qi], key = q.isRemote ? "r" + q.slot : "l";
         if (r.kind === "pulse") { const rad = (r.t / r.dur) * r.R; r.hits = r.hits || {}; if (!r.hits[key] && Math.abs(Math.hypot(q.x - r.x, (q.y - 6 - r.y) / 0.7) - rad) < 7) { if (q._api.hurt(1, r.x, r.y, "pulse")) r.hits[key] = 1; } }
+        if (E.FX[r.kind]) { if (E.FX[r.kind].hit) E.FX[r.kind].hit(r, q, t, key); continue; }
         if (r.kind === "flames") { r.hitT = r.hitT || {}; if (r.t > 0.15 && Math.hypot(q.x - r.x, (q.y - r.y) / 0.7) < r.R && t - (r.hitT[key] ?? -9) > 0.8) { if (q._api.hurt(1, r.x, r.y, "flames")) r.hitT[key] = t; } }
         if (r.kind === "spores") { if (typeof r.hitT !== "object") r.hitT = {}; if (Math.hypot(q.x - r.x, (q.y - r.y) / 0.7) < r.R && t - (r.hitT[key] ?? -9) > 0.9) { if (q._api.hurt(1, r.x, r.y, "spores")) r.hitT[key] = t; } }
         if (r.kind === "beam" && r.t > 0.7 && !r.a.dead && !r.b.dead) {
@@ -253,8 +255,8 @@
       if (q.type === "wisp") { o.va = r2(q.va); if (q.state === "trace" && q.arc) o.arc = q.arc.map((p) => [r1(p.x), r1(p.y)]); }
       return o;
     });
-    const sh = L.shots.map((q) => ({ kind: q.kind, x: r1(q.x), y: r1(q.y), vx: r1(q.vx), vy: r1(q.vy), h: q.h !== undefined ? r1(q.h) : undefined, vh: q.vh !== undefined ? r1(q.vh) : undefined }));
-    const fx = L.fx.map((r) => (r.kind === "beam" ? { kind: "beam", a: r.a.id, b: r.b.id, t: r2(r.t), dur: r.dur } : { kind: r.kind, x: r1(r.x), y: r1(r.y), t: r2(r.t), dur: r.dur, R: r.R }));
+    const sh = L.shots.map((q) => ({ kind: q.kind, x: r1(q.x), y: r1(q.y), vx: r1(q.vx), vy: r1(q.vy), h: q.h !== undefined ? r1(q.h) : undefined, vh: q.vh !== undefined ? r1(q.vh) : undefined, t: r2(q.t) }));
+    const fx = L.fx.map((r) => (r.kind === "beam" ? { kind: "beam", a: r.a.id, b: r.b.id, t: r2(r.t), dur: r.dur } : { kind: r.kind, x: r1(r.x), y: r1(r.y), t: r2(r.t), dur: r.dur, R: r.R, x2: r.x2 !== undefined ? r1(r.x2) : undefined, y2: r.y2 !== undefined ? r1(r.y2) : undefined, dmg: r.dmg }));
     return { e, sh, fx };
   };
   E.applySnap = function (L, S) {
@@ -797,6 +799,7 @@
   E.drawShots = function (ctx, ox, oy, L) {
     for (const s of L.shots) {
       const x = s.x - ox, y = s.y - oy;
+      if (E.SHOT_DRAW[s.kind]) { E.SHOT_DRAW[s.kind](ctx, s, x, y, Combat.clock); continue; }
       if (s.kind === "dart") {
         const a = Math.atan2(s.vy, s.vx), ux = Math.cos(a), uy = Math.sin(a);
         for (let k = -6; k <= 2; k++) { ctx.fillStyle = k < -4 ? css(R().kapa[2]) : k > 0 ? css(R().obsidian[5]) : css(R().glyph[4]); ctx.fillRect(Math.round(x + ux * k), Math.round(y + uy * k), 1, 1); }
@@ -811,6 +814,7 @@
     }
     const t = Combat.clock;
     for (const r of L.fx) {
+      if (E.FX[r.kind]) { E.FX[r.kind].draw(ctx, r, ox, oy, t); continue; }
       if (r.kind === "pulse") { const u = r.t / r.dur, rad = u * r.R; for (const [w, c, a] of [[4, R().fire[2], 0.7], [2, R().sun[5], 1]]) { ctx.strokeStyle = PAL.css(c, a * (1 - u)); ctx.lineWidth = w; ctx.beginPath(); ctx.ellipse(Math.round(r.x - ox), Math.round(r.y - oy), rad, rad * 0.7, 0, 0, TAU); ctx.stroke(); } }
       else if (r.kind === "flames") {
         const life = Math.min(1, (r.dur - r.t) / 0.5, r.t / 0.15), FI = R().fire;
@@ -845,7 +849,7 @@
 
   // ------------------------------------------------------------------ extension points (js/enemies2.js)
   E.STATS = STATS; E.AI = AI;
-  E.SETUP = {}; E.DRAW = {}; E.NET = {}; E.ON_DEATH = {};
+  E.SETUP = {}; E.DRAW = {}; E.NET = {}; E.ON_DEATH = {}; E.FX = {}; E.SHOT_DRAW = {};
   E.lib = { Surface, begin, mark, flush, tryMove, hitPlayer, telegraph, tinted, flipped, glow, rnd, dist, angDiff, bez, winding, TAU, css, R, P8, WHITE, sfx, landed,
     tiki: () => TIKI, assets: () => A, drawGecko, drawWisp, drawTiki };
 })();

@@ -105,9 +105,11 @@
     dst.fillRect(Math.round(sx - 74 + Math.sin(t * 1.4) * 2), Math.round(sy - 6 + Math.sin(t * 1.4 - 4) * 4), 3, 12);
   };
 
-  Water.render = function (dst, camX, camY, vw, vh, t) {
+  // `Wd` is the water map to draw: the island (World) by default, or a sea level's own (js/sea.js)
+  Water.render = function (dst, camX, camY, vw, vh, t, Wd) {
     ensure(vw, vh);
-    const W = World.W, H = World.H, terr = World.terr, wd = World.waterDist, ld = World.landDist, ocean = World.oceanMask, nearO = World.nearOcean;
+    Wd = Wd || World;
+    const W = Wd.W, H = Wd.H, terr = Wd.terr, wd = Wd.waterDist, ld = Wd.landDist, ocean = Wd.oceanMask, nearO = Wd.nearOcean;
     const aX = t * 1.3, aY = t * 0.55, bX = -t * 0.9 + 13, bY = t * 0.75 + 7;
     const flow = t * 5;
     const sparkFrame = Math.floor(t * 2);
@@ -155,13 +157,16 @@
             c = band > 54 ? deep[lv] : band > 32 ? RAMPS.mid[lv] : band > 16 ? RAMPS.shallow[lv] : RAMPS.vshallow[lv];
             // swells: crest lines that roll slowly toward the shore
             if (d > 8 && d < 84) {
-              const ph = d * 0.034 + t * 0.1 + K.noise(wx * 0.012, wy * 0.012) * 0.7;
+              // the island's swells follow the shore; out among the atolls the depth barely changes, so
+              // there they run as long thin lines across the water instead
+              const ph = Wd.sea ? (wx * 0.45 + wy) * 0.021 + d * 0.012 + t * 0.1 + K.noise(wx * 0.012, wy * 0.012) * 0.8 : d * 0.034 + t * 0.1 + K.noise(wx * 0.012, wy * 0.012) * 0.7;
               const f = ph - Math.floor(ph);
-              if (f < 0.15) {
-                const brk = K.noise(wx * 0.02 + t * 0.03, wy * 0.02);
-                const need = 0.46 + d * 0.004;
+              if (f < (Wd.sea ? 0.08 : 0.15)) {
+                const brk = Wd.sea ? K.noise(wx * 0.07 + t * 0.05, wy * 0.07) : K.noise(wx * 0.02 + t * 0.03, wy * 0.02);
+                const need = Wd.sea ? 0.62 + d * 0.002 : 0.46 + d * 0.004;
                 if (brk > need) {
-                  if (f < 0.06) c = CREST;
+                  if (Wd.sea) c = f < 0.035 && brk > need + 0.06 ? RAMPS.vshallow[3] : RAMPS.shallow[lv < 3 ? lv + 1 : 3];
+                  else if (f < 0.06) c = CREST;
                   else if (f < 0.11) c = RAMPS.vshallow[3];
                   else if (brk > need + 0.08) c = RAMPS.shallow[lv < 3 ? lv + 1 : 3];
                 }

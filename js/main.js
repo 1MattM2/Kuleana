@@ -203,7 +203,7 @@
       case "revive":   // a partner held you up for long enough: back on your feet with half your hearts
         if (player.dead && player.downed) { player.dead = false; player.downed = false; player.hp = Math.ceil(player.maxHp / 2); player.inv = 2; banner = { title: "REVIVED", sub: (m.by || "A partner") + " got you back up", t0: time }; Ambience.sfx && Ambience.sfx("berry"); }
         break;
-      case "sync": if (m.un) for (const n of m.un) Level.unlock(n); if (m.portal) { Level.portalUnlocked = true; if (Level.cur) Level.cur.portalOpen = true; } if (m.heel) { Level.heelTaken = true; Combat.gain("heel"); if (Level.cur) Level.cur.shrineTaken = true; } break;
+      case "sync": if (m.un) for (const n of m.un) Level.unlock(n); if (m.portal) { Level.portalUnlocked = true; if (Level.cur) Level.cur.portalOpen = true; } if (m.gift) Combat.gain(m.gift); if (m.heel) { Level.heelTaken = true; Combat.gain(Level.DEFS.highlands.shrine.unlock); if (Level.cur) Level.cur.shrineTaken = true; } break;
       case "act":     // a guest asks the host to do something that changes the shared world
         if (!Net.isHost()) break;
         if (m.k === "go" && (!Level.DEFS[m.to] || m.to === "sanctum" || Level.unlocked.has(m.to) || scene === "level")) goTo(m.to);
@@ -275,6 +275,8 @@
   // Pick one and he sends the whole party there.
   const globe = { open: false, zone: 0, sel: 0, rot: 0, pins: [], tex: null, can: null };
   function openGlobe() {
+    // open on the furthest zone you've reached
+    globe.zone = Math.max(0, Level.ZONES.reduce((b, z, i) => (z.levels.some((n) => Level.unlocked.has(n)) ? i : b), 0));
     globe.open = true; const z = Level.ZONES[globe.zone], un = z.levels.filter((n) => Level.unlocked.has(n));
     globe.sel = Math.max(0, z.levels.indexOf(un[un.length - 1] || z.levels[0])); globe.t0 = time;
     Ambience.sfx && Ambience.sfx("portal");
@@ -464,7 +466,7 @@
     if (player.rolling) {
       // dodge roll: a quick burst that eases out, invulnerable throughout
       player.rollT += dt;
-      const u = player.rollT / 0.34, sp = 260 * (1 - u * u);
+      const u = player.rollT / 0.34, sp = 260 * (1 - u * u) * (scene === "level" ? 0.4 + 0.6 * Level.slowAt(player.x, player.y) : 1);
       tryMove(Math.cos(player.rollA) * sp * dt, Math.sin(player.rollA) * sp * dt * 0.9);
       Combat.after.push({ x: player.x, y: player.y, dir: player.dir, t0: Combat.clock, ghost: true });
       if (player.rollT >= 0.34) { player.rolling = false; player.perfectUsed = false; }
@@ -483,7 +485,7 @@
     if (player.moving) player.moveA = Math.atan2(iy, ix);
     if (player.moving) {
       hintTimer = Math.min(hintTimer, 4);
-      const len = Math.hypot(ix, iy), sp = (run ? 140 : 90) * dt;
+      const len = Math.hypot(ix, iy), sp = (run ? 140 : 90) * dt * (scene === "level" ? Level.slowAt(player.x, player.y) : 1);
       const dx = (ix / len) * sp, dy = (iy / len) * sp;
       if (!blocked(player.x + dx, player.y)) player.x += dx;
       else if (!blocked(player.x + dx, player.y - Math.abs(dx))) { player.x += dx; player.y -= Math.abs(dx); } // slide round corners
@@ -506,7 +508,7 @@
     if (scene === "cave") return "tile";
     if (scene === "level") {
       const v = Level.tileAt(x, y);
-      return v === 9 || v === 10 ? "wood" : v === 3 ? "grass" : v === 4 ? "sand" : v === 2 ? "dirt" : v >= 5 ? "tile" : v === 11 ? "water" : "dirt";
+      return v === 9 || v === 10 ? "wood" : v === 3 ? "grass" : v === 4 ? "sand" : v === 2 ? "dirt" : v >= 11 ? "water" : v >= 5 ? "tile" : "dirt";
     }
     if (World.bridges.some((b) => x > b.x0 && x < b.x1 && Math.abs(y - b.y) < 18)) return "wood";
     const t = World.terrAt(x, y);
@@ -702,14 +704,14 @@
       takeShrine(true);
     } } }
   }
-  // Pele's shrine gives the Ember Heel; in co-op both heroes take it up
+  // the Shrine of Kū gives the Kākau Bands (the drum-beat weapon); in co-op both heroes take it up
   function takeShrine(here) {
     const L = Level.cur, sh = L.def.shrine; if (!sh) return;
     L.shrineTaken = Level.heelTaken = true; Combat.gain(sh.unlock); Ambience.sfx && Ambience.sfx("pickup");
     if (window.Net && Net.isHost()) Net.send({ t: "sync", heel: 1 });
     const w = Combat.weapons.find((q) => q.id === sh.unlock);
-    if (here || !(window.Net && Net.active())) dialog = { name: "Pele's Shrine", lines: [`You take up the ${w.name}.`, "Its heat settles into your stride. (Press Q / R to switch weapons.)"], i: 0, start: performance.now() };
-    else banner = { title: "EMBER HEEL", sub: "Your partner woke Pele's shrine", t0: time };
+    if (here || !(window.Net && Net.active())) dialog = { name: "Shrine of Kū", lines: [`You take up the ${w.name}.`, "The drums of the tribe beat in them. (Press Q / R to switch weapons.)"], i: 0, start: performance.now() };
+    else banner = { title: w.name.toUpperCase(), sub: "Your partner woke the Shrine of Kū", t0: time };
   }
 
   // ------------------------------------------------------------------ ambient overlays
@@ -989,10 +991,20 @@
       const spin = (player.rollT / 0.34) * Math.PI * 2 * (Math.cos(player.rollA) >= 0 ? 1 : -1);
       sctx.save(); sctx.translate(hx, hy - 12 * SCALE); sctx.rotate(spin); sctx.scale(1, 0.8);
       sctx.drawImage(img, -12 * SCALE, -18 * SCALE, 24 * SCALE, 32 * SCALE); sctx.restore();
-    } else sctx.drawImage(img, hx - 12 * SCALE, hy - 30 * SCALE, 24 * SCALE, 32 * SCALE);
+    } else { const cut = wadeCut(player); sctx.drawImage(img, 0, 0, 24, 32 - cut, hx - 12 * SCALE, hy - 30 * SCALE, 24 * SCALE, (32 - cut) * SCALE); if (cut) ripples(sctx, hx, hy - (cut > 4 ? 6 : 1) * SCALE, SCALE, time, cut); }
     sctx.globalAlpha = 1;
     // momentum aura: embers in the weapon's colour rise off the hero at tier II+
     if (Combat.momTier() >= 2 && Math.random() < 0.35) Combat.addPart({ x: player.x + (Math.random() - 0.5) * 12, y: player.y - Math.random() * 24, vx: 0, vy: -30, g: -10, life: 0.6, col: Combat.weapons[Combat.cur].col, size: 1, kind: "ember", glow: true });
+  }
+  // how much of a hero is under water (pixels cut from the bottom of the sprite)
+  const wadeCut = (q) => { if (scene !== "level" || !Level.waterAt) return 0; const w = Level.waterAt(q.x, q.y); return w === 12 ? 8 : w === 11 ? 3 : 0; };
+  function ripples(c, x, y, u, t, cut) {
+    const rr = 9 + (cut > 4 ? 2 : 0);
+    for (let k = 0; k < 2; k++) {
+      const ph = (t * 0.9 + k * 0.5) % 1, r2 = rr * (0.7 + ph * 0.6);
+      c.fillStyle = `rgba(230,250,252,${(0.75 * (1 - ph)).toFixed(2)})`;
+      for (let a = 0; a < 6.28; a += 0.4) c.fillRect(Math.round(x + Math.cos(a) * r2 * u), Math.round(y + Math.sin(a) * r2 * 0.35 * u), u, u);
+    }
   }
   function drawMate(ox, oy, t) { for (const q of matesHere()) drawOneMate(q, ox, oy, t); }
   function drawOneMate(q, ox, oy, t) {
@@ -1002,7 +1014,7 @@
     const fr = F[q.dir] || F.down, img = fr[(q.frame || 0) % 4][Math.floor(q.tailT) % 2];
     if (q.dead) { ctx.save(); ctx.globalAlpha = 0.75; ctx.translate(x, y - 4); ctx.rotate(Math.PI / 2); ctx.drawImage(img, -16, -12); ctx.restore(); ctx.globalAlpha = 1; }
     else if (q.rolling) { const spin = ((q.rollT || 0) / 0.34) * Math.PI * 2 * (Math.cos(q.rollA || 0) >= 0 ? 1 : -1); ctx.save(); ctx.translate(x, y - 12); ctx.rotate(spin); ctx.scale(1, 0.8); ctx.drawImage(img, -12, -18); ctx.restore(); }
-    else { if (q.inv && Math.floor(t * 14) % 2) ctx.globalAlpha = 0.45; ctx.drawImage(img, x - 12, y - 30); ctx.globalAlpha = 1; }
+    else { if (q.inv && Math.floor(t * 14) % 2) ctx.globalAlpha = 0.45; const cut = wadeCut(q); ctx.drawImage(img, 0, 0, 24, 32 - cut, x - 12, y - 30, 24, 32 - cut); ctx.globalAlpha = 1; if (cut) ripples(ctx, x, y - (cut > 4 ? 6 : 1), 1, t, cut); }
     // a small pip in their colour over their head, so you can always pick them out
     ctx.fillStyle = "#140c16"; ctx.fillRect(x - 3, y - 38, 7, 4); ctx.fillStyle = SLOT_COL[q.slot] || "#f2c040"; ctx.fillRect(x - 2, y - 37, 5, 1); ctx.fillRect(x - 1, y - 36, 3, 1); ctx.fillRect(x, y - 35, 1, 1);
     if (q.dead) drawReviveRing(ctx, x, y, q.slot === rev.target ? rev.t / REVIVE_T : Math.max(0, ...matesHere().filter((o) => o.rv === q.slot).map((o) => o.rp)), t, true);
@@ -1484,6 +1496,8 @@
     quit() { Game.save(); if (window.Net && Net.active()) Net.leave(); window.Title && Title.show(); },
   });
   Level.onUnlock = ((prev) => (n) => { prev && prev(n); setTimeout(() => Game.save(), 50); })(Level.onUnlock);
+  // a weapon won by clearing a zone: every hero gets it
+  Level.onReward = (id) => { Combat.gain(id); if (window.Net && Net.isHost()) Net.send({ t: "sync", gift: id }); setTimeout(() => Game.save(), 50); };
   window.__kuleana = { player, cam, keys, mates, rev, goTo: (s) => goTo(s), get scene() { return scene; } };
   boot().catch((e) => { console.error(e); document.body.insertAdjacentHTML("beforeend", `<pre style="color:#f88;position:fixed;top:0;left:0">${e.stack || e}</pre>`); });
 })();

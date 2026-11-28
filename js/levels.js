@@ -11,9 +11,13 @@
   let A = null;
   Level.init = (assets) => { A = assets; Ruins.init(assets); };
 
-  const VOID = 0, WALL = 1, SOIL = 2, GRASS = 3, SAND = 4, PATH = 5, SUN = 6, PAVE = 7, STAIR = 8, BH = 9, BV = 10;
-  const CH = { "#": WALL, " ": VOID, ".": SOIL, ",": GRASS, ":": SAND, "=": PATH, o: SUN, "%": PAVE, S: STAIR, H: BH, V: BV };
-  const walk = (v) => v >= SOIL;
+  // water (zone 2): shallow and medium water can be waded (medium slowly); deep water is the edge of the world
+  const VOID = 0, WALL = 1, SOIL = 2, GRASS = 3, SAND = 4, PATH = 5, SUN = 6, PAVE = 7, STAIR = 8, BH = 9, BV = 10, SHAL = 11, MED = 12, DEEP = 13;
+  const CH = { "#": WALL, " ": VOID, ".": SOIL, ",": GRASS, ":": SAND, "=": PATH, o: SUN, "%": PAVE, S: STAIR, H: BH, V: BV, _: SHAL, "-": MED, "~": DEEP };
+  const walk = (v) => v >= SOIL && v !== DEEP;
+  const isWet = (v) => v >= SHAL;
+  const soft = (v) => v < PATH || v >= SHAL;          // terrain whose borders are drawn organic (not carved)
+  Level.T_ = { VOID, WALL, SOIL, GRASS, SAND, PATH, SUN, PAVE, STAIR, BH, BV, SHAL, MED, DEEP, walk, isWet };
 
   // ------------------------------------------------------------------ level definitions
   const DEFS = {
@@ -189,7 +193,7 @@
           ] },
       ],
       gates: [{ x: 14.5, y: 44.4, to: "sanctum" }, { x: 10.4, y: 8.8, to: "sanctum" }],
-      shrine: { x: 7.6, y: 11.2, unlock: "heel" },
+      shrine: { x: 7.6, y: 11.2, unlock: "kakau" },
     },
     canopy: {
       title: "CANOPY PASSES", sub: "Forest on the mountains' backs", bg: "valley", cliff: 110, wallFace: 26, ivy: 0.5, amb: "highlands", zone: 1, level: 2,
@@ -347,7 +351,7 @@
           waves: [[{e: "firedancer", x: 29, y: 29}, {e: "firedancer", x: 39, y: 29}, {e: "firegecko", x: 27, y: 33, enter: "scurry"}, {e: "firegecko", x: 41, y: 33, enter: "scurry"}],
                   [{e: "wisp", x: 30, y: 28, enter: "descend"}, {e: "wisp", x: 38, y: 28, enter: "descend"}, {e: "wisp", x: 34, y: 34, enter: "descend"}, {e: "firedancer", x: 34, y: 27}, {e: "firegecko", x: 25, y: 31, enter: "scurry"}],
                   [{e: "firedancer", x: 28, y: 32}, {e: "firedancer", x: 40, y: 32}, {e: "spear", x: 31, y: 27, tribe: 21}, {e: "spear", x: 37, y: 27, tribe: 21}, {e: "dart", x: 34, y: 35, tribe: 21}]] },
-        { title: "KAHU-AHI", rect: [38, 2, 70, 17], seals: [[57.6, 16.6, 62.4, 17.4]], final: 1,
+        { title: "KAHU-AHI", rect: [38, 2, 70, 17], seals: [[57.6, 16.6, 62.4, 17.4]], final: 1, unlocks: "isles", reward: "heel",
           waves: [[{e: "hive", x: 52, y: 9.4, enter: "burst"}]] },
       ],
       gates: [{ x: 12, y: 48.4, to: "sanctum" }, { x: 45, y: 6.6, to: "sanctum" }],
@@ -361,7 +365,7 @@
     rows.forEach((r, y) => { for (let x = 0; x < tw; x++) g[y * tw + x] = CH[r[x]] === undefined ? WALL : CH[r[x]]; });
     const at = (x, y) => (x < 0 || y < 0 || x >= tw || y >= th ? VOID : g[y * tw + x]);
     // remove lonely walkable specks (they read as floating dirt)
-    for (let y = 0; y < th; y++) for (let x = 0; x < tw; x++) if (walk(at(x, y)) && at(x, y) < PATH) { let n = 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (walk(at(x + dx, y + dy))) n++; if (n <= 1) g[y * tw + x] = VOID; }
+    for (let y = 0; y < th; y++) for (let x = 0; x < tw; x++) if (walk(at(x, y)) && at(x, y) < PATH && !def.sea) { let n = 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (walk(at(x + dx, y + dy))) n++; if (n <= 1) g[y * tw + x] = VOID; }
     return { tw, th, g, at };
   }
 
@@ -370,7 +374,7 @@
     // tiles near carved things keep straight edges (so bridges and stairs always connect)
     const straight = new Uint8Array(tm.tw * tm.th);
     for (let y = 0; y < tm.th; y++) for (let x = 0; x < tm.tw; x++) {
-      const v = tm.at(x, y); if (v >= PATH) continue;
+      const v = tm.at(x, y); if (!soft(v)) continue;
       // a landing: the tile a flight of stairs or a bridge runs into, along its own direction of travel
       const S2 = (a, b) => tm.at(a, b) === STAIR || tm.at(a, b) === BV, H2 = (a, b) => tm.at(a, b) === BH;
       if (S2(x, y - 1) || S2(x, y + 1) || H2(x - 1, y) || H2(x + 1, y)) straight[y * tm.tw + x] = 1;
@@ -383,10 +387,10 @@
       const ty = y >> 5;
       for (let x = 0; x < W; x++) {
         const tx = x >> 5, t0 = tm.g[ty * tm.tw + tx];
-        if (t0 >= PATH || straight[ty * tm.tw + tx]) { terr[y * W + x] = t0; continue; }
+        if (!soft(t0) || straight[ty * tm.tw + tx]) { terr[y * W + x] = t0; continue; }
         const j = (y >> 2) * gw + (x >> 2), px = x + ofx[j], py = y + ofy[j];
         const t1 = tm.at(Math.floor(px / T), Math.floor(py / T));
-        terr[y * W + x] = t1 < PATH ? t1 : t0;
+        terr[y * W + x] = soft(t1) ? t1 : t0;
       }
     }
     // collision (8px cells)
@@ -400,7 +404,8 @@
       d = 255; for (let y = H - 1; y >= 0; y--) { const i = y * W + x, v = terr[i]; if (v !== VOID && v !== BH && v !== BV) d = 0; else { d = Math.min(255, d + 1); dn[i] = d; } }
     }
     const { ground, lower, embers, chunks } = paint(def, tm, terr, up, down, W, H, dn);
-    const vines = vineSpots(def, terr, up, W, H);
+    const vines = def.sea ? [] : vineSpots(def, terr, up, W, H);
+    const water = def.sea && window.Sea ? Sea.buildWater(def, terr, W, H) : null;
     const below = { palms: [], mists: [] };
     // the forest far below: the island's own palms, standing on the lower floor wherever it shows
     const floorAt = (x, y, m) => { x |= 0; y |= 0; if (x < 0 || y < 0 || x >= W || y >= H) return false; const i = y * W + x, v = terr[i]; return (v === VOID || v === BH || v === BV) && up[i] > def.cliff + m; };
@@ -414,7 +419,7 @@
       below.palms.sort((a, b) => a.y - b.y);
       for (let k = 0; k < (W * H) / 60000; k++) below.mists.push({ x: r() * W, y: r() * H, sp: 3 + r() * 5, a: 0.18 + r() * 0.16 });
     }
-    return { tm, terr, up, W, H, CS, CW, CH: CHh, solid, ground, lower, embers, chunks, vines, below };
+    return { tm, terr, up, W, H, CS, CW, CH: CHh, solid, ground, lower, embers, chunks, vines, below, water };
   }
 
   // ------------------------------------------------------------------ painting the ground
@@ -473,6 +478,7 @@
         }
       }
       // grass gets the island's dark rim against other ground; sand darkens toward soil
+      if (def.sea && window.Sea) { const sc = Sea.shore(t, x, y, c, T_); if (sc) c = sc; }
       let rim = 9;
       if (t !== SOIL) for (let dy = -2; dy <= 2 && rim > 1; dy++) for (let dx = -2; dx <= 2; dx++) { const tt = T_(x + dx, y + dy); if (tt !== t && tt >= SOIL && tt <= SAND && (t === GRASS || tt === SOIL)) { const m = Math.max(Math.abs(dx), Math.abs(dy)); if (m < rim) rim = m; } }
       if (t === GRASS) { if (rim === 1) c = GR[0]; else if (rim === 2 && ((x + y) & 1)) c = GR[1]; }
@@ -716,6 +722,7 @@
   }
 
   // ------------------------------------------------------------------ props
+  Level.PROPS = {};   // extra prop kinds (js/sea.js)
   const gateArt = {}, crystalArt = {}, colArt = {};
   let brazArt = null, keeperArt = null, shrineArt = null, tikiArt = null, smallFrames = null;
   // glows are pre-rendered once per size and colour, then stamped with an alpha (building a fresh
@@ -789,9 +796,9 @@
           const X = Math.round(x - S2.width / 2 - ox), Y = Math.round(y - S2.height - oy);
           ctx.drawImage(S2, X, Y);
           if (!L.shrineTaken) {
-            const w = Combat.weapons.find((q) => q.id === "heel");
+            const w = Combat.weapons.find((q) => q.id === L.def.shrine.unlock);
             ctx.drawImage(w.icon, X + S2.width / 2 - 14, Y - 30 + Math.round(Math.sin(t * 2) * 2));
-            if (g) glowAt(g, x - ox, Y - 16, 46, "255,140,60", 0.6);
+            if (g) glowAt(g, x - ox, Y - 16, 46, "255,200,120", 0.6);
           }
         };
         o.solids = [[x - 15, y - 10, x + 15, y + 1]];
@@ -826,6 +833,7 @@
         o.solids = [[x - hw, y - 10, x + hw, y + 1]];
         break;
       }
+      default: if (Level.PROPS[p.k]) Level.PROPS[p.k](p, L, o, x, y); break;
       case "boulder": {
         const s = p.s || 1, w = [14, 20, 28, 36][s], h = [10, 15, 21, 27][s], img = Props.make.boulder(w, h, (x * 31 + y) | 0, true);
         o.draw = (ctx, ox, oy) => ctx.drawImage(img, Math.round(x - img.width / 2 - ox), Math.round(y - img.height + 3 - oy));
@@ -851,7 +859,8 @@
       L.npcs.push(npc);
     }
     const np = Level.players || 1;
-    Enemies.hpScale = np >= 3 ? COOP.hp3 : np === 2 ? COOP.hp : 1; Enemies.bossScale = np;
+    // later zones are tougher: def.hpMul raises every creature's health (bosses scale with the heroes)
+    Enemies.hpScale = (np >= 3 ? COOP.hp3 : np === 2 ? COOP.hp : 1) * (def.hpMul || 1); Enemies.bossScale = np * (def.bossMul || 1);
     if (!Level.netGuest) for (const e of coopRoster(def.enemies || [], b)) { const en = Enemies.spawn(e.e, e.x * T, e.y * T, e.tribe || 0, L); if (en) L.enemies.push(en); }
     L.solids = [];
     for (const p of L.props) if (p.solids) L.solids.push(...p.solids);
@@ -896,6 +905,9 @@
     return true;
   };
   Level.flyBlocked = (x, y) => tAt(x, y) === WALL;
+  // wading: medium water slows anyone on foot
+  Level.slowAt = (x, y) => { const v = tAt(x, y); return v === MED ? 0.62 : v === SHAL ? 0.93 : 1; };
+  Level.waterAt = (x, y) => isWet(tAt(x, y)) ? tAt(x, y) : 0;
 
   // ------------------------------------------------------------------ co-op scaling
   // Each extra hero adds about half as many creatures again, and each is a little tougher. The extra
@@ -934,6 +946,7 @@
   Level.update = function (dt, t, P0, api, others) {
     const L = Level.cur, heroes = [P0].concat(others || []);
     updateAir(L, dt, t);
+    if (L.def.sea && window.Sea) Sea.update(L, dt, t, heroes, api);
     for (const bd of L.birds) { bd.a += Math.sin(t * 0.3 + bd.ph) * 0.15 * dt; bd.x += Math.cos(bd.a) * bd.sp * dt; bd.y += Math.sin(bd.a) * bd.sp * dt * 0.6; if (bd.x < -200) bd.x += L.W + 400; if (bd.x > L.W + 200) bd.x -= L.W + 400; if (bd.y < -200) bd.y += L.H + 400; if (bd.y > L.H + 200) bd.y -= L.H + 400; }
     if (Level.netGuest) { for (const a of L.arenas) if (a.state === "active" && !a.sealT0) { a.sealT0 = 1; a.sealT = t; } else if (a.state !== "active") a.sealT0 = 0; return; }
     for (const a of L.arenas) {
@@ -986,7 +999,8 @@
     L.banner = { title: "THE WAY IS OPEN", t0: t };
     if (a.unlocks || a.final) { Level.cleared.add(L.name); if (Level.onUnlock) Level.onUnlock(); }
     if (a.unlocks && !Level.unlocked.has(a.unlocks)) { Level.unlock(a.unlocks); L.banner = { title: "THE WAY IS OPEN", sub: "A new land glows on Kahu Lā's globe", t0: t }; }
-    if (a.final) L.banner = { title: "ZONE 1 CLEARED", sub: "The Volcanic Highlands are at peace", t0: t };
+    if (a.final) L.banner = { title: a.zoneDone || "ZONE 1 CLEARED", sub: a.zoneSub || "The Volcanic Highlands are at peace. The Ember Heel is yours.", t0: t };
+    if (a.reward && Level.onReward) Level.onReward(a.reward);
   }
   // a stampede: herds of geckos thunder across the arena from every side while smaller waves press
   // in. Hold out until the dust settles.
@@ -1032,12 +1046,12 @@
   Level.unlock = (n) => { if (!DEFS[n] || Level.unlocked.has(n)) return; Level.unlocked.add(n); if (Level.onUnlock) Level.onUnlock(n); };
   // the parts of a level the guest needs from the host each tick
   Level.serialize = function (L) {
-    return { pk: L.pickups.map((b) => [Math.round(b.x), Math.round(b.y), b.vy !== undefined ? 1 : 0]), se: L.seals, ar: L.arenas.map((a) => a.state), po: L.portalOpen ? 1 : 0, sh: L.shrineTaken ? 1 : 0, tm: L.timer ? Math.round(L.timer * 10) / 10 : 0 };
+    return { pk: L.pickups.map((b) => [Math.round(b.x), Math.round(b.y), b.vy !== undefined ? 1 : 0]), se: L.seals, ar: L.arenas.map((a) => a.state), po: L.portalOpen ? 1 : 0, sh: L.shrineTaken ? 1 : 0, tm: L.timer ? Math.round(L.timer * 10) / 10 : 0, vs: window.Sea ? Sea.serialize(L) : null };
   };
   Level.applySnap = function (L, S, t) {
     L.pickups = S.pk.map(([x, y]) => ({ x, y, t0: t }));
     L.seals = S.se; S.ar.forEach((st, i) => { if (L.arenas[i]) L.arenas[i].state = st; });
-    if (S.po) L.portalOpen = true; if (S.sh) L.shrineTaken = true; L.timer = S.tm || 0;
+    if (S.po) L.portalOpen = true; if (S.sh) L.shrineTaken = true; L.timer = S.tm || 0; if (S.vs && window.Sea) Sea.apply(L, S.vs, t);
   };
   function updateAir(L, dt, t) {
     const A2 = L.air;
@@ -1112,6 +1126,7 @@
     }
     // the ledges, walls and paths you walk on
     ctx.drawImage(L.ground, ox, oy, LW, LH, 0, 0, LW, LH);
+    if (L.water) { Water.render(ctx, ox, oy, LW, LH, t, L.water); Sea.drawUnder(ctx, L, ox, oy, LW, LH, t); }
     eachBridge(ox, oy, LW, LH, (v, X, Y, tx, ty) => { const tm = L.tm, a = v === BH ? tm.at(tx, ty - 1) !== v : tm.at(tx - 1, ty) !== v, b = v === BH ? tm.at(tx, ty + 1) !== v : tm.at(tx + 1, ty) !== v; ctx.drawImage(bridgeTile(v, (tx * 7 + ty * 3) % 3, a, b), X, Y); });
     for (const v of L.vines) if (v.x > ox - 10 && v.x < ox + LW + 10 && v.y > oy - 60 && v.y < oy + LH + 10) Ruins.drawVine(ctx, v.x - ox, v.y - oy, v.len, t, v.ph);
     for (const b of L.pickups) { const bob = b.vy === undefined ? Math.round(Math.sin(t * 3 + b.x) * 1.5) : 0; ctx.drawImage(Ruins.berry, Math.round(b.x - 4 - ox), Math.round(b.y - 6 - oy + bob)); }
