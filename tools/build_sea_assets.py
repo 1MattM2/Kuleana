@@ -93,10 +93,34 @@ put("e_brute", ecut((48, 44, 512, 512), 58, 40))
 # the brute's animation sheet (Brute_concept_animation.webp): a 6x3 grid of frames. Row 1 the walk, row 2 the
 # double-fist slam, row 3 a punch and a ground smash. Each frame is cut on a fixed box anchored at the
 # feet (so they line up), the navy ground and grid keyed out, and brought down to the game's scale.
+from collections import deque
 def brute_anim():
     src = np.array(Image.open(os.path.join(SRC, "Brute_concept_animation.webp")).convert("RGBA")).astype(np.int32)
     r, g, b = src[..., 0], src[..., 1], src[..., 2]
-    bgm = (b >= r) & (src[..., :3].max(2) < 80)
+    # the navy ground: only where it is connected to the open background (dark shading inside his body stays)
+    near = (b >= r) & (src[..., :3].max(2) < 80)
+    bgm = np.zeros_like(near); q = deque()
+    H0, W0 = near.shape
+    for x in range(W0):
+        for y in (0, H0 - 1):
+            if near[y, x] and not bgm[y, x]: bgm[y, x] = True; q.append((y, x))
+    for y in range(H0):
+        for x in (0, W0 - 1):
+            if near[y, x] and not bgm[y, x]: bgm[y, x] = True; q.append((y, x))
+    # (the grid lines split the sheet: seed from them too)
+    for gx in [int(i * 1376 / 6) for i in range(1, 6)]:
+        for y in range(H0):
+            for x in range(max(0, gx - 3), min(W0, gx + 3)):
+                if near[y, x] and not bgm[y, x]: bgm[y, x] = True; q.append((y, x))
+    for gy in (246, 512):
+        for x in range(W0):
+            for y in range(gy - 3, gy + 3):
+                if near[y, x] and not bgm[y, x]: bgm[y, x] = True; q.append((y, x))
+    while q:
+        y, x = q.popleft()
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            yy, xx = y + dy, x + dx
+            if 0 <= yy < H0 and 0 <= xx < W0 and near[yy, xx] and not bgm[yy, xx]: bgm[yy, xx] = True; q.append((yy, xx))
     src[bgm, 3] = 0
     cw, rows = 1376 / 6, [(0, 246), (246, 512), (512, 768)]
     BW, BH, OW, OH = 216, 232, 64, 69
@@ -115,8 +139,37 @@ def brute_anim():
             # keep only this cell's pixels (no neighbours' fists)
             mx = np.zeros_like(box[..., 3]); mx[:, max(0, x0 - sx0):max(0, min(BW, x1 - sx0))] = 1; box[..., 3] *= mx
             box[box[..., 3] == 0] = 0
-            d = crisp(box.astype(np.uint8), (OW, OH), 40)
-            frames.append(d)
+            d = crisp(box.astype(np.uint8), (OW, OH), 40).astype(np.int32)
+            # close it up: navy left inside the body becomes the sprite's own dark outline brown, and any gap
+            # not open to the outside is filled with it (no holes, no seams between limbs)
+            DARK = np.array([44, 26, 20])
+            nv = (d[..., 3] > 0) & (d[..., 2] >= d[..., 0]) & (d[..., :3].max(2) < 90)
+            d[nv, :3] = DARK
+            out = np.zeros(d.shape[:2], bool); qq = deque()
+            hh, ww = out.shape
+            for yy in range(hh):
+                for xx in (0, ww - 1):
+                    if d[yy, xx, 3] == 0 and not out[yy, xx]: out[yy, xx] = True; qq.append((yy, xx))
+            for xx in range(ww):
+                for yy in (0, hh - 1):
+                    if d[yy, xx, 3] == 0 and not out[yy, xx]: out[yy, xx] = True; qq.append((yy, xx))
+            while qq:
+                yy, xx = qq.popleft()
+                for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    y2, x2 = yy + dy, xx + dx
+                    if 0 <= y2 < hh and 0 <= x2 < ww and d[y2, x2, 3] == 0 and not out[y2, x2]: out[y2, x2] = True; qq.append((y2, x2))
+            hole = (d[..., 3] == 0) & ~out
+            d[hole, :3] = DARK; d[hole, 3] = 255
+            # notches and pinholes: a clear pixel mostly surrounded by the sprite takes its neighbours' colour
+            for _ in range(3):
+                op = d[..., 3] > 0; pad_ = np.pad(op, 1); nb = pad_[:-2, 1:-1].astype(int) + pad_[2:, 1:-1] + pad_[1:-1, :-2] + pad_[1:-1, 2:]
+                diag = pad_[:-2, :-2].astype(int) + pad_[:-2, 2:] + pad_[2:, :-2] + pad_[2:, 2:]
+                fill = (~op) & ((nb >= 3) | ((nb >= 2) & (diag >= 3)))
+                if not fill.any(): break
+                for yy, xx in zip(*np.where(fill)):
+                    cs = [d[y2, x2, :3] for y2, x2 in ((yy - 1, xx), (yy + 1, xx), (yy, xx - 1), (yy, xx + 1)) if 0 <= y2 < hh and 0 <= x2 < ww and d[y2, x2, 3] > 0]
+                    d[yy, xx, :3] = np.min(cs, axis=0); d[yy, xx, 3] = 255
+            frames.append(d.astype(np.uint8))
     sheet = np.concatenate(frames, axis=1)
     print("  brute anim frames", len(frames))
     return sheet

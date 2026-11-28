@@ -722,11 +722,9 @@
           let tl = 0.5; if (pinkT) { const v = pinkT[patch64(x, y, 31)]; tl = ((v & 255) * 0.3 + ((v >>> 8) & 255) * 0.59 + ((v >>> 16) & 255) * 0.11 - 70) / 170; }
           const cv = (K.fbm(x / 52 + 3, y / 52, 3) * 0.75 + K.noise(x / 13 + 9, y / 13) * 0.25) * 0.55 + tl * 0.45 + B(x, y) * 0.06;
           c = CORAL_R[Math.max(0, Math.min(4, Math.floor((cv - 0.2) * 7.5)))];
-          // broad patches of the atoll are living reef in every colour, others bleached dead coral; their edges
-          // dither into the rose stone
+          // broad patches of the atoll are bleached dead coral, their edges dithered into the rose stone
           const zone = K.fbm(x / 230 + 17, y / 230 - 5, 2) + B(x, y) * 0.08;
-          if (liveT && zone > 0.56) c = mixc(liveT[patch64(x, y, 47)], CORAL_R[2], 0.06);
-          else if (deadT && zone < 0.4) c = mixc(deadT[patch64(x, y, 53)], CORAL_R[3], 0.12);
+          if (deadT && zone < 0.4) c = mixc(deadT[patch64(x, y, 53)], CORAL_R[3], 0.12);
           if (K.hash2(x >> 1, y >> 1, 77) > 0.993) c = CORAL_R[0];
           else if (K.hash2(x, y, 78) > 0.996) c = CORAL_R[4];
           let near = 9; for (let dd = 1; dd <= 4 && near === 9; dd++) for (const [dx, dy] of [[dd, 0], [-dd, 0], [0, dd], [0, -dd]]) if (isWet(T_(x + dx, y + dy))) { near = dd; break; }
