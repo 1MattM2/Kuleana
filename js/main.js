@@ -134,7 +134,7 @@
     if (e.code.startsWith("Arrow") || e.code === "Space" || e.code === "Tab") e.preventDefault();
   });
   addEventListener("keyup", (e) => (keys[e.code] = false));
-  addEventListener("pointerdown", (e) => { if (window.Title && Title.open) return; window.Ambience && Ambience.start(); if (window.Menu && Menu.open) return; if (pick.open) { pickTap(e); return; } if (invUI.open) { invUI.open = false; return; } if (shopUI.open) { shopTap(e); return; } if (forgeUI.open) { forgeTap(e); return; } if (loadoutUI.open) { loadoutTap(e); return; } if (globe.open) { globeTap(e); return; } if (e.pointerType !== "mouse" || player.dead) return; if (e.button === 0 && !dialog && fade.dir === 0) Combat.attack(); if (e.button === 2 && !dialog && fade.dir === 0) startRoll(); });
+  addEventListener("pointerdown", (e) => { if (window.Title && Title.open) return; window.Ambience && Ambience.start(); if (window.Menu && Menu.open) return; if (pick.open) { pickTap(e); return; } if (invUI.open) { invUI.open = false; return; } if (shopUI.open) { shopTap(e); return; } if (forgeUI.open) { forgeTap(e); return; } if (loadoutUI.open) { loadoutTap(e); return; } if (globe.open) { globeTap(e); return; } if (itemsHud && itemsHud.battle && !player.dead) { const gx = (e.clientX * (screen.width / innerWidth)) / SCALE, gy = (e.clientY * (screen.height / innerHeight)) / SCALE, sl = itemsHud.slots.find((q) => gx >= q.x && gx < q.x + q.w && gy >= q.y && gy < q.y + q.h); if (sl) { if (sl.act === "heal") useHeal(); else useTalisman(); return; } } if (e.pointerType !== "mouse" || player.dead) return; if (e.button === 0 && !dialog && fade.dir === 0) Combat.attack(); if (e.button === 2 && !dialog && fade.dir === 0) startRoll(); });
   addEventListener("contextmenu", (e) => e.preventDefault());
   addEventListener("wheel", (e) => Combat.cycle(e.deltaY > 0 ? 1 : -1), { passive: true });
   addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
@@ -1411,7 +1411,20 @@
     if (id === "tonic" || id === "salve" || Gear.TALISMANS[id]) { ctx.drawImage(ItemArt.item(id, 16), x, y); if (Gear.TALISMANS[id]) { ctx.fillStyle = Gear.ELEMENTS[Gear.TALISMANS[id].el].col; ctx.fillRect(x + 1, y + 14, 14, 1); } }
   }
   function drawItems(ctx) {
-    if (Gear.battle) { const pk2 = Gear.pack(); itemsHud = null; for (let i = 0; i < Gear.PACK; i++) { const x = VW - 8 - (Gear.PACK - i) * 18; if (pk2[i]) itemIcon(ctx, pk2[i], x, 6); else { ctx.fillStyle = "#140c16"; ctx.fillRect(x, 6, 16, 16); ctx.fillStyle = "#241a26"; ctx.fillRect(x + 1, 7, 14, 14); } } return; }
+    if (Gear.battle) {
+      // two clear slots, bottom left above the weapons: the heal (H) and the talisman (T); each is spent once
+      const pk2 = Gear.pack(), heal = pk2.find((q) => Gear.isHeal(q)), tal = pk2.find((q) => !Gear.isHeal(q)), y = VH - 29;
+      itemsHud = { battle: true, slots: [] };
+      [[heal, TOUCH ? "HEAL" : "H", "#ff8a8a"], [tal, TOUCH ? "SUPER" : "T", "#ffd27a"]].forEach(([id, key, col], i) => {
+        const x = 8 + i * 30, ready = !!id, pulse = ready && i === 0 && player.hp <= player.maxHp / 3 ? 0.5 + 0.5 * Math.sin(time * 8) : 0;
+        ctx.fillStyle = "#140c16"; ctx.fillRect(x - 1, y - 1, 26, 26); ctx.fillStyle = ready ? (pulse > 0.5 ? "#ff8a8a" : "#5a3a4a") : "#241a26"; ctx.fillRect(x, y, 24, 24); ctx.fillStyle = "#1e1420"; ctx.fillRect(x + 1, y + 1, 22, 22);
+        if (ready) { ctx.drawImage(ItemArt.item(id, 16), x + 4, y + 3); }
+        else { ctx.globalAlpha = 0.35; ctx.fillStyle = "#8a7a8a"; ctx.fillRect(x + 6, y + 11, 12, 2); ctx.globalAlpha = 1; }
+        ctx.fillStyle = "#140c16"; ctx.fillRect(x + 15, y + 17, key.length > 1 ? 0 : 9, 8); ctx.font = "6px 'Pixelify Sans', monospace"; ctx.textBaseline = "top"; ctx.textAlign = "left"; ctx.fillStyle = ready ? col : "#6a5a6a"; ctx.fillText(key, key.length > 1 ? x : x + 17, key.length > 1 ? y + 25 : y + 17);
+        itemsHud.slots.push({ x, y, w: 24, h: 24, act: i === 0 ? "heal" : "talisman" });
+      });
+      return;
+    }
     const nt = Gear.count("tonic"), ns = Gear.count("salve"), pk = Gear.pick();
     let x = VW - 8, y = 6;
     if (pk) { const E = Gear.ELEMENTS[Gear.TALISMANS[pk].el]; x -= 18; ctx.fillStyle = "#140c16"; ctx.fillRect(x, y, 16, 16); ctx.fillStyle = E.col; ctx.fillRect(x + 1, y + 1, 14, 14); ctx.fillStyle = "#140c16"; ctx.fillRect(x + 3, y + 3, 10, 10); ctx.fillStyle = E.col; ctx.fillRect(x + 6, y + 4, 4, 8); ctx.fillRect(x + 4, y + 6, 8, 4); ctx.fillStyle = "#ffffff"; ctx.fillRect(x + 7, y + 7, 2, 2); }
@@ -1647,7 +1660,7 @@
   function drawCombatTexts(u) {
     if (dialog) return;
     if (purseHud && !globe.open && !loadoutUI.open) { sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.textAlign = "left"; sctx.fillStyle = "#f4e6c8"; sctx.fillText(String(Gear.shellTotal()), (purseHud.x + 13) * u, (purseHud.y) * u); }
-    if (itemsHud && !globe.open && !loadoutUI.open) {
+    if (itemsHud && !itemsHud.battle && !globe.open && !loadoutUI.open) {
       const I = itemsHud; sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.textAlign = "right"; sctx.fillStyle = "#fff6dc";
       if (I.pk) sctx.fillText(String(Gear.count(I.pk)), (VW - 9) * u, (I.y + 10) * u);
       if (I.nt || I.ns) sctx.fillText(I.nt + (I.ns ? "+" + I.ns : ""), (I.x + 15) * u, (I.y + 10) * u);

@@ -182,15 +182,20 @@
   Gear.PERISH = () => ["tonic", "salve"].concat(Object.keys(Gear.TALISMANS));
   Gear.pack = () => S.pack;
   Gear.packFree = (id) => Gear.count(id) - S.pack.filter((q) => q === id).length;   // units not already packed
-  Gear.packAdd = (id) => { if (S.pack.length >= Gear.PACK || Gear.packFree(id) <= 0) return false; S.pack.push(id); Gear.changed(); return true; };
+  // the battle pack holds one heal and one talisman; each is used once, then it's gone for that level
+  const isHeal = (id) => id === "tonic" || id === "salve";
+  Gear.isHeal = isHeal;
+  Gear.packAdd = (id) => { if (S.pack.length >= Gear.PACK || Gear.packFree(id) <= 0) return false; const same = S.pack.findIndex((q) => isHeal(q) === isHeal(id)); if (same >= 0) S.pack.splice(same, 1); S.pack.push(id); S.pack.sort((a, b) => (isHeal(a) ? 0 : 1) - (isHeal(b) ? 0 : 1)); Gear.changed(); return true; };
   Gear.packRemove = (i) => { S.pack.splice(i, 1); Gear.changed(); };
   // keep the pack honest, and fill empty slots (heals first) when nobody chose
-  Gear.packTidy = (fill) => { const want = {}; S.pack = S.pack.filter((id) => { want[id] = (want[id] || 0) + 1; return want[id] <= Gear.count(id); }); if (fill) for (const id of Gear.PERISH()) while (S.pack.length < Gear.PACK && Gear.packFree(id) > 0) S.pack.push(id); };
+  Gear.packTidy = (fill) => { const want = {}; S.pack = S.pack.filter((id) => { want[id] = (want[id] || 0) + 1; return want[id] <= Gear.count(id); }); const seen = {}; S.pack = S.pack.filter((id) => { const k = isHeal(id) ? "h" : "t"; if (seen[k]) return false; seen[k] = 1; return true; });
+    if (fill) for (const id of Gear.PERISH()) if (S.pack.length < Gear.PACK && Gear.packFree(id) > 0 && !S.pack.some((q) => isHeal(q) === isHeal(id))) S.pack.push(id);
+    S.pack.sort((a, b) => (isHeal(a) ? 0 : 1) - (isHeal(b) ? 0 : 1)); };
   Gear.units = () => Gear.PERISH().reduce((n, id) => n + Gear.count(id), 0);
   // in battle only what's packed can be used; elsewhere, anything you carry
   Gear.battle = false;
   Gear.infinite = false;   // the test world: consumables never run out, and the market asks nothing
-  const takeFrom = (id) => { if (Gear.infinite) return S.items[id] > 0 && (!Gear.battle || S.pack.includes(id)); if (!S.items[id]) return false; if (Gear.battle) { const i = S.pack.indexOf(id); if (i < 0) return false; S.pack.splice(i, 1); } S.items[id]--; return true; };
+  const takeFrom = (id) => { if (Gear.infinite) { if (!(S.items[id] > 0)) return false; if (Gear.battle) { const i = S.pack.indexOf(id); if (i < 0) return false; S.pack.splice(i, 1); } return true; } if (!S.items[id]) return false; if (Gear.battle) { const i = S.pack.indexOf(id); if (i < 0) return false; S.pack.splice(i, 1); } S.items[id]--; return true; };
   const usable = (id) => S.items[id] > 0 && (!Gear.battle || S.pack.includes(id));
   // drink a heal: the tonic first, the salve if there's no tonic or you're nearly out
   Gear.takeHeal = (hp, max) => { const useSalve = usable("salve") && (!usable("tonic") || hp <= 2 || max - hp > 6); const id = useSalve ? "salve" : usable("tonic") ? "tonic" : null; if (!id || !takeFrom(id)) return 0; Gear.changed(); return id === "salve" ? max : 4; };
