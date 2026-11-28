@@ -1685,7 +1685,7 @@
     const sx = Math.round((cam.fx - ox) * SCALE), sy = Math.round((cam.fy - oy) * SCALE);
     const LW = VW + 1, LH = VH + 1;
     bctx.clearRect(0, 0, LW, LH);
-    (forge ? Forge : Dojo).render(actx, bctx, gctx, ox, oy, LW, LH, t, player.y);
+    (forge ? Forge : Dojo).render(actx, bctx, gctx, ox, oy, LW, LH, t, player.y, player.x);
     drawPrompt(bctx, ox, oy, t);
     hctx.clearRect(0, 0, VW, VH);
     drawHearts(hctx);

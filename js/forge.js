@@ -154,82 +154,119 @@
   }
 
   // ---------------------------------------------------------------- Kamaka
-  // Rasterised per pixel from smooth shapes (STYLE.md section 3) and shaded with the master ramps, so his
-  // hammer arm can swing through any angle: a broad, burly smith in a koa-leather apron over a red kapa malo,
-  // kākau bands round his arms, cloth wraps at his wrists, a thick black beard and his hair in a topknot tied
-  // with red kapa. Light from the upper left, and from the furnace.
-  const KW = 68, KH = 56;
-  function capsule(px, py, ax, ay, bx, by, r0, r1) {
-    const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1, u = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2)), cx = ax + dx * u, cy = ay + dy * u, r = r0 + (r1 - r0) * u, dd = Math.hypot(px - cx, py - cy);
-    return dd < r ? { u, nx: (px - cx) / r, ny: (py - cy) / r } : null;
+  // Hand-pixelled like the hero and the merchant (24x32, chibi, the shared outline and skin colours): a burly
+  // smith with his hair in a topknot tied with red kapa, a thick black beard, kākau bands on his arms, cloth
+  // wraps at his wrists, a koa-leather apron over a red malo. Front, back and walking frames; at the anvil his
+  // hammer arm is drawn on its own so it can swing.
+  const KP = () => Object.assign({}, window.CHARART.PAL, {
+    h: [26, 20, 30], H: [52, 44, 58], j: [96, 86, 108], b: [30, 24, 34], r: [196, 62, 42], R: [138, 42, 26],
+    s: [150, 92, 60], S: [112, 66, 44], k: [176, 116, 78], a: [126, 80, 46], A: [90, 50, 32], l: [168, 112, 66],
+    c: [60, 30, 18], u: [60, 30, 18], q: [232, 216, 184], t: [52, 30, 34], f: [70, 40, 26],
+  });
+  const K_FRONT = [
+    "........................", "..........oooo..........", ".........ohhjho.........", ".........ohhhho.........",
+    "..........orro..........", "........oohhhhoo........", ".......ohhhjjhhho.......", "......ohhHHhhHHhho......",
+    "......ohkkkkkkkkho......", "......okkkkkkkkkko......", "......okhhkkkkhhko......", "......okkekkkkekko......",
+    "......oskekkkkekso......", "......oSkkkSSkkkSo......", "......obbkkkkkkbbo......", ".......obbkmmkbbo.......",
+    ".......obbbbbbbbo.......", "........obbbbbbo........", "...oooosSbbbbbbSsoooo...", "..oskksSaacbbcaaSskkso..",
+    "..osttsSaaaccaaaSsttso..", "..oskksSAalaaaaASskkso..", "..oSkkSoAalaaaaAoSkkSo..", "..oSkkSoAalauuaAoSkkSo..",
+    "...oqqoAAalaaaaAAoqqo...", "...osSoAaalaaaaaAoSso...", "....oooAaaalaaaaAooo....", ".......oAaaaaaaaAo......",
+  ];
+  const K_BACKHEAD = [
+    "......ohhhhhhhhhho......", "......ohhhHhhhhhho......", "......ohhhhhhHhhho......", "......ohhhhhhhhhho......",
+    "......oshhhhhhhhso......", "......oSshhhhhhsSo......", ".......oSssssssSo.......", ".......osssssssso.......",
+    "........osSSSSso........", "........osssssso........",
+  ];
+  const K_LEGS = [
+    [".......oSso..oSso.......", ".......oSso..oSso.......", ".......offo..offo.......", ".......oooo..oooo......."],
+    [".......oSso..oSso.......", ".......offo..oSso.......", ".......oooo..offo.......", "..............oooo......"],
+    [".......oSso..oSso.......", ".......oSso..offo.......", ".......offo..oooo.......", ".......oooo............."],
+  ];
+  // the back: the apron's ties crossing his bare back, the malo showing below
+  const K_BACK = K_FRONT.slice(0, 8).concat(K_BACKHEAD, K_FRONT.slice(18).map((row, r) => {
+    let out = row.replace(/[aAlbc]/g, r >= 6 ? "r" : "s").replace(/u/g, "c");
+    if (r < 5) { const a2 = 8 + r, b2 = 15 - r; out = out.slice(0, a2) + "c" + out.slice(a2 + 1, b2) + "c" + out.slice(b2 + 1); }
+    return out;
+  }));
+  // at the anvil: the front with the hammer arm (screen right) taken off, to be drawn swinging
+  const K_WORK = K_FRONT.map((row, r) => (r >= 19 && r <= 25 ? row.slice(0, 17) + "o" + "......" : r === 18 ? row.slice(0, 17) + "o......" : row));
+  const KF = {};
+  function kFrame(kind, leg) {
+    const key = kind + leg; if (KF[key]) return KF[key];
+    const rows = (kind === "back" ? K_BACK : kind === "work" ? K_WORK : K_FRONT).concat(K_LEGS[leg]);
+    const [c, x] = K.canvas(24, 32); K.pixmap(x, rows, KP(), 0, 0, false, 24); return (KF[key] = c);
   }
-  function shadeIx(nx, ny, n) { const nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny)), l = -nx * 0.55 - ny * 0.6 + nz * 0.6; return Math.max(0, Math.min(n - 1, Math.round(l * (n - 1) * 0.95 + 0.2))); }
-  F.drawKamaka = function (ctx, X, Y, pose) {
-    const R = P(), SK = R.skin, KO = R.koa, OB = R.obsidian, KP = R.kapa, STL = R.steel;
-    const a1 = pose.arm, breath = pose.breath || 0, look = pose.look || 0, effort = pose.effort || 0;
-    const cx = 36, oyK = 6, img = new Array(KW * KH).fill(null);
-    const set = (x, y, c) => { if (x >= 0 && y >= 0 && x < KW && y < KH) img[y * KW + x] = c; };
-    // the hammer arm: shoulder, elbow, hand and the hammer itself, from the pose
-    const sh = [cx - 9, 23], ua = a1, la = a1 + (pose.bend ?? -0.5), el = [sh[0] + Math.cos(ua) * 7, sh[1] + Math.sin(ua) * 7], hd = [el[0] + Math.cos(la) * 7, el[1] + Math.sin(la) * 7];
-    const hh = [hd[0] + Math.cos(la) * 11, hd[1] + Math.sin(la) * 11];
-    for (let y = 0; y < KH; y++) for (let x = 0; x < KW; x++) {
-      const px = x + 0.5, py = y + 0.5 - oyK;
-      let col = null, q;
-      // legs and feet
-      for (const s of [-1, 1]) if ((q = capsule(px, py, cx + s * 3.6, 36, cx + s * 4.4, 46, 3, 2.6))) col = SK[1 + shadeIx(q.nx, q.ny, 3)];
-      for (const s of [-1, 1]) if (Math.abs(px - (cx + s * 4.6)) < 3.2 && py > 45.5 && py < 48) col = py < 46.5 ? KO[3] : KO[1];
-      // the malo
-      if (py > 32 && py < 38 && Math.abs(px - cx) < 9 - (py - 32) * 0.3) col = py < 33.5 ? KP[3] : (Math.floor(px) + Math.floor(py)) % 4 === 0 ? KP[3] : px < cx ? KP[2] : KP[1];
-      // the torso: a broad chest
-      { const ex = (px - cx) / 10.5, ey = (py - 28) / (8.5 + breath * 0.4), rr = ex * ex + ey * ey; if (rr < 1) col = SK[shadeIx(ex * 0.9, ey * 0.6, 4)]; }
-      // his far arm, hanging, with the kākau bands
-      if ((q = capsule(px, py, cx + 9.5, 23, cx + 12, 31, 3.4, 2.9)) || (q = capsule(px, py, cx + 12, 31, cx + 11.4, 37.5, 2.9, 2.5))) col = SK[shadeIx(q.nx, q.ny, 4)];
-      if ((q = capsule(px, py, cx + 9.5, 23, cx + 12, 31, 3.4, 2.9)) && q.u > 0.35 && q.u < 0.62 && (Math.floor(py) % 2 === 0 || q.u < 0.42)) col = OB[1];
-      if ((q = capsule(px, py, cx + 12, 31, cx + 11.4, 37.5, 2.9, 2.5)) && q.u > 0.6 && q.u < 0.86) col = KP[3 - (Math.floor(py) % 2)];
-      // the apron: koa leather from the chest to the knees, stitched, a strap round the neck, a pocket
-      { const top = 24.5, bot = 42, hw = 7 + (py - top) * 0.12; if (py > top && py < bot && Math.abs(px - cx) < hw) { const e = Math.abs(px - cx) > hw - 1 || py > bot - 1; col = e ? KO[1] : (Math.floor(px) + Math.floor(py * 0.5)) % 7 === 0 ? KO[2] : px < cx - 2 ? KO[4] : KO[3]; if (!e && Math.abs(Math.abs(px - cx) - (hw - 2)) < 0.5 && Math.floor(py) % 2) col = KO[5]; if (py > 33 && py < 37.5 && px > cx + 0.5 && px < cx + 5.5) col = py < 34 ? KO[1] : KO[2]; } }
-      for (const s of [-1, 1]) if (Math.abs(px - (cx + s * (5 - (py - 18) * 0.15))) < 0.8 && py > 18 && py < 25) col = KO[1];
-      // the head: big and round, the beard thick and black, the hair in a topknot tied with kapa
-      { const hx = cx + look, ex = (px - hx) / 8, ey = (py - 12) / 8.4, rr = ex * ex + ey * ey;
-        if (rr < 1) {
-          col = SK[shadeIx(ex * 0.8, ey * 0.7, 4)];
-          if (ey < -0.28 + Math.abs(ex) * 0.25) col = OB[shadeIx(ex, ey, 4) + 1];                 // hair
-          if (ey > 0.12 && (Math.abs(ex) > 0.55 - (ey - 0.12) * 0.4 || ey > 0.45)) col = OB[shadeIx(ex, ey, 3) + (K.hash2(Math.floor(px), Math.floor(py), 7) > 0.75 ? 2 : 1)];   // beard
-        }
-        // the topknot and its tie
-        { const tx = (px - hx) / 3.4, ty = (py - 2.6) / 3; if (tx * tx + ty * ty < 1) col = OB[shadeIx(tx, ty, 4) + 1]; if (py > 4.6 && py < 6 && Math.abs(px - hx) < 2.2) col = KP[2]; }
-      }
-      // the hammer arm and the hammer
-      if ((q = capsule(px, py, hd[0], hd[1], hh[0], hh[1], 0.9, 0.9))) col = KO[q.u > 0.1 ? 3 : 2];
-      { const nx = Math.cos(la), ny = Math.sin(la), lx = (px - hh[0]) * nx + (py - hh[1]) * ny, ly = -(px - hh[0]) * ny + (py - hh[1]) * nx; if (Math.abs(lx) < 2.2 && Math.abs(ly) < 4.2) col = STL[ly < -2.5 ? 2 : lx < -0.8 ? 1 : 0]; }
-      if ((q = capsule(px, py, sh[0], sh[1], el[0], el[1], 3.5, 3)) || (q = capsule(px, py, el[0], el[1], hd[0], hd[1], 3, 2.6))) { col = SK[shadeIx(q.nx, q.ny, 4)]; }
-      if ((q = capsule(px, py, sh[0], sh[1], el[0], el[1], 3.5, 3)) && q.u > 0.35 && q.u < 0.62 && (Math.floor(px + py) % 2 === 0 || q.u < 0.42)) col = OB[1];
-      if ((q = capsule(px, py, el[0], el[1], hd[0], hd[1], 3, 2.6)) && q.u > 0.62 && q.u < 0.9) col = KP[3 - (Math.floor(px) % 2)];
-      if (col !== null) set(x, y, col);
+  // the hammer arm, from the shoulder: a bare arm with its kākau band and wrap, the koa haft and the iron head
+  function drawHammerArm(ctx, ang) {
+    const P2 = KP(), sx = 17.5, sy = 19.5, ca = Math.cos(ang), sa = Math.sin(ang), dot = (x, y, c, w) => { ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`; ctx.fillRect(Math.round(x - w / 2), Math.round(y - w / 2), w, w); };
+    for (const pass of [0, 1]) {
+      for (let u = 0; u <= 6; u += 0.5) dot(sx + ca * u, sy + sa * u, pass ? (u > 4.5 ? P2.q : u > 1.5 && u < 3 ? P2.t : P2.k) : P2.o, pass ? 2 : 4);
+      for (let u = 6; u <= 14; u += 0.5) dot(sx + ca * u, sy + sa * u, pass ? (u > 12 ? [52, 56, 70] : P2.a) : P2.o, pass ? 1 : 3);
     }
-    // the face: eyes under heavy brows (shut tight on the blow), the nose, a grin in the beard
-    const hx = Math.round(cx + look), F2 = (x, y, c) => set(hx + x, y + oyK, c);
-    for (const s of [-1, 1]) {
-      if (effort > 0.5) { F2(s * 3 - 1, 12, SK[0]); F2(s * 3, 12, SK[0]); }
-      else { F2(s * 3, 11, [22, 16, 22]); F2(s * 3, 12, [22, 16, 22]); F2(s * 3 + (s < 0 ? 0 : -1), 11, [236, 230, 214]); }
-      F2(s * 3 - 1, 9 + (effort > 0.5 ? 1 : 0), OB[0]); F2(s * 3, 9, OB[0]); F2(s * 3 + 1, 9 + (effort > 0.5 ? 0 : 1), OB[0]);
-    }
-    F2(0, 14, SK[1]); F2(-1, 14, SK[1]);
-    for (let x = -2; x <= 2; x++) F2(x, 16, effort > 0.5 ? [236, 230, 214] : x === -2 || x === 2 ? OB[1] : [110, 52, 46]);
-    // soot on the cheek and the brow
-    F2(5, 13, SK[1]); F2(-5, 8, OB[2]);
-    // outline: the darkest step of whatever it wraps (INK where that is skin)
-    const out = img.slice();
-    for (let y = 0; y < KH; y++) for (let x = 0; x < KW; x++) {
-      if (img[y * KW + x]) continue;
-      let nb = null; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < KW && yy < KH && img[yy * KW + xx]) nb = img[yy * KW + xx]; }
-      if (nb) out[y * KW + x] = [Math.round(nb[0] * 0.3 + 10), Math.round(nb[1] * 0.25 + 6), Math.round(nb[2] * 0.3 + 12)];
-    }
-    for (let y = 0; y < KH; y++) for (let x = 0; x < KW; x++) { const c = out[y * KW + x]; if (!c) continue; ctx.fillStyle = `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})`; ctx.fillRect(Math.round(X - cx) + x, Math.round(Y - KH + 2) + y, 1, 1); }
-    return { hammer: [X - cx + hh[0], Y - KH + 2 + oyK + hh[1]] };
+    const hx = sx + ca * 14, hy = sy + sa * 14;
+    for (let i2 = -3; i2 <= 3; i2++) { dot(hx - sa * i2, hy + ca * i2, P2.o, 4); }
+    for (let i2 = -3; i2 <= 3; i2++) { dot(hx - sa * i2, hy + ca * i2, i2 < -1 ? [150, 160, 176] : [80, 86, 104], 2); }
+  }
+  // a still Kamaka, for the Duel Hall
+  function smithArt() { return kFrame("front", 0); }
+
+  // ---- his day in the forge: hammering at the anvil, wandering the floor, stopping to admire the weapons on
+  // the racks, going through the bench, the shard baskets and the barrel; turning to you when you come up,
+  // and back to the anvil at once when there's work for you
+  const WORK_AT = { x: 9 * T + 16, y: 5.7 * T };
+  const SPOTS = {
+    admire: [{ x: 130, y: 124 }, { x: 440, y: 124 }, { x: 505, y: 124 }],
+    rummage: [{ x: 183, y: 160 }, { x: 470, y: 128 }, { x: 6.2 * T, y: 6.9 * T + 12 }],
   };
-  // a still Kamaka (his hammer at rest on his shoulder), for the Duel Hall
-  function smithArt() { const [c, x] = K.canvas(KW, KH); F.drawKamaka(x, 36, KH - 2, { arm: 4.3, bend: 0.9 }); return c; }
+  function kam() {
+    if (!F.kam) F.kam = { x: WORK_AT.x, y: WORK_AT.y, state: "work", t: 0, next: 6 + Math.random() * 6, face: -1, look: "front", walkPh: 0 };
+    return F.kam;
+  }
+  const freeAt = (x, y) => { F.ignoreSmith = true; const s2 = F.solidAt(x, y) || F.solidAt(x - 5, y) || F.solidAt(x + 5, y); F.ignoreSmith = false; return !s2; };
+  function goTo(k, x, y, then, fast) { k.state = "walk"; k.tx = x; k.ty = y; k.then = then; k.fast = fast; k.t = 0; k.stuck = 0; }
+  function pickActivity(k) {
+    const r = Math.random();
+    if (r < 0.3) { const s2 = SPOTS.admire[(Math.random() * SPOTS.admire.length) | 0]; goTo(k, s2.x, s2.y, "admire"); }
+    else if (r < 0.62) { const s2 = SPOTS.rummage[(Math.random() * SPOTS.rummage.length) | 0]; goTo(k, s2.x, s2.y, "rummage"); }
+    else { for (let n = 0; n < 20; n++) { const x = 100 + Math.random() * 440, y = 140 + Math.random() * 160; if (freeAt(x, y)) { goTo(k, x, y, "idle"); return; } } k.state = "work"; k.next = 5; }
+  }
+  function kamUpdate(dt, t, px, py) {
+    const k = kam();
+    k.t += dt;
+    const near = Math.hypot(px - k.x, py - k.y) < 46;
+    if (F.work > 0 && k.state !== "work" && !(k.state === "walk" && k.then === "work")) goTo(k, WORK_AT.x, WORK_AT.y, "work", true);
+    if (k.state === "walk") {
+      const dx = k.tx - k.x, dy = k.ty - k.y, d = Math.hypot(dx, dy), sp = (k.fast ? 78 : 36) * dt;
+      if (d < 2) { k.state = k.then; k.t = 0; k.next = k.then === "work" ? 7 + Math.random() * 8 : k.then === "idle" ? 1.5 + Math.random() * 2 : 3 + Math.random() * 2.5; k.moving = false; }
+      else {
+        const mx = (dx / d) * Math.min(sp, d), my = (dy / d) * Math.min(sp, d); let moved = false;
+        if (freeAt(k.x + mx, k.y)) { k.x += mx; moved = true; } if (freeAt(k.x, k.y + my)) { k.y += my; moved = true; }
+        if (!moved) { k.stuck += dt; if (k.stuck > 0.8) { goTo(k, WORK_AT.x, WORK_AT.y, "work", k.fast); if (!freeAt(k.x, k.y)) { k.x = WORK_AT.x; k.y = WORK_AT.y; } } }
+        k.moving = moved; k.walkPh += dt * 8; k.face = Math.abs(dx) > 2 ? (dx > 0 ? 1 : -1) : k.face; k.look = Math.abs(dy) > Math.abs(dx) && dy < 0 ? "back" : "front";
+      }
+    } else {
+      k.moving = false;
+      if (k.state === "work") { k.face = -1; k.look = "work"; if (k.t > k.next && F.work <= 0 && !near) pickActivity(k); }
+      else if (k.state === "admire" || k.state === "rummage") { k.look = "back"; if (k.t > k.next) { if (Math.random() < 0.6) goTo(k, WORK_AT.x, WORK_AT.y, "work"); else pickActivity(k); } }
+      else if (k.state === "idle") { k.look = "front"; if (k.t > k.next) { if (Math.random() < 0.55) goTo(k, WORK_AT.x, WORK_AT.y, "work"); else pickActivity(k); } }
+      // you've come up to him: he turns to you (unless he's busy with your order)
+      if (near && !(k.state === "work" && F.work > 0)) { k.look = "front"; k.face = px >= k.x ? 1 : -1; }
+    }
+    F.SMITH.x = k.x; F.SMITH.y = k.y;
+    return k;
+  }
+  F.drawKamaka = function (ctx, X, Y, k, arm, t) {
+    const leg = k.moving ? 1 + (Math.floor(k.walkPh / Math.PI) % 2) : 0;
+    const working = k.look === "work" && k.state === "work";
+    const bob = k.state === "rummage" ? Math.round(Math.abs(Math.sin(t * 5))) : k.state === "admire" && Math.sin(t * 1.3) > 0.9 ? 1 : 0;
+    ctx.fillStyle = "rgba(10,12,16,0.3)"; ctx.beginPath(); ctx.ellipse(X, Y, 8, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.translate(X, Y + bob); ctx.scale(k.face < 0 ? -1 : 1, 1); ctx.translate(-12, -31);
+    ctx.drawImage(kFrame(working ? "work" : k.look === "back" ? "back" : "front", working ? 0 : leg), 0, 0);
+    if (working) drawHammerArm(ctx, arm);
+    ctx.restore();
+    // going through things: a little dust and the odd clink
+    if (k.state === "rummage" && Math.random() < 0.08) Combat.addPart({ x: X + (Math.random() - 0.5) * 12, y: Y - 18, vx: (Math.random() - 0.5) * 20, vy: -20, g: 60, life: 0.5, col: "#c8b490", size: 1, kind: "debris" });
+  };
 
   F.build = function () {
     F.ground = bakeRoom(); F.furnace = bakeFurnace(); F.smith = smithArt();
@@ -245,7 +282,7 @@
     if (Math.abs(x - F.ANVIL.x) < 13 && Math.abs(y - F.ANVIL.y) < 6) return true;                 // the anvil
     if (Math.abs(x - F.TROUGH.x) < 24 && Math.abs(y - F.TROUGH.y) < 8) return true;              // the trough
     if (Math.abs(x - F.STAND.x) < 9 && Math.abs(y - F.STAND.y) < 5) return true;                  // the armour stand
-    if (Math.abs(x - F.SMITH.x) < 8 && Math.abs(y - F.SMITH.y) < 5) return true;
+    if (!F.ignoreSmith && Math.abs(x - F.SMITH.x) < 8 && Math.abs(y - F.SMITH.y) < 5) return true;
     if (Math.abs(x - F.GRIND.x) < 16 && Math.abs(y - F.GRIND.y) < 6) return true;                 // the grindstone
     if (Math.abs(x - F.COAL.x) < 36 && y < F.COAL.y + 18) return true;                            // the coal heap
     if (x > F.BENCH.x - 32 && x < F.BENCH.x + 52 && y < F.BENCH.y + 2) return true;               // the workbench
@@ -262,7 +299,8 @@
   // ---------------------------------------------------------------- drawing
   let chalk = new Map();
   const chalkOf = (img) => { let c = chalk.get(img); if (c) return c; const [cv, x] = K.canvas(img.width, img.height); x.drawImage(img, 0, 0); x.globalCompositeOperation = "source-in"; x.fillStyle = "#e8e0d0"; x.fillRect(0, 0, img.width, img.height); chalk.set(img, cv); return cv; };
-  F.render = function (actx, bctx, g, ox, oy, LW, LH, t, py) {
+  F.render = function (actx, bctx, g, ox, oy, LW, LH, t, py, px) {
+    F.lastPx = px || 0;
     const R = P(), Fi = R.fire, dt = 1 / 60;
     actx.fillStyle = "#0c0808"; actx.fillRect(0, 0, LW, LH);
     actx.drawImage(F.ground, ox, oy, LW, LH, 0, 0, LW, LH);
@@ -338,24 +376,23 @@
       c.fillStyle = col; c.fillRect(ax - 4, top - 2, 9, 2); c.fillStyle = css(Fi[4]); c.fillRect(ax - 2, top - 2, 3, 1);
       if (g) Level.glowAt(g, ax, top - 2, 26, F.work > 0 && F.workCol ? hexRgb(F.workCol) : "255,170,80", 0.25 + hot * 0.25);
     } });
-    // Kamaka: hammering at the anvil (faster while he works for you), pausing to look up when you come near
-    const near = Math.hypot(F.SMITH.x - (F.lastPx || 0), F.SMITH.y - py) < 0, fast = F.work > 0, rate = fast ? 2.6 : 1.05;
+    // Kamaka: about his day; at the anvil his hammer rises and falls (faster while he works for you)
+    const k = kamUpdate(dt, t, F.lastPx || 0, py), fast = F.work > 0, rate = fast ? 2.6 : 1.05, atAnvil = k.state === "work" && Math.hypot(k.x - WORK_AT.x, k.y - WORK_AT.y) < 3;
     F.beat = (F.beat || 0) + dt * rate; const beat = F.beat % 1;
-    let arm, effort = 0;
-    if (beat < 0.55) { const u = beat / 0.55; arm = 3.0 + Math.sin(u * Math.PI / 2) * 1.45; }          // the hammer rising up over his shoulder
-    else if (beat < 0.64) { const u = (beat - 0.55) / 0.09; arm = 4.45 - u * u * 1.45; effort = 1; }   // and coming down on the work
-    else { arm = 3.0 + Math.sin((beat - 0.64) * 30) * 0.03 * (1 - beat); effort = beat < 0.72 ? 1 : 0; }
-    const strike = beat >= 0.63 && beat < 0.7;
+    let arm;
+    if (beat < 0.55) arm = 0.6 - Math.sin((beat / 0.55) * Math.PI / 2) * 2.5;                 // the hammer rising over his shoulder
+    else if (beat < 0.64) { const u = (beat - 0.55) / 0.09; arm = -1.9 + u * u * 2.5; }        // and coming down on the work
+    else arm = 0.6;
+    const strike = atAnvil && beat >= 0.63 && beat < 0.7;
     if (strike && !F.struck) {
       F.struck = true; const col = fast && F.workCol ? F.workCol : null;
-      for (let k = 0; k < (fast ? 26 : 14); k++) F.sparks.push({ x: F.ANVIL.x - 1, y: F.ANVIL.y - 21, vx: (Math.random() - 0.5) * 150, vy: -50 - Math.random() * 100, life: 0.45 + Math.random() * 0.35, col });
+      for (let n = 0; n < (fast ? 26 : 14); n++) F.sparks.push({ x: F.ANVIL.x - 1, y: F.ANVIL.y - 21, vx: (Math.random() - 0.5) * 150, vy: -50 - Math.random() * 100, life: 0.45 + Math.random() * 0.35, col });
       window.Ambience && Ambience.sfx && Ambience.sfx("clank");
     }
     if (!strike) F.struck = false;
     if (fast && F.work < 0.1 && !F.quenched) { F.quenched = true; F.quench = 1; window.Ambience && Ambience.sfx && Ambience.sfx("steam"); } else if (F.work > 0.5) F.quenched = false;
     if (F.quench > 0) F.quench -= dt * 0.8;
-    void near;
-    draws.push({ y: F.SMITH.y, f: (c) => { F.drawKamaka(c, Math.round(F.SMITH.x - ox), Math.round(F.SMITH.y - oy), { arm, bend: -0.45 + Math.max(0, arm - 3.4) * 0.9, breath: Math.sin(t * 1.8), effort }); } });
+    draws.push({ y: k.y, f: (c) => F.drawKamaka(c, Math.round(k.x - ox), Math.round(k.y - oy), k, arm, t) });
     // the armour stand, wearing what you wear
     draws.push({ y: F.STAND.y, f: (c) => {
       const sx = Math.round(F.STAND.x - ox), sy = Math.round(F.STAND.y - oy), a = Gear.worn(), KO = R.koa;
