@@ -145,6 +145,16 @@ with the weapon to fill its Surge diamonds; the next combo finisher becomes the 
 - **Inventory (I):** weapons in hand and owned, armour, gold, shells, shards and items. The HUD shows your gold
   and total shells under your hearts. Settings has Gear and Bestiary tabs.
 
+## Playtesting
+- **Kilo the Wayfinder** stands on the beach at the island's top-left (sky-blue cloak, a marker over his head).
+  Talk to him and pick any of the six levels. You go with a full kit:
+  - every weapon, all battle suits and cloth sets (Obsidian Guard worn)
+  - 5 tonics, 3 salves, 3 of every talisman
+  - 9 of every shard, 30 of every shell, 999 gold
+  The prepare screen opens so you can choose your five weapons, armour and two packed items.
+- It's a sandbox: your real gear and progress are put aside, nothing is saved during the trip, and your own kit
+  comes back as soon as you land on the island again.
+
 ## Settings and controls
 - **Esc** opens Settings (it pauses solo play). Tabs: Co-op, Controls (every gameplay control), Sound (volume and
   mute) and Menu (how to work the menu: Tab or ← → to switch tabs, Esc to close).
