@@ -1004,7 +1004,7 @@
     const np = Level.players || 1;
     // later zones are tougher: def.hpMul raises every creature's health (bosses scale with the heroes)
     Enemies.hpScale = (np >= 3 ? COOP.hp3 : np === 2 ? COOP.hp : 1) * (def.hpMul || 1); Enemies.bossScale = np * (def.bossMul || 1);
-    if (!Level.netGuest) for (const e of coopRoster(withCover(def.enemies || []), b)) { const en = Enemies.spawn(e.e, e.x * T, e.y * T, e.tribe || 0, L); if (en) L.enemies.push(en); }
+    if (!Level.netGuest) for (const e of coopRoster(withCover(def.enemies || []), b)) { const en = Enemies.spawn(e.e, e.x * T, e.y * T, e.tribe || 0, L); if (en) { if (e.nest) en.nest = 1; L.enemies.push(en); } }
     L.solids = [];
     for (const p of L.props) if (p.solids) L.solids.push(...p.solids);
     if (def.sea && !Level.netGuest) { const r = K.rng(name.length * 41 + 7); for (let k = 0, n = 0; k < 600 && n < 3; k++) { const x = r() * b.W, y = r() * b.H, i = (y | 0) * b.W + (x | 0); if (b.terr[i] !== SAND || !b.water || b.water.landDist[i] > 12 || b.water.landDist[i] < 3) continue; L.pickups.push({ x, y, t0: 0, beach: 1, shell: Gear.randomShell(r() < 0.85 ? 0 : 1) }); n++; } }

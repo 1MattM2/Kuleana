@@ -1045,11 +1045,15 @@
       if (l < 10 || e.st > 2.6) { e.rock = 0; L.fx.push({ kind: "rock", x: Q.x + (Q.vx || 0) * 0.3, y: Q.y + (Q.vy || 0) * 0.3, t: 0, dur: 1.05, R: 22, dmg: 2, tk: keyOf(Q), trk: 95 }); Combat.shake = Math.min(1, Combat.shake + 0.1); sfx(api, "throw"); e.state = "hunt"; e.st = 0; e.cd = rnd(1.6, 2.6); e.tq = null; }
     } else if (e.state === "hunt") {
       // it stays near: wheeling round you, just out of reach
-      e.z += (34 - e.z) * Math.min(1, dt * 2); e.orbA += dt * 0.9 * (e.ph > 3 ? 1 : -1);
-      fly(P.x + Math.cos(e.orbA) * 62, P.y + Math.sin(e.orbA) * 44, 95);
+      e.z += (34 - e.z) * Math.min(1, dt * 2);
+      // a flock keeps its distance from one another: each holds its own place round the hero, evenly spread
+      const fi = flock.indexOf(e), fn = flock.length;
+      if (fn > 1) { const F2 = FLOCKS[e.tribe]; F2.rot = (F2.rot || 0) + dt * 0.12; e.orbA += angDiff(F2.rot * TAU + (fi / fn) * TAU, e.orbA) * Math.min(1, dt * 1.5); }
+      else e.orbA += dt * 0.9 * (e.ph > 3 ? 1 : -1);
+      fly(P.x + Math.cos(e.orbA) * 78, P.y + Math.sin(e.orbA) * 54, 110);
       if (F && flock.length > 1) {
         // the flock attacks together: all bombing at once (those still carrying stones), or swooping in turn
-        if (t > F.next) { F.next = t + rnd(4.5, 6.5); F.kind = (F.kind + 1) % 2; flock.forEach((o, k) => { if (o.state !== "hunt") return; const Q = (E.alive || [])[k % Math.max(1, (E.alive || []).length)] || P; if (F.kind === 0 && o.rearm) { o.rock = 1; o.rearm = 0; o.state = "bomb"; o.tq = Q; o.st = 0; } else { o.state = "glare"; o.st = -k * 0.22; o.tq = Q; } }); sfx(api, "screech"); }
+        if (t > F.next) { F.next = t + rnd(4.5, 6.5); F.kind = (F.kind + 1) % 2; flock.forEach((o, k) => { if (o.state !== "hunt") return; const Q = (E.alive || [])[k % Math.max(1, (E.alive || []).length)] || P; if (F.kind === 0 && o.rearm) { o.rock = 1; o.rearm = 0; o.state = "bomb"; o.tq = Q; o.st = 0; } else { o.state = "glare"; o.st = -k * 0.7; o.tq = Q; } }); sfx(api, "screech"); }
         if (Math.random() < dt * 0.08) e.rearm = 1;
       } else if (e.cd <= 0) { e.state = "glare"; e.st = 0; e.tq = P; }
     } else if (e.state === "glare") {
@@ -1064,7 +1068,11 @@
   };
   E.DRAW.pueo = (e, ctx, ox, oy, t, g, introY, fl) => {
     const x = e.x - ox, y = e.y - oy;
-    if (e.state === "perch") { drawPerched(ctx, x, y, t, fl, e.ph); return; }
+    if (e.state === "perch") {
+      // an owl roosting on the cliff face sits in a nest of sticks on a ledge
+      if (e.nest) { const KO = R().koa, OB = R().obsidian; px(ctx, x - 13, y - 2, 26, 4, rgb(OB[0])); px(ctx, x - 12, y - 2, 24, 2, rgb(OB[4])); for (let k = 0; k < 14; k++) { const a = k * 0.45, rr = 9 + (k % 3); px(ctx, x + Math.cos(a) * rr - 2, y - 4 + Math.sin(a) * 2.5, 4, 1, rgb(k % 2 ? KO[2] : KO[3])); } px(ctx, x - 8, y - 5, 16, 2, rgb(KO[1])); }
+      drawPerched(ctx, x, y, t, fl, e.ph); return;
+    }
     ctx.fillStyle = "rgba(10,12,16,0.28)"; ctx.beginPath(); ctx.ellipse(Math.round(x), Math.round(y), 12 - Math.min(6, e.z / 8), 3, 0, 0, TAU); ctx.fill();
     drawOwlFlight(ctx, x, y - e.z, t, t * (e.state === "swoop" ? 4 : e.state === "glare" ? 12 : 6.5) + e.ph, fl, e.rock && (e.state === "bomb" || e.state === "launch"));
     if (e.state === "glare") { telegraph(ctx, x, y - e.z - 44, t); if (g) for (const sg of [-1, 1]) glow(g, x + sg * 4, y - e.z - 25, 8, "255,170,40", 0.6); }
