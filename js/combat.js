@@ -550,9 +550,14 @@
   // sets how much damage a full charge takes (ultCost), so heavy hitters don't charge faster than they should.
   C.SURGE = 3;
   C.ULT_COST = 150;
+  C.ULT_HITS = 16;   // blows of average weight to fill a super
   function chargeUp(dmg) {
     const ww = C.swing ? C.swing.w : WEAPONS[C.cur]; if (!ww || !ww.ult || C.ultT > C.clock - (ww.ult.dur || 1.5)) return;
-    const was = ww.charge || 0; ww.charge = Math.min(C.SURGE, was + (dmg * C.SURGE) / (ww.ultCost || C.ULT_COST));
+    // a charge takes about the same number of blows with every weapon: each hit counts against that weapon's
+    // own typical hit (a running average), so a heavy hitter doesn't fill it faster than a light one
+    ww.avgHit = ww.avgHit ? ww.avgHit + (dmg - ww.avgHit) * 0.08 : dmg;
+    const hits = C.ULT_HITS * ((ww.ultCost || C.ULT_COST) / C.ULT_COST), was = ww.charge || 0;
+    ww.charge = Math.min(C.SURGE, was + (Math.min(2.5, dmg / ww.avgHit) * C.SURGE) / hits);
     if (was < C.SURGE && ww.charge >= C.SURGE) { C.readyT = C.clock; sfx("ultReady"); }
   }
   // ---- Momentum: chaining hits on enemies without getting hurt builds it (tiers I-III: harder,

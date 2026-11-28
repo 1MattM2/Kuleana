@@ -161,15 +161,15 @@
   const KP = () => Object.assign({}, window.CHARART.PAL, {
     h: [26, 20, 30], H: [52, 44, 58], j: [96, 86, 108], b: [30, 24, 34], r: [196, 62, 42], R: [138, 42, 26],
     s: [150, 92, 60], S: [112, 66, 44], k: [176, 116, 78], a: [126, 80, 46], A: [90, 50, 32], l: [168, 112, 66],
-    c: [60, 30, 18], u: [60, 30, 18], q: [232, 216, 184], t: [52, 30, 34], f: [70, 40, 26],
+    c: [60, 30, 18], u: [60, 30, 18], q: [232, 216, 184], t: [52, 30, 34], f: [70, 40, 26], v: [150, 58, 40], V: [104, 38, 28], w: [232, 210, 170],
   });
   const K_FRONT = [
     "........................", "..........oooo..........", ".........ohhjho.........", ".........ohhhho.........",
     "..........orro..........", "........oohhhhoo........", ".......ohhhjjhhho.......", "......ohhHHhhHHhho......",
     "......ohkkkkkkkkho......", "......okkkkkkkkkko......", "......okhhkkkkhhko......", "......okkekkkkekko......",
     "......oskekkkkekso......", "......oSkkkSSkkkSo......", "......obbkkkkkkbbo......", ".......obbkmmkbbo.......",
-    ".......obbbbbbbbo.......", "........obbbbbbo........", "...oooosSbbbbbbSsoooo...", "..oskksSaacbbcaaSskkso..",
-    "..osttsSaaaccaaaSsttso..", "..oskksSAalaaaaASskkso..", "..oSkkSoAalaaaaAoSkkSo..", "..oSkkSoAalauuaAoSkkSo..",
+    ".......obbbbbbbbo.......", "........obbbbbbo........", "...oooovVbbbbbbVvoooo...", "..ovvvvVaacbbcaaVvvvvo..",
+    "..ovwvvVaaaccaaaVvvwvo..", "..oVVVVVAalaaaaAVVVVVo..", "..oSkkSoAalaaaaAoSkkSo..", "..oSkkSoAalauuaAoSkkSo..",
     "...oqqoAAalaaaaAAoqqo...", "...osSoAaalaaaaaAoSso...", "....oooAaaalaaaaAooo....", ".......oAaaaaaaaAo......",
   ];
   const K_BACKHEAD = [
@@ -184,16 +184,31 @@
   ];
   // the back: the apron's ties crossing his bare back, the malo showing below
   const K_BACK = K_FRONT.slice(0, 8).concat(K_BACKHEAD, K_FRONT.slice(18).map((row, r) => {
-    let out = row.replace(/[aAlbc]/g, r >= 6 ? "r" : "s").replace(/u/g, "c");
+    let out = row.replace(/[aAlbc]/g, r >= 6 ? "r" : r === 1 || r === 3 ? "w" : "v").replace(/u/g, "c");
     if (r < 5) { const a2 = 8 + r, b2 = 15 - r; out = out.slice(0, a2) + "c" + out.slice(a2 + 1, b2) + "c" + out.slice(b2 + 1); }
     return out;
   }));
   // at the anvil: the front with the hammer arm (screen right) taken off, to be drawn swinging
   const K_WORK = K_FRONT.map((row, r) => (r >= 19 && r <= 25 ? row.slice(0, 17) + "o" + "......" : r === 18 ? row.slice(0, 17) + "o......" : row));
+  // the side: a profile in the same style (nose and beard forward, topknot back, one arm swinging)
+  const K_SIDE = [
+    "........................", "...........oooo.........", "..........ohhjho........", "..........ohhhho........",
+    "...........orro.........", ".........oohhhhoo.......", "........ohhhjjhhho......", "........ohhHHhhhhho.....",
+    "........ohhhkkkkkko.....", "........ohhkkkkkkko.....", "........ohhkkkkhhko.....", "........ohhkkkkkeko.....",
+    "........osskkkkkeko.....", "........oSskkkkkkkso....", "........obbbkkkkkko.....", ".........obbbbkmmko.....",
+    ".........obbbbbbbo......", "..........obbbbbo.......", ".........ovVbbbbVo......", ".........ovvvaaaaao.....",
+    ".........ovwvaaaaao.....", ".........oVVVAalaao.....", ".........oskkAalaao.....", ".........oskkAauuao.....",
+    ".........oqqoAalaao.....", ".........osSoAaaaAo.....", "..........ooAaaaAo......", "..........oAaaaaAo......",
+  ];
+  const K_SLEGS = [
+    ["..........oSso.........", "..........oSso.........", "..........offo.........", "..........oooo........."],
+    [".........oSso.oSso.....", "........oSso...oSso....", "........offo...offo....", "........oooo...oooo...."],
+    ["..........oSsoSso......", "..........oSsSso.......", "..........offffo.......", "..........oooooo......."],
+  ];
   const KF = {};
   function kFrame(kind, leg) {
     const key = kind + leg; if (KF[key]) return KF[key];
-    const rows = (kind === "back" ? K_BACK : kind === "work" ? K_WORK : K_FRONT).concat(K_LEGS[leg]);
+    const rows = kind === "side" ? K_SIDE.concat(K_SLEGS[leg]) : (kind === "back" ? K_BACK : kind === "work" ? K_WORK : K_FRONT).concat(K_LEGS[leg]);
     const [c, x] = K.canvas(24, 32); K.pixmap(x, rows, KP(), 0, 0, false, 24); return (KF[key] = c);
   }
   // the hammer arm, from the shoulder: a bare arm with its kākau band and wrap, the koa haft and the iron head
@@ -236,13 +251,13 @@
     const near = Math.hypot(px - k.x, py - k.y) < 46;
     if (F.work > 0 && k.state !== "work" && !(k.state === "walk" && k.then === "work")) goTo(k, WORK_AT.x, WORK_AT.y, "work", true);
     if (k.state === "walk") {
-      const dx = k.tx - k.x, dy = k.ty - k.y, d = Math.hypot(dx, dy), sp = (k.fast ? 78 : 36) * dt;
+      const dx = k.tx - k.x, dy = k.ty - k.y, d = Math.hypot(dx, dy), sp = (k.fast ? 110 : 62) * dt;
       if (d < 2) { k.state = k.then; k.t = 0; k.next = k.then === "work" ? 7 + Math.random() * 8 : k.then === "idle" ? 1.5 + Math.random() * 2 : 3 + Math.random() * 2.5; k.moving = false; }
       else {
         const mx = (dx / d) * Math.min(sp, d), my = (dy / d) * Math.min(sp, d); let moved = false;
         if (freeAt(k.x + mx, k.y)) { k.x += mx; moved = true; } if (freeAt(k.x, k.y + my)) { k.y += my; moved = true; }
         if (!moved) { k.stuck += dt; if (k.stuck > 0.8) { goTo(k, WORK_AT.x, WORK_AT.y, "work", k.fast); if (!freeAt(k.x, k.y)) { k.x = WORK_AT.x; k.y = WORK_AT.y; } } }
-        k.moving = moved; k.walkPh += dt * 8; k.face = Math.abs(dx) > 2 ? (dx > 0 ? 1 : -1) : k.face; k.look = Math.abs(dy) > Math.abs(dx) && dy < 0 ? "back" : "front";
+        k.moving = moved; k.walkPh += dt * 11; k.face = Math.abs(dx) > 2 ? (dx > 0 ? 1 : -1) : k.face; k.look = Math.abs(dx) > Math.abs(dy) * 0.8 ? "side" : dy < 0 ? "back" : "front";
       }
     } else {
       k.moving = false;
@@ -261,7 +276,7 @@
     const bob = k.state === "rummage" ? Math.round(Math.abs(Math.sin(t * 5))) : k.state === "admire" && Math.sin(t * 1.3) > 0.9 ? 1 : 0;
     ctx.fillStyle = "rgba(10,12,16,0.3)"; ctx.beginPath(); ctx.ellipse(X, Y, 8, 2.5, 0, 0, Math.PI * 2); ctx.fill();
     ctx.save(); ctx.translate(X, Y + bob); ctx.scale(k.face < 0 ? -1 : 1, 1); ctx.translate(-12, -31);
-    ctx.drawImage(kFrame(working ? "work" : k.look === "back" ? "back" : "front", working ? 0 : leg), 0, 0);
+    ctx.drawImage(kFrame(working ? "work" : k.look === "back" ? "back" : k.look === "side" ? "side" : "front", working ? 0 : leg), 0, 0);
     if (working) drawHammerArm(ctx, arm);
     ctx.restore();
     // going through things: a little dust and the odd clink

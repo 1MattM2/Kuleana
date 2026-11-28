@@ -593,7 +593,7 @@
     ["FORGE", "TEMPER"].forEach((lab, k) => { const bx = px0 + 8 + k * 52, on = forgeUI.tab === k; sctx.fillStyle = on ? "#ffb06a" : "#3a2c2c"; sctx.fillRect(bx * u, (py0 + 5) * u, 48 * u, 11 * u); sctx.font = `${7 * u}px 'Pixelify Sans', monospace`; sctx.textAlign = "center"; sctx.fillStyle = on ? "#1e1416" : "#c8a890"; sctx.fillText(lab, (bx + 24) * u, (py0 + 7) * u); forgeUI.hit.push({ x: bx, y: py0 + 5, w: 48, h: 11, tab: k }); });
   }
   function drawTemperUI(t) {
-    const u = SCALE, L = upList(), RH = 15, rows = Math.max(4, Math.min(L.length, Math.floor((VH - 80) / RH))), pw = Math.min(VW - 16, 360), ph = 56 + rows * RH, px0 = Math.round((VW - pw) / 2), py0 = Math.round((VH - ph) / 2);
+    const u = SCALE, L = upList(), RH = 15, rows = Math.max(4, Math.min(L.length, Math.floor((VH - 80) / RH))), pw = Math.min(VW - 16, 360), ph = 56 + rows * RH, px0 = Math.round((VW - pw) / 2), py0 = FORGE_TOP(ph);
     if (forgeUI.urow < forgeUI.utop) forgeUI.utop = forgeUI.urow; if (forgeUI.urow >= forgeUI.utop + rows) forgeUI.utop = forgeUI.urow - rows + 1;
     const R = (c, x, y, w, h) => { sctx.fillStyle = c; sctx.fillRect(x * u, y * u, w * u, h * u); };
     sctx.fillStyle = "rgba(8,4,4,0.55)"; sctx.fillRect(0, 0, screen.width, screen.height);
@@ -618,9 +618,11 @@
     R("#8a4a2a", px0 + pw - 14, py0 + 4, 10, 10); sctx.fillStyle = "#1e1416"; sctx.fillText("x", (px0 + pw - 9) * u, (py0 + 4) * u);
     sctx.textAlign = "left";
   }
+  // both forge tabs share one panel width and top edge, so the Forge/Temper buttons never move between them
+  const FORGE_TOP = () => Math.max(6, Math.round((VH - (56 + Math.max(4, Math.min(upList().length, Math.floor((VH - 80) / 15))) * 15)) / 2));
   function drawForgeUI(t) {
     if (forgeUI.tab === 1) return drawTemperUI(t);
-    const u = SCALE, n = Gear.ORDER.length, RH = Math.min(17, Math.floor((VH - 70) / n)), pw = Math.min(VW - 16, 330), ph = 48 + n * RH, px0 = Math.round((VW - pw) / 2), py0 = Math.round((VH - ph) / 2);
+    const u = SCALE, n = Gear.ORDER.length, RH = Math.min(17, Math.floor((VH - 70) / n)), pw = Math.min(VW - 16, 360), ph = 48 + n * RH, px0 = Math.round((VW - pw) / 2), py0 = FORGE_TOP(ph);
     const R = (c, x, y, w, h) => { sctx.fillStyle = c; sctx.fillRect(x * u, y * u, w * u, h * u); };
     sctx.fillStyle = "rgba(8,4,4,0.55)"; sctx.fillRect(0, 0, screen.width, screen.height);
     R("#140c0c", px0, py0, pw, ph); R("#8a4a2a", px0 + 1, py0 + 1, pw - 2, ph - 2); R("#1e1416", px0 + 2, py0 + 2, pw - 4, ph - 4);
