@@ -1332,7 +1332,9 @@
   };
   // an elemental shard: a faceted crystal in its element's colour, turning and glinting
   function drawShard(ctx, b, x, y, t) {
-    const E = Gear.ELEMENTS[b.el], c = E.col, X = Math.round(x), Y = Math.round(y - 4), w = Math.abs(Math.cos(t * 2 + b.x)) * 3 + 1;
+    const X = Math.round(x), Y = Math.round(y - 4);
+    if (window.ItemArt) { ctx.fillStyle = "rgba(10,12,16,0.3)"; ctx.fillRect(X - 4, Math.round(y + 3), 9, 2); ctx.drawImage(ItemArt.shard(b.el, 16), X - 8, Y - 10); if (Math.sin(t * 5 + b.y) > 0.8) { ctx.fillStyle = "#ffffff"; ctx.fillRect(X + 4, Y - 9, 1, 1); } return; }
+    const E = Gear.ELEMENTS[b.el], c = E.col, w = Math.abs(Math.cos(t * 2 + b.x)) * 3 + 1;
     ctx.fillStyle = "rgba(10,12,16,0.3)"; ctx.fillRect(X - 3, Math.round(y + 3), 7, 2);
     ctx.fillStyle = "#140c16"; ctx.fillRect(X - Math.ceil(w) - 1, Y - 6, Math.ceil(w) * 2 + 3, 13);
     for (let k = -6; k <= 6; k++) { const hw = Math.round(w * (1 - Math.abs(k) / 7)); ctx.fillStyle = k < -2 ? "#ffffff" : c; ctx.fillRect(X - hw, Y + k, hw * 2 + 1, 1); }

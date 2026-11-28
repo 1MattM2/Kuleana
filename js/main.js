@@ -530,17 +530,19 @@
     // your shells along the top
     const ks = Object.keys(Gear.SHELLS); let sx = px0 + 10;
     sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.textAlign = "left";
-    for (const k of ks) { sctx.imageSmoothingEnabled = false; sctx.drawImage(Gear.shellIcon(k), sx * u, (py0 + 18) * u, 16 * u, 16 * u); sctx.fillStyle = "#fff6dc"; sctx.fillText(String(Gear.state().shells[k]), (sx + 17) * u, (py0 + 23) * u); sx += Math.floor((pw - 20) / ks.length); }
+    for (const k of ks) { sctx.imageSmoothingEnabled = false; sctx.drawImage(Gear.shellIcon(k), sx * u, (py0 + 18) * u, 16 * u, 16 * u); tip(sx, py0 + 18, 16, 16, Gear.SHELLS[k].name); sctx.fillStyle = "#fff6dc"; sctx.fillText(String(Gear.state().shells[k]), (sx + 17) * u, (py0 + 23) * u); sx += Math.floor((pw - 20) / ks.length); }
     shopUI.hit = [{ x: px0 + pw - 14, y: py0 + 4, w: 10, h: 10, close: 1 }];
     for (let r = 0; r < rows && shopUI.top + r < items.length; r++) {
       const i = shopUI.top + r, it = items[i], y = py0 + 40 + r * RH, sel = i === shopUI.sel, can = Gear.canBuy(it), out = Gear.soldOut(it);
       if (sel) R("rgba(255,210,122,0.16)", px0 + 4, y - 1, pw - 8, RH - 1);
       const col = it.kind === "shard" ? Gear.ELEMENTS[it.el].col : it.kind === "talisman" ? Gear.ELEMENTS[Gear.TALISMANS[it.id].el].col : it.kind === "heal" ? "#ff8a8a" : "#e8d8b0";
-      R(col, px0 + 8, y + 3, 3, 7);
+      if (it.kind === "shard") { sctx.imageSmoothingEnabled = false; sctx.drawImage(ItemArt.shard(it.el, 16), (px0 + 3) * u, (y - 1) * u, 12 * u, 12 * u); tip(px0 + 3, y - 1, 12, 12, Gear.ELEMENTS[it.el].name + " shard"); }
+      else if (it.kind === "heal" || it.kind === "talisman") { sctx.imageSmoothingEnabled = false; sctx.drawImage(ItemArt.item(it.id, 16), (px0 + 3) * u, (y - 1) * u, 12 * u, 12 * u); }
+      else R(col, px0 + 8, y + 3, 3, 7);
       sctx.font = `${7 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = out ? "#7a6a6a" : can ? "#fff6dc" : "#b8a8a0"; sctx.fillText(it.name + (it.cap ? `  (${Gear.count(it.id)}/${it.cap})` : out ? "  (owned)" : ""), (px0 + 15) * u, (y + 2) * u);
       // the price, in shells
       let cx = px0 + pw - 10;
-      for (const [k, n] of Object.entries(it.cost).reverse()) { cx -= 26; sctx.imageSmoothingEnabled = false; sctx.drawImage(Gear.shellIcon(k), cx * u, (y - 2) * u, 16 * u, 16 * u); sctx.fillStyle = Gear.state().shells[k] >= n ? "#9ae69a" : "#e88a7a"; sctx.fillText("x" + n, (cx + 15) * u, (y + 3) * u); }
+      for (const [k, n] of Object.entries(it.cost).reverse()) { cx -= 26; sctx.imageSmoothingEnabled = false; sctx.drawImage(Gear.shellIcon(k), cx * u, (y - 2) * u, 16 * u, 16 * u); tip(cx, y - 2, 16, 16, Gear.SHELLS[k].name); sctx.fillStyle = Gear.state().shells[k] >= n ? "#9ae69a" : "#e88a7a"; sctx.fillText("x" + n, (cx + 15) * u, (y + 3) * u); }
       shopUI.hit.push({ x: px0 + 4, y: y - 1, w: pw - 8, h: RH, i });
     }
     const it = items[shopUI.sel];
@@ -609,7 +611,9 @@
       R(it.col, px0 + 8, y + 2, 3, 6);
       sctx.font = `${7 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#fff6dc"; sctx.fillText(it.name, (px0 + 15) * u, (y + 1) * u);
       for (let k = 0; k < mx; k++) R(k < lv ? "#ffd27a" : "#3a2c2c", px0 + 108 + k * 6, y + 3, 4, 4);
-      sctx.font = `${5 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = !c ? "#9ae69a" : can ? "#ffe0b0" : "#8a7a7a"; sctx.fillText(c ? costText(c) : "fully tempered", (px0 + 146) * u, (y + 3) * u);
+      sctx.font = `${5 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = !c ? "#9ae69a" : can ? "#ffe0b0" : "#8a7a7a"; if (!c) sctx.fillText("fully tempered", (px0 + 146) * u, (y + 3) * u);
+      else { let cx2 = px0 + 146; for (const [k, n] of Object.entries(c.shells)) { sctx.imageSmoothingEnabled = false; sctx.drawImage(Gear.shellIcon(k), cx2 * u, (y - 1) * u, 12 * u, 12 * u); tip(cx2, y - 1, 12, 12, Gear.SHELLS[k].name); sctx.fillStyle = Gear.state().shells[k] >= n ? "#9ae69a" : "#e88a7a"; sctx.fillText("x" + n, (cx2 + 12) * u, (y + 3) * u); cx2 += 26; }
+        const [el, n] = c.shards; sctx.drawImage(ItemArt.shard(el, 16), cx2 * u, (y - 1) * u, 12 * u, 12 * u); tip(cx2, y - 1, 12, 12, Gear.ELEMENTS[el].name + " shard"); sctx.fillStyle = (Gear.state().shards[el] || 0) >= n ? "#9ae69a" : "#e88a7a"; sctx.fillText("x" + n, (cx2 + 12) * u, (y + 3) * u); }
       forgeUI.hit.push({ x: px0 + 4, y: y - 1, w: pw - 8, h: RH - 1, urow: i });
     }
     sctx.textAlign = "center"; sctx.font = `${6 * u}px 'Pixelify Sans', monospace`;
@@ -634,8 +638,8 @@
     Gear.ORDER.forEach((el, r) => {
       const E = Gear.ELEMENTS[el], y = py0 + 32 + r * RH, have = Gear.state().shards[el], sel = r === forgeUI.row;
       if (sel) R("rgba(255,170,100,0.12)", px0 + 4, y - 1, pw - 8, RH - 1);
-      R(E.col, px0 + 8, y + 3, 4, 6); R("#ffffff", px0 + 9, y + 3, 1, 2);
-      sctx.textAlign = "left"; sctx.font = `${7 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = have ? "#fff6dc" : "#7a6a6a"; sctx.fillText(E.name, (px0 + 16) * u, (y + 2) * u);
+      sctx.imageSmoothingEnabled = false; sctx.drawImage(ItemArt.shard(el, 16), (px0 + 4) * u, (y - 2) * u, 12 * u, 12 * u); tip(px0 + 4, y - 2, 12, 12, E.name + " shard");
+      sctx.textAlign = "left"; sctx.font = `${7 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = have ? "#fff6dc" : "#7a6a6a"; sctx.fillText(E.name, (px0 + 18) * u, (y + 2) * u);
       sctx.fillStyle = have >= Gear.COST ? "#7cf08a" : "#a89880"; sctx.fillText(`${have}/${Gear.COST}`, (px0 + 78) * u, (y + 2) * u);
       const wName = (Combat.weapons.find((w) => w.id === E.weapon) || { name: "?" }).name, cName = Gear.ARMOR[E.cloth].name;
       [[wName, Combat.unlocked.has(E.weapon)], [cName, Gear.hasArmor(E.cloth)]].forEach(([name, owned], c) => {
@@ -1391,10 +1395,20 @@
     }
   }
   // an item's little icon: a red gourd for heals, the talisman's glyph in its element's colour
+  // hover labels: anything drawn with tip() names itself when the mouse is over it
+  let tips = [], mouseG = null;
+  addEventListener("pointermove", (e) => { mouseG = { x: (e.clientX * (screen.width / innerWidth)) / SCALE, y: (e.clientY * (screen.height / innerHeight)) / SCALE }; });
+  function tip(x, y, w, h, label) { tips.push({ x, y, w, h, label }); }
+  function drawTips() {
+    const m = mouseG, hit = m && tips.find((q) => m.x >= q.x && m.x < q.x + q.w && m.y >= q.y && m.y < q.y + q.h); tips = [];
+    if (!hit) return;
+    const u = SCALE; sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.textAlign = "left"; sctx.textBaseline = "top";
+    const w = Math.ceil(sctx.measureText(hit.label).width / u) + 8, x = Math.min(VW - w - 2, m.x + 8), y = Math.max(2, m.y - 14);
+    sctx.fillStyle = "#140c16"; sctx.fillRect(x * u, y * u, w * u, 11 * u); sctx.fillStyle = "#ffd27a"; sctx.fillRect(x * u, y * u, w * u, u); sctx.fillStyle = "#fff6dc"; sctx.fillText(hit.label, (x + 4) * u, (y + 2) * u);
+  }
   function itemIcon(ctx, id, x, y) {
     ctx.fillStyle = "#140c16"; ctx.fillRect(x, y, 16, 16); ctx.fillStyle = "#3a2a3e"; ctx.fillRect(x + 1, y + 1, 14, 14);
-    if (id === "tonic" || id === "salve") { ctx.fillStyle = "#8a5a30"; ctx.fillRect(x + 6, y + 3, 4, 2); ctx.fillStyle = id === "salve" ? "#e8d8a0" : "#c84a5a"; ctx.fillRect(x + 4, y + 5, 8, 8); ctx.fillStyle = id === "salve" ? "#fff8e0" : "#ff9aa8"; ctx.fillRect(x + 5, y + 6, 2, 3); return; }
-    const E = Gear.ELEMENTS[Gear.TALISMANS[id].el]; ctx.fillStyle = E.col; ctx.fillRect(x + 1, y + 1, 14, 14); ctx.fillStyle = "#140c16"; ctx.fillRect(x + 3, y + 3, 10, 10); ctx.fillStyle = E.col; ctx.fillRect(x + 6, y + 4, 4, 8); ctx.fillRect(x + 4, y + 6, 8, 4); ctx.fillStyle = "#ffffff"; ctx.fillRect(x + 7, y + 7, 2, 2);
+    if (id === "tonic" || id === "salve" || Gear.TALISMANS[id]) { ctx.drawImage(ItemArt.item(id, 16), x, y); if (Gear.TALISMANS[id]) { ctx.fillStyle = Gear.ELEMENTS[Gear.TALISMANS[id].el].col; ctx.fillRect(x + 1, y + 14, 14, 1); } }
   }
   function drawItems(ctx) {
     if (Gear.battle) { const pk2 = Gear.pack(); itemsHud = null; for (let i = 0; i < Gear.PACK; i++) { const x = VW - 8 - (Gear.PACK - i) * 18; if (pk2[i]) itemIcon(ctx, pk2[i], x, 6); else { ctx.fillStyle = "#140c16"; ctx.fillRect(x, 6, 16, 16); ctx.fillStyle = "#241a26"; ctx.fillRect(x + 1, 7, 14, 14); } } return; }
@@ -1796,6 +1810,7 @@
     if (loadoutUI.open) drawLoadout(t);
     if (forgeUI.open) drawForgeUI(t);
     if (shopUI.open) drawShop(t);
+    drawTips();
     if (invUI.open) drawInventory(t);
     if (pick.open) drawPicker(t);
     if (fade.a > 0) { sctx.fillStyle = `rgba(2,3,8,${Math.min(1, fade.a)})`; sctx.fillRect(0, 0, screen.width, screen.height); }
