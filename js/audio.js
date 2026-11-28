@@ -289,15 +289,18 @@
     for (const [k, url] of Object.entries(SOUND_DATA)) {
       if (!k.startsWith("leaves_")) continue;
       const b64 = url.split(",")[1], bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
-      ac.decodeAudioData(buf.buffer).then((ab) => { (ab.duration > 1.3 ? LEAF.long : LEAF.short).push(ab); }).catch(() => {});
+      ac.decodeAudioData(buf.buffer).then((ab) => { LEAF.short.push(ab); LEAF.long.push(ab); }).catch(() => {});
     }
   }
   function leaves(t, peak, long) {
     loadLeaves();
     const pool = long && LEAF.long.length ? LEAF.long : LEAF.short.length ? LEAF.short : LEAF.long;
     if (!pool.length) return false;
-    const s = ac.createBufferSource(); s.buffer = pool[(Math.random() * pool.length) | 0]; s.playbackRate.value = 0.92 + Math.random() * 0.16;
-    const g = ac.createGain(); g.gain.value = peak; s.connect(g); out(g, (Math.random() - 0.5) * 0.5); s.start(t); return true;
+    // one recording of leaves moving: a blow plays a random stretch of it (faded in and out), the finale all of it
+    const buf = pool[(Math.random() * pool.length) | 0], s = ac.createBufferSource(); s.buffer = buf; s.playbackRate.value = 0.9 + Math.random() * 0.2;
+    const len = long ? buf.duration : Math.min(buf.duration, 0.45 + Math.random() * 0.2), off = long ? 0 : Math.random() * Math.max(0, buf.duration - len);
+    const g = ac.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + 0.02); g.gain.setValueAtTime(peak, t + len * 0.6); g.gain.linearRampToValueAtTime(0, t + len);
+    s.connect(g); out(g, (Math.random() - 0.5) * 0.5); s.start(t, off, len + 0.02); return true;
   }
   function rustle(t, dur, peak, pan) {
     if (leaves(t, peak * 1.4, dur > 1)) return;
