@@ -551,7 +551,7 @@
 
   // ---------------------------------------------------------------- per-frame mix
   Amb.update = function (t, px, py) {
-    if (!ac) return;
+    if (!ac || !isFinite(px) || !isFinite(py)) return;
     if (ac.state === "suspended") ac.resume();
     // how much ocean / river / jungle is around the player (sampled a few times a second)
     if (t > proxT) {

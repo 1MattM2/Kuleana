@@ -25,6 +25,16 @@
     kakau: ["#0c0808", "#3a1610", "#c4422a", "#f2b45e", "#fff2cc"],
   };
 
+  // ---------------------------------------------------------------- power, by when you get a weapon
+  // Measured single-target damage per second (tools: the DPS sim against a dummy, no crits or momentum)
+  // was brought into line with the journey: the two first weapons set the scale (~48 DPS), and each later
+  // weapon is set for the zone where it's earned, rising about as fast as the creatures' health
+  // (Level defs' hpMul). Weapons whose strength is reach or crowds (the chain sickle, Stormcaller) are set
+  // a little under the line, since one dummy at arm's length undersells them.
+  //   start ʻIhe, Pāhoa 48 | Z1 Newa 54; Kākau, Ahi Staff 64; Ola Maul, Ember Heel 67 | Z2 Leiomano 64;
+  //   Tidecutter, Stormcaller 74 | Z3 Koa Blade 77; Glowtide 86 | Z4 Makau Kaula 90; Mako Fangs 99 |
+  //   Z5 Pololū 102; Starfall 115 | Z6 Koʻi 115; Pele's Grip 128 | the end: Koʻi-Lua 168
+  const POW = { spear: 1.07, pahoa: 0.94, newa: 1.04, kakau: 1.73, firestaff: 1.36, maul: 1.18, heel: 1.34, leiomano: 1.05, tide: 1.68, storm: 2.0, koa: 1.54, glowtide: 2.32, chain: 2.2, fangs: 2.2, pololu: 2.08, starfall: 3.1, koi: 2.3, stone: 3.46, lua: 2.0 };
   // every element's colour, for plasma's prismatic fringes (plasma is all of them at once)
   const PRISM = ["#f2b45e", "#ff8a3a", "#7ad860", "#5ab8ff", "#a8c4ff", "#5af2e8", "#ff5a6a", "#c8b4ff", "#d8c49a"];
   const LEAF = ["#3e8a2a", "#5aa83a", "#8ad050", "#c8f080", "#2a6a1e"];
@@ -279,9 +289,12 @@
   function at(t) { return C.clock + t; }
   function sfx(kind, delay) { if (!window.Ambience || !Ambience.sfx) return; if (delay) C.events.push({ t: at(delay), fn: () => Ambience.sfx(kind) }); else Ambience.sfx(kind); }
 
-  function hitArc(s, t, o) { if (C.boostR || C.boostD) o = Object.assign({}, o, { dmg: o.dmg * (C.boostD || 1), range: o.range && o.range * (C.boostR || 1), r: o.r && o.r * (C.boostR || 1), len: o.len && o.len * (C.boostR || 1), w: o.w && o.w * (C.boostR || 1) }); C.events.push({ t: at(t), fn: () => { const hx = C.p.x, hy = C.p.y - 10; for (const d of C.targets) { if (C.immune(d)) continue; const dx = d.x - hx, dy = (d.y - 12 - hy) / 0.8, dist = Math.hypot(dx, dy); let da = Math.atan2(dy, dx) - s.a; da = Math.atan2(Math.sin(da), Math.cos(da)); if (dist < o.range * 1.25 + 8 + (d.big || 0) && Math.abs(da) < o.span / 2 + 0.3 + (d.big ? Math.min(0.8, d.big / Math.max(dist, 1)) : 0)) damage(d, o, Math.atan2(dy, dx)); } } }); }
-  function hitLine(s, t, o) { if (C.boostR || C.boostD) o = Object.assign({}, o, { dmg: o.dmg * (C.boostD || 1), range: o.range && o.range * (C.boostR || 1), r: o.r && o.r * (C.boostR || 1), len: o.len && o.len * (C.boostR || 1), w: o.w && o.w * (C.boostR || 1) }); C.events.push({ t: at(t), fn: () => { const hx = C.p.x, hy = C.p.y - 10, ux = Math.cos(s.a), uy = Math.sin(s.a); for (const d of C.targets) { if (C.immune(d)) continue; const dx = d.x - hx, dy = d.y - 12 - hy, along = dx * ux + dy * uy, perp = Math.abs(-dx * uy + dy * ux); if (along > -8 - (d.big || 0) && along < o.len + 8 + (d.big || 0) && perp < o.w + 6 + (d.big || 0)) damage(d, o, s.a); } } }); }
-  function hitCircle(s, t, o) { if (C.boostR || C.boostD) o = Object.assign({}, o, { dmg: o.dmg * (C.boostD || 1), range: o.range && o.range * (C.boostR || 1), r: o.r && o.r * (C.boostR || 1), len: o.len && o.len * (C.boostR || 1), w: o.w && o.w * (C.boostR || 1) }); C.events.push({ t: at(t), fn: () => { let cx = C.p.x, cy = C.p.y - 10; if (o.at) { cx = o.at.x; cy = o.at.y; } else if (o.fwd) { cx += Math.cos(s.a) * o.fwd; cy += Math.sin(s.a) * o.fwd * 0.8; } for (const d of C.targets) { if (C.immune(d)) continue; if (Math.hypot(d.x - cx, (d.y - 12 - cy) / 0.85) < o.r + 8 + (d.big || 0)) damage(d, o, Math.atan2(d.y - cy, d.x - cx)); } } }); }
+  const powOf = (w, local) => (POW[w.id] || 1) * (local !== false ? 1 + 0.12 * ((C.upgrades && C.upgrades[w.id]) || 0) : 1);
+  C.POW = POW; C.powOf = powOf;
+  const withPow = (o) => (o.pw ? o : Object.assign({}, o, { pw: C.powNow || 1 }));
+  function hitArc(s, t, o) { o = withPow(o); if (C.boostR || C.boostD) o = Object.assign({}, o, { dmg: o.dmg * (C.boostD || 1), range: o.range && o.range * (C.boostR || 1), r: o.r && o.r * (C.boostR || 1), len: o.len && o.len * (C.boostR || 1), w: o.w && o.w * (C.boostR || 1) }); C.events.push({ t: at(t), fn: () => { const hx = C.p.x, hy = C.p.y - 10; for (const d of C.targets) { if (C.immune(d)) continue; const dx = d.x - hx, dy = (d.y - 12 - hy) / 0.8, dist = Math.hypot(dx, dy); let da = Math.atan2(dy, dx) - s.a; da = Math.atan2(Math.sin(da), Math.cos(da)); if (dist < o.range * 1.25 + 8 + (d.big || 0) && Math.abs(da) < o.span / 2 + 0.3 + (d.big ? Math.min(0.8, d.big / Math.max(dist, 1)) : 0)) damage(d, o, Math.atan2(dy, dx)); } } }); }
+  function hitLine(s, t, o) { o = withPow(o); if (C.boostR || C.boostD) o = Object.assign({}, o, { dmg: o.dmg * (C.boostD || 1), range: o.range && o.range * (C.boostR || 1), r: o.r && o.r * (C.boostR || 1), len: o.len && o.len * (C.boostR || 1), w: o.w && o.w * (C.boostR || 1) }); C.events.push({ t: at(t), fn: () => { const hx = C.p.x, hy = C.p.y - 10, ux = Math.cos(s.a), uy = Math.sin(s.a); for (const d of C.targets) { if (C.immune(d)) continue; const dx = d.x - hx, dy = d.y - 12 - hy, along = dx * ux + dy * uy, perp = Math.abs(-dx * uy + dy * ux); if (along > -8 - (d.big || 0) && along < o.len + 8 + (d.big || 0) && perp < o.w + 6 + (d.big || 0)) damage(d, o, s.a); } } }); }
+  function hitCircle(s, t, o) { o = withPow(o); if (C.boostR || C.boostD) o = Object.assign({}, o, { dmg: o.dmg * (C.boostD || 1), range: o.range && o.range * (C.boostR || 1), r: o.r && o.r * (C.boostR || 1), len: o.len && o.len * (C.boostR || 1), w: o.w && o.w * (C.boostR || 1) }); C.events.push({ t: at(t), fn: () => { let cx = C.p.x, cy = C.p.y - 10; if (o.at) { cx = o.at.x; cy = o.at.y; } else if (o.fwd) { cx += Math.cos(s.a) * o.fwd; cy += Math.sin(s.a) * o.fwd * 0.8; } for (const d of C.targets) { if (C.immune(d)) continue; if (Math.hypot(d.x - cx, (d.y - 12 - cy) / 0.85) < o.r + 8 + (d.big || 0)) damage(d, o, Math.atan2(d.y - cy, d.x - cx)); } } }); }
 
   // what a blow can't touch: the dead, the hidden (burrowed, high in the air), and sea creatures unless
   // the hero striking stands in the water (C.p is whoever is swinging, a partner's ghost included).
@@ -308,7 +321,8 @@
   C.ghost = function (actor, wi, mi, a, real) {
     const w = WEAPONS[wi]; if (!w) return;
     const m = mi < 0 ? w.ult : w.moves[mi]; if (!m) return;
-    withActor(actor, real, () => m.start({ x: actor.x, y: actor.y, a, p: actor }));
+    const prev = C.powNow; C.powNow = powOf(w, actor === C.local);
+    try { withActor(actor, real, () => m.start({ x: actor.x, y: actor.y, a, p: actor })); } finally { C.powNow = prev; }
   };
   // hit-stop: a short held beat on impact. Capped, and never again within 0.22s of play, so combos
   // through a crowd flow instead of stuttering; off entirely in co-op (the world is shared).
@@ -333,7 +347,7 @@
     }
     const crit = Math.random() < 0.14 + (C.critBonus || 0);
     const mom = (1 + 0.15 * C.momTier()) * (C.dmgMul ? C.dmgMul(WEAPONS[C.cur].id) : 1);                      // momentum makes every hit heavier
-    const dmg = Math.max(1, Math.round(o.dmg * (0.9 + Math.random() * 0.2) * (crit ? 1.7 : 1) * mom * (d.armor || 1)));   // armor <1 = guarded, >1 = exposed
+    const dmg = Math.max(1, Math.round(o.dmg * (o.pw || C.powNow || 1) * (0.9 + Math.random() * 0.2) * (crit ? 1.7 : 1) * mom * (d.armor || 1)));   // armor <1 = guarded, >1 = exposed
     d.hp -= dmg; d.flash = 0.12; d.angV += Math.cos(ang) * (0.9 + dmg * 0.05); d.hitT = C.clock;
     if (d.onHit) d.onHit(dmg, ang, crit);
     if (d.enemy) { C.momentum = Math.min(100, C.momentum + (crit ? 9 : 5) * (C.momMul || 1)); C.momT = C.clock; }
@@ -375,7 +389,7 @@
   // (apply the damage, but the partner's momentum and hit-stop are theirs, not ours).
   function softDamage(d, o, ang, local) {
     const crit = Math.random() < 0.14, w = local ? WEAPONS[C.cur] : WEAPONS[C.p.w || 0] || WEAPONS[0];
-    const dmg = Math.max(1, Math.round(o.dmg * (0.9 + Math.random() * 0.2) * (crit ? 1.7 : 1) * (local ? 1 + 0.15 * C.momTier() : 1 + 0.15 * (C.p.tier || 0)) * (d.armor || 1)));
+    const dmg = Math.max(1, Math.round(o.dmg * (o.pw || C.powNow || 1) * (0.9 + Math.random() * 0.2) * (crit ? 1.7 : 1) * (local ? 1 + 0.15 * C.momTier() : 1 + 0.15 * (C.p.tier || 0)) * (d.armor || 1)));
     d.flash = 0.12; d.angV += Math.cos(ang) * 0.6;
     if (local) {
       C.nums.push({ x: d.x + (Math.random() - 0.5) * 10, y: d.y - 40, v: dmg, crit, t0: C.clock, col: crit ? "#fff1a0" : w.col });
@@ -596,7 +610,7 @@
       if (best !== null) a = best;
       p.dir = dirFromAngle(a);
       C.move = m; C.moveIdx = idx; C.moveT = 0; C.aim = a;
-      m.start({ x: p.x, y: p.y, a, p });
+      C.powNow = powOf(w); m.start({ x: p.x, y: p.y, a, p });
       if (C.onMoveStart) C.onMoveStart(C.cur, m === w.ult ? -1 : idx, a);
     }
     if (C.move) {

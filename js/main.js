@@ -324,7 +324,7 @@
     // the land is won: a handful of shells (more and rarer in harder lands; repeat clears pay about half)
     if (n && done === n && !L.paid && !testWorld && !L.def.dojo) {
       L.paid = true; const r = Gear.payout(L.name); if (!r) return;
-      const parts = [`${r.nc} common`].concat(r.nu ? [`${r.nu} uncommon`] : []).concat(r.rare ? ["a rare one!"] : []);
+      const parts = [`${r.nc} common`].concat(r.nu ? [`${r.nu} uncommon`] : []).concat(r.rare ? [r.rare > 1 ? `${r.rare} rare!` : "a rare one!"] : []);
       setTimeout(() => { banner = { title: "SHELLS", sub: parts.join(", ") + (r.first ? "" : "  (a repeat clear)"), t0: time }; Ambience.sfx && Ambience.sfx("pickup"); }, 5500);
       Game.save();
     }
@@ -552,7 +552,15 @@
   }
   // ------------------------------------------------------------------ the forge's crafting screen
   // One row per element: its shards, then forge its weapon or weave its cloth (three shards each).
-  const forgeUI = { open: false, row: 0, col: 0, hit: [], msg: "", msgT: -9 };
+  const forgeUI = { open: false, row: 0, col: 0, hit: [], msg: "", msgT: -9, tab: 0, urow: 0, utop: 0 };
+  // the Temper tab: everything you own that the smith can work on
+  const upList = () => Combat.weapons.filter((w) => Combat.unlocked.has(w.id)).map((w) => ({ kind: "weapon", id: w.id, name: w.name, col: w.col })).concat(Gear.state().armors.map((id) => ({ kind: "armor", id, name: Gear.ARMOR[id].name, col: Gear.ARMOR[id].el ? Gear.ELEMENTS[Gear.ARMOR[id].el].col : "#d8c8a8" })));
+  const costText = (c) => Object.entries(c.shells).map(([k, n]) => `${n} ${k}`).join(", ") + ` + ${c.shards[1]} ${Gear.ELEMENTS[c.shards[0]].name.toLowerCase()} shard${c.shards[1] > 1 ? "s" : ""}`;
+  function temperDo(i) {
+    const it = upList()[i]; if (!it) return;
+    if (Gear.upgrade(it.kind, it.id)) { forgeUI.msg = `Kamaka works the ${it.name}: +${Gear.upLevel(it.kind, it.id)}.`; forgeUI.msgT = time; Ambience.sfx && Ambience.sfx("stone"); for (let k = 0; k < 24; k++) Forge.sparks.push({ x: Forge.ANVIL.x, y: Forge.ANVIL.y - 15, vx: (Math.random() - 0.5) * 160, vy: -60 - Math.random() * 120, t: 0 }); }
+    else { const c = Gear.upCost(it.kind, it.id); forgeUI.msg = c ? `That needs ${costText(c)}.` : "It can't be bettered now."; forgeUI.msgT = time; Ambience.sfx && Ambience.sfx("guard"); }
+  }
   function openForgeUI() { forgeUI.open = true; forgeUI.msg = ""; Ambience.sfx && Ambience.sfx("equip"); }
   function forgeDo(row, col) {
     const el = Gear.ORDER[row], E = Gear.ELEMENTS[el], kind = col ? "cloth" : "weapon";
@@ -561,6 +569,15 @@
   }
   function forgeKey(code) {
     const n = Gear.ORDER.length;
+    if (code === "Tab") { forgeUI.tab = 1 - forgeUI.tab; return; }
+    if (forgeUI.tab === 1) {
+      const m = upList().length;
+      if (code === "Escape" || code === "KeyQ") forgeUI.open = false;
+      else if (code === "ArrowDown" || code === "KeyS") forgeUI.urow = (forgeUI.urow + 1) % m;
+      else if (code === "ArrowUp" || code === "KeyW") forgeUI.urow = (forgeUI.urow + m - 1) % m;
+      else if (code === "KeyE" || code === "Enter" || code === "KeyJ" || code === "Space") temperDo(forgeUI.urow);
+      return;
+    }
     if (code === "Escape" || code === "KeyQ") forgeUI.open = false;
     else if (code === "ArrowDown" || code === "KeyS") forgeUI.row = (forgeUI.row + 1) % n;
     else if (code === "ArrowUp" || code === "KeyW") forgeUI.row = (forgeUI.row + n - 1) % n;
@@ -569,17 +586,48 @@
   }
   function forgeTap(e) {
     const gx = (e.clientX * (screen.width / innerWidth)) / SCALE, gy = (e.clientY * (screen.height / innerHeight)) / SCALE;
-    for (const h of forgeUI.hit) if (gx > h.x && gx < h.x + h.w && gy > h.y && gy < h.y + h.h) { if (h.close) forgeUI.open = false; else { forgeUI.row = h.row; forgeUI.col = h.col; forgeDo(h.row, h.col); } return; }
+    for (const h of forgeUI.hit) if (gx > h.x && gx < h.x + h.w && gy > h.y && gy < h.y + h.h) { if (h.close) forgeUI.open = false; else if (h.tab !== undefined) forgeUI.tab = h.tab; else if (h.urow !== undefined) { if (forgeUI.urow === h.urow) temperDo(h.urow); else forgeUI.urow = h.urow; } else { forgeUI.row = h.row; forgeUI.col = h.col; forgeDo(h.row, h.col); } return; }
+  }
+  function drawForgeTabs(px0, py0, pw) {
+    const u = SCALE;
+    ["FORGE", "TEMPER"].forEach((lab, k) => { const bx = px0 + 8 + k * 52, on = forgeUI.tab === k; sctx.fillStyle = on ? "#ffb06a" : "#3a2c2c"; sctx.fillRect(bx * u, (py0 + 5) * u, 48 * u, 11 * u); sctx.font = `${7 * u}px 'Pixelify Sans', monospace`; sctx.textAlign = "center"; sctx.fillStyle = on ? "#1e1416" : "#c8a890"; sctx.fillText(lab, (bx + 24) * u, (py0 + 7) * u); forgeUI.hit.push({ x: bx, y: py0 + 5, w: 48, h: 11, tab: k }); });
+  }
+  function drawTemperUI(t) {
+    const u = SCALE, L = upList(), RH = 15, rows = Math.max(4, Math.min(L.length, Math.floor((VH - 80) / RH))), pw = Math.min(VW - 16, 360), ph = 56 + rows * RH, px0 = Math.round((VW - pw) / 2), py0 = Math.round((VH - ph) / 2);
+    if (forgeUI.urow < forgeUI.utop) forgeUI.utop = forgeUI.urow; if (forgeUI.urow >= forgeUI.utop + rows) forgeUI.utop = forgeUI.urow - rows + 1;
+    const R = (c, x, y, w, h) => { sctx.fillStyle = c; sctx.fillRect(x * u, y * u, w * u, h * u); };
+    sctx.fillStyle = "rgba(8,4,4,0.55)"; sctx.fillRect(0, 0, screen.width, screen.height);
+    R("#140c0c", px0, py0, pw, ph); R("#8a4a2a", px0 + 1, py0 + 1, pw - 2, ph - 2); R("#1e1416", px0 + 2, py0 + 2, pw - 4, ph - 4);
+    forgeUI.hit = [{ x: px0 + pw - 14, y: py0 + 4, w: 10, h: 10, close: 1 }];
+    drawForgeTabs(px0, py0, pw);
+    sctx.textBaseline = "top"; sctx.textAlign = "left"; sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#c8a890";
+    sctx.fillText("Weapons: +12% damage a level (ordinary 5, elemental 2). Suits: +1 heart (3). Cloth: +1 heart (1).", (px0 + 8) * u, (py0 + 21) * u);
+    for (let r = 0; r < rows; r++) {
+      const i = forgeUI.utop + r, it = L[i]; if (!it) break;
+      const y = py0 + 34 + r * RH, sel = i === forgeUI.urow, lv = Gear.upLevel(it.kind, it.id), mx = Gear.upMax(it.kind, it.id), c = Gear.upCost(it.kind, it.id), can = Gear.canUpgrade(it.kind, it.id);
+      if (sel) R("rgba(255,170,100,0.12)", px0 + 4, y - 1, pw - 8, RH - 1);
+      R(it.col, px0 + 8, y + 2, 3, 6);
+      sctx.font = `${7 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#fff6dc"; sctx.fillText(it.name, (px0 + 15) * u, (y + 1) * u);
+      for (let k = 0; k < mx; k++) R(k < lv ? "#ffd27a" : "#3a2c2c", px0 + 108 + k * 6, y + 3, 4, 4);
+      sctx.font = `${5 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = !c ? "#9ae69a" : can ? "#ffe0b0" : "#8a7a7a"; sctx.fillText(c ? costText(c) : "fully tempered", (px0 + 146) * u, (y + 3) * u);
+      forgeUI.hit.push({ x: px0 + 4, y: y - 1, w: pw - 8, h: RH - 1, urow: i });
+    }
+    sctx.textAlign = "center"; sctx.font = `${6 * u}px 'Pixelify Sans', monospace`;
+    const msg = time - forgeUI.msgT < 2.5 && forgeUI.msg ? forgeUI.msg : TOUCH ? "Tap twice to temper" : "W/S choose   E temper   Tab forge   Esc close";
+    sctx.fillStyle = time - forgeUI.msgT < 2.5 ? "#ffd27a" : "#a89880"; sctx.fillText(msg, (VW / 2) * u, (py0 + ph - 12) * u);
+    R("#8a4a2a", px0 + pw - 14, py0 + 4, 10, 10); sctx.fillStyle = "#1e1416"; sctx.fillText("x", (px0 + pw - 9) * u, (py0 + 4) * u);
+    sctx.textAlign = "left";
   }
   function drawForgeUI(t) {
+    if (forgeUI.tab === 1) return drawTemperUI(t);
     const u = SCALE, n = Gear.ORDER.length, RH = Math.min(17, Math.floor((VH - 70) / n)), pw = Math.min(VW - 16, 330), ph = 48 + n * RH, px0 = Math.round((VW - pw) / 2), py0 = Math.round((VH - ph) / 2);
     const R = (c, x, y, w, h) => { sctx.fillStyle = c; sctx.fillRect(x * u, y * u, w * u, h * u); };
     sctx.fillStyle = "rgba(8,4,4,0.55)"; sctx.fillRect(0, 0, screen.width, screen.height);
     R("#140c0c", px0, py0, pw, ph); R("#8a4a2a", px0 + 1, py0 + 1, pw - 2, ph - 2); R("#1e1416", px0 + 2, py0 + 2, pw - 4, ph - 4);
     sctx.textBaseline = "top"; sctx.textAlign = "center";
-    sctx.font = `${10 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#ffb06a"; sctx.fillText("KAMAKA'S FORGE", (VW / 2) * u, (py0 + 6) * u);
-    sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#c8a890"; sctx.fillText(`${Gear.COST} shards forge a weapon, or weave a cloth set`, (VW / 2) * u, (py0 + 19) * u);
     forgeUI.hit = [{ x: px0 + pw - 14, y: py0 + 4, w: 10, h: 10, close: 1 }];
+    drawForgeTabs(px0, py0, pw);
+    sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#c8a890"; sctx.textAlign = "center"; sctx.fillText(`${Gear.COST} shards forge a weapon, or weave a cloth set`, (VW / 2) * u, (py0 + 19) * u);
     const cw = Math.round((pw - 110) / 2);
     Gear.ORDER.forEach((el, r) => {
       const E = Gear.ELEMENTS[el], y = py0 + 32 + r * RH, have = Gear.state().shards[el], sel = r === forgeUI.row;
@@ -596,7 +644,7 @@
       });
     });
     sctx.textAlign = "center"; sctx.font = `${6 * u}px 'Pixelify Sans', monospace`;
-    const msg = time - forgeUI.msgT < 2.5 && forgeUI.msg ? forgeUI.msg : TOUCH ? "Tap a weapon or cloth to make it" : "W/S element   A/D weapon or cloth   E make   Esc close";
+    const msg = time - forgeUI.msgT < 2.5 && forgeUI.msg ? forgeUI.msg : TOUCH ? "Tap a weapon or cloth to make it" : "W/S element   A/D weapon or cloth   E make   Tab temper   Esc close";
     sctx.fillStyle = time - forgeUI.msgT < 2.5 ? "#ffd27a" : "#a89880"; sctx.fillText(msg, (VW / 2) * u, (py0 + ph - 12) * u);
     R("#8a4a2a", px0 + pw - 14, py0 + 4, 10, 10); sctx.fillStyle = "#1e1416"; sctx.fillText("x", (px0 + pw - 9) * u, (py0 + 4) * u);
     sctx.textAlign = "left";
@@ -2017,6 +2065,6 @@
   Level.onUnlock = ((prev) => (n) => { prev && prev(n); setTimeout(() => Game.save(), 50); })(Level.onUnlock);
   // a weapon won by clearing a zone: every hero gets it
   Level.onReward = (r) => { for (const id of [].concat(r)) { grant(id); if (window.Net && Net.isHost()) Net.send({ t: "sync", gift: id }); } setTimeout(() => Game.save(), 50); };
-  window.__kuleana = { player, cam, keys, mates, rev, ui: () => ({ globe: globe.open, prep: loadoutUI.open, shop: shopUI.open, inv: invUI.open, dialog: !!dialog }), goTo: (s) => goTo(s), get scene() { return scene; } };
+  window.__kuleana = { player, cam, keys, mates, rev, ui: () => ({ globe: globe.open, prep: loadoutUI.open, shop: shopUI.open, inv: invUI.open, dialog: !!dialog }), goTo: (s) => goTo(s), dojoCall: (h, k) => dojoCall(h, k), get scene() { return scene; } };
   boot().catch((e) => { console.error(e); document.body.insertAdjacentHTML("beforeend", `<pre style="color:#f88;position:fixed;top:0;left:0">${e.stack || e}</pre>`); });
 })();

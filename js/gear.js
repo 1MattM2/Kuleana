@@ -103,28 +103,57 @@
     t_life: { name: "Ola talisman", el: "life", weapon: "maul", r: 1.5, desc: "Unleashes the Wildwood, grander." },
     t_tribal: { name: "Kū talisman", el: "tribal", weapon: "kakau", r: 1.3, desc: "Unleashes the Awakening, grander." },
     t_star: { name: "Hōkū talisman", el: "celestial", weapon: "starfall", r: 1.2, desc: "Unleashes the Heavens, grander." },
+    t_glow: { name: "ʻŌlino talisman", el: "glow", weapon: "glowtide", r: 1.3, desc: "Unleashes the Glowing Maelstrom, grander." },
+    t_blood: { name: "Mako talisman", el: "blood", weapon: "fangs", r: 1.3, desc: "Unleashes the Blood Frenzy, grander." },
+    t_earth: { name: "Pōhaku talisman", el: "earth", weapon: "stone", r: 1.3, desc: "Unleashes the Earthshaker, grander." },
     t_plasma: { name: "Lā talisman", el: "plasma", weapon: "lua", r: 1.25, desc: "Unleashes Nā Lā Māhoe, the Twin Suns, grander." },
   };
+  // Makani's market. Three things are always on the counter (the two heals and the bestiary); the rest is
+  // a rotating stock drawn from a pool that grows as you clear levels (`from` = levels cleared, of the 18 in
+  // the six zones; the final boss isn't counted). Every elemental shard and talisman enters the pool around
+  // when its element starts turning up in the world, so the market fills gaps rather than racing ahead.
+  //   cleared  0  1  2  3  4  5  6  ...  9  ...  12  ...  15  ...  17
+  //   shards   tribal fire life water storm .. glow .. blood .. celestial .. earth
+  //   talisman tribal(2) fire(3) life(4) water(5) storm(6) glow(8) blood(11) star(13) earth(16) plasma(17)
+  // Prices: common shell ~1, uncommon ~4, rare ~15. An early shard is about a level's earnings; a late one,
+  // in a land that pays more, still about one level's. Rotating slots: 2 shards + 1 talisman, then 2 + 2
+  // once 3 levels are cleared, then 3 + 2 from 9 cleared.
   Gear.SHOP = [
     { id: "tonic", kind: "heal", name: "ʻŌhelo tonic", desc: "Heals two hearts. Carry up to 5 (H to drink).", cap: 5, cost: { clam: 2 } },
     { id: "salve", kind: "heal", name: "Noni salve", desc: "Heals you fully. Carry up to 3.", cap: 3, cost: { limpet: 2, cone: 1 } },
-    { id: "shard_tribal", kind: "shard", el: "tribal", name: "Tribal shard", desc: "Chipped from a tiki's mask.", cost: { clam: 3, auger: 2 } },
-    { id: "shard_fire", kind: "shard", el: "fire", name: "Fire shard", desc: "Still warm in the hand.", cost: { limpet: 3, cone: 1 } },
-    { id: "shard_life", kind: "shard", el: "life", name: "Life shard", desc: "A seed of green light.", cost: { auger: 3, triton: 1 } },
-    { id: "shard_water", kind: "shard", el: "water", name: "Water shard", desc: "Cool, with the sea inside it.", cost: { clam: 3, miter: 1 } },
-    { id: "shard_storm", kind: "shard", el: "storm", name: "Storm shard", desc: "It hums against your palm.", cost: { limpet: 2, cone: 1, miter: 1 } },
-    { id: "t_fire", kind: "talisman", cap: 3, cost: { auger: 2, cone: 1 } },
-    { id: "t_storm", kind: "talisman", cap: 3, cost: { limpet: 2, miter: 1 } },
-    { id: "t_water", kind: "talisman", cap: 3, cost: { clam: 2, miter: 1 } },
-    { id: "t_life", kind: "talisman", cap: 3, cost: { auger: 2, triton: 1 } },
-    { id: "t_tribal", kind: "talisman", cap: 3, cost: { clam: 3, cone: 1 } },
-    { id: "t_star", kind: "talisman", cap: 2, cost: { helmet: 1, cone: 1 } },
-    { id: "t_plasma", kind: "talisman", cap: 1, cost: { helmet: 2, trumpet: 1 } },
     { id: "book", kind: "book", name: "Moʻolelo of Beasts", desc: "A bestiary: what every creature is, and how it fights. (Settings > Bestiary)", cost: { trumpet: 1, triton: 3 } },
+    { id: "shard_tribal", kind: "shard", el: "tribal", from: 0, name: "Tribal shard", desc: "Chipped from a tiki's mask.", cost: { clam: 3, auger: 2 } },
+    { id: "shard_fire", kind: "shard", el: "fire", from: 1, name: "Fire shard", desc: "Still warm in the hand.", cost: { limpet: 3, cone: 1 } },
+    { id: "shard_life", kind: "shard", el: "life", from: 2, name: "Life shard", desc: "A seed of green light.", cost: { auger: 3, triton: 1 } },
+    { id: "shard_water", kind: "shard", el: "water", from: 3, name: "Water shard", desc: "Cool, with the sea inside it.", cost: { clam: 3, miter: 1 } },
+    { id: "shard_storm", kind: "shard", el: "storm", from: 4, name: "Storm shard", desc: "It hums against your palm.", cost: { limpet: 2, cone: 1, miter: 1 } },
+    { id: "shard_glow", kind: "shard", el: "glow", from: 6, name: "Glowing-water shard", desc: "It lights your hand from inside.", cost: { auger: 3, triton: 1, miter: 1 } },
+    { id: "shard_blood", kind: "shard", el: "blood", from: 9, name: "Blood shard", desc: "Dark red, and warm, like something alive.", cost: { clam: 4, cone: 2, triton: 1 } },
+    { id: "shard_celestial", kind: "shard", el: "celestial", from: 12, name: "Celestial shard", desc: "A sliver of night sky with a star in it.", cost: { limpet: 4, miter: 2, helmet: 1 } },
+    { id: "shard_earth", kind: "shard", el: "earth", from: 15, name: "Stone shard", desc: "Heavy as the mountain it came from.", cost: { auger: 4, triton: 2, trumpet: 1 } },
+    { id: "t_tribal", kind: "talisman", from: 2, cap: 3, cost: { clam: 3, cone: 1 } },
+    { id: "t_fire", kind: "talisman", from: 3, cap: 3, cost: { auger: 2, cone: 1 } },
+    { id: "t_life", kind: "talisman", from: 4, cap: 3, cost: { auger: 2, triton: 1 } },
+    { id: "t_water", kind: "talisman", from: 5, cap: 3, cost: { clam: 2, miter: 1 } },
+    { id: "t_storm", kind: "talisman", from: 6, cap: 3, cost: { limpet: 2, miter: 1 } },
+    { id: "t_glow", kind: "talisman", from: 8, cap: 3, cost: { limpet: 3, miter: 1, cone: 1 } },
+    { id: "t_blood", kind: "talisman", from: 11, cap: 3, cost: { clam: 3, triton: 2 } },
+    { id: "t_star", kind: "talisman", from: 13, cap: 2, cost: { helmet: 1, cone: 1 } },
+    { id: "t_earth", kind: "talisman", from: 16, cap: 2, cost: { helmet: 1, triton: 2 } },
+    { id: "t_plasma", kind: "talisman", from: 17, cap: 1, cost: { helmet: 2, trumpet: 1 } },
   ];
   for (const it of Gear.SHOP) if (it.kind === "talisman") Object.assign(it, { name: Gear.TALISMANS[it.id].name, desc: Gear.TALISMANS[it.id].desc + " One use (T)." });
   Gear.FIXED = ["tonic", "salve", "book"];
-  Gear.rerollStock = () => { const pool = Gear.SHOP.filter((it) => !Gear.FIXED.includes(it.id)), shards = pool.filter((it) => it.kind === "shard"), tal = pool.filter((it) => it.kind === "talisman"); const pick = (a, n) => a.slice().sort(() => Math.random() - 0.5).slice(0, n).map((it) => it.id); S.stock = pick(shards, 2).concat(pick(tal, 2)); };
+  // how far the journey has come: levels cleared, of the eighteen (everything, in the test world)
+  Gear.progress = () => (Gear.infinite ? 18 : window.Level && Level.ZONES ? Level.ZONES.reduce((n, z) => n + z.levels.filter((l) => Level.cleared.has(l)).length, 0) : 0);
+  Gear.rerollStock = () => {
+    const pr = Gear.progress(), pool = Gear.SHOP.filter((it) => !Gear.FIXED.includes(it.id) && (it.from || 0) <= pr);
+    const shards = pool.filter((it) => it.kind === "shard"), tal = pool.filter((it) => it.kind === "talisman");
+    const ns = pr >= 9 ? 3 : 2, nt = pr >= 3 ? 2 : 1;
+    // the newest arrivals are a little likelier to be on the counter
+    const pick = (a, n) => a.map((it) => ({ it, w: Math.random() * (1 + ((it.from || 0) >= pr - 3 ? 0.6 : 0)) })).sort((x, y) => y.w - x.w).slice(0, n).map((q) => q.it.id);
+    S.stock = pick(shards, ns).concat(pick(tal, nt));
+  };
   Gear.shopList = () => { if (!S.stock || !S.stock.length) Gear.rerollStock(); return Gear.SHOP.filter((it) => Gear.FIXED.includes(it.id) || S.stock.includes(it.id)); };
   Gear.soldOut = (it) => (it.kind === "book" ? S.book : it.cap ? (S.items[it.id] || 0) >= it.cap : false);
   Gear.canBuy = (it) => !Gear.soldOut(it) && (Gear.infinite || Object.entries(it.cost).every(([k, n]) => S.shells[k] >= n));
@@ -136,15 +165,24 @@
   };
   Gear.shellTotal = () => Object.values(S.shells).reduce((a, b) => a + b, 0);
   // Shells are earned by finishing a level (and found on beaches). [common, uncommon, rare chance]
-  Gear.PAY = { highlands: [3, 0, 0], canopy: [4, 1, 0], crown: [5, 2, 0], isles: [5, 2, 0], reef: [6, 2, 0.4], vents: [7, 3, 1] };
+  // [common, uncommon, rare] for a first clear, by zone and level (a rare under 1 is a chance; 1.5 = one,
+  // and an even chance of a second). Zones 3-6 are set out here ahead of their lands.
+  Gear.PAY = [
+    [[3, 0, 0], [4, 1, 0], [5, 2, 0]],
+    [[5, 2, 0], [6, 2, 0.4], [7, 3, 1]],
+    [[7, 3, 0.4], [8, 3, 0.6], [9, 4, 1]],
+    [[9, 4, 0.6], [10, 4, 0.8], [11, 5, 1.3]],
+    [[11, 5, 0.8], [12, 5, 1], [13, 6, 1.5]],
+    [[13, 6, 1], [14, 6, 1.3], [15, 7, 2]],
+  ];
   Gear.payout = (name) => {
-    const P = Gear.PAY[name]; if (!P) return null;
+    const D2 = window.Level && Level.DEFS[name], P = D2 && D2.zone && Gear.PAY[D2.zone - 1] && Gear.PAY[D2.zone - 1][D2.level - 1]; if (!P) return null;
     const first = !S.clears[name]; S.clears[name] = (S.clears[name] || 0) + 1;
-    const nc = first ? P[0] : Math.max(1, Math.floor(P[0] / 2)), nu = first ? P[1] : Math.floor(P[1] / 2), rare = Math.random() < (first ? P[2] : P[2] * 0.25);
+    const rr = first ? P[2] : P[2] * 0.25, nc = first ? P[0] : Math.max(1, Math.floor(P[0] / 2)), nu = first ? P[1] : Math.floor(P[1] / 2), rare = Math.floor(rr) + (Math.random() < rr % 1 ? 1 : 0);
     const got = [];
     for (let i = 0; i < nc; i++) got.push(Gear.randomShell(0));
     for (let i = 0; i < nu; i++) got.push(Gear.randomShell(1));
-    if (rare) got.push(Gear.randomShell(2));
+    for (let i = 0; i < rare; i++) got.push(Gear.randomShell(2));
     for (const k of got) S.shells[k]++;
     Gear.changed();
     return { got, first, nc, nu, rare };
@@ -204,7 +242,7 @@
   };
 
   // ---------------------------------------------------------------- state
-  const fresh = () => ({ shards: Object.fromEntries(Gear.ORDER.map((k) => [k, 0])), armors: [], worn: null, village: { built: [], rescued: [] }, shells: Object.fromEntries(Object.keys(Gear.SHELLS).map((k) => [k, 0])), charms: { heart: 0, whet: 0, luck: 0 }, items: {}, pick: null, book: false, kills: {}, pack: [], stock: [], beach: null, beachDue: false, clears: {}, dojo: 1 });
+  const fresh = () => ({ shards: Object.fromEntries(Gear.ORDER.map((k) => [k, 0])), armors: [], worn: null, village: { built: [], rescued: [] }, shells: Object.fromEntries(Object.keys(Gear.SHELLS).map((k) => [k, 0])), charms: { heart: 0, whet: 0, luck: 0 }, items: {}, pick: null, book: false, kills: {}, pack: [], stock: [], beach: null, beachDue: false, clears: {}, dojo: 1, up: {}, armUp: {} });
   let S = fresh();
   Gear.state = () => S;
   Gear.reset = () => { S = fresh(); Gear.changed(); };
@@ -218,7 +256,7 @@
     if (d.stock) d.stock = d.stock.map((k) => k.replace("magma", "life"));
     return d;
   };
-  Gear.load = (d) => { d = migrate(d); S = fresh(); if (d) { Object.assign(S.shards, d.shards || {}); S.armors = (d.armors || []).filter((k) => Gear.ARMOR[k]); S.worn = Gear.ARMOR[d.worn] ? d.worn : null; S.village = { built: (d.village && d.village.built) || [], rescued: (d.village && d.village.rescued) || [] }; Object.assign(S.shells, d.shells || {}); Object.assign(S.charms, d.charms || {}); S.items = d.items || {}; S.pick = d.pick || null; S.book = !!d.book; S.kills = d.kills || {}; S.pack = d.pack || []; S.stock = d.stock || []; S.beach = d.beach || null; S.beachDue = !!d.beachDue; S.clears = d.clears || {}; S.dojo = d.dojo || 1; } Gear.changed(); };
+  Gear.load = (d) => { d = migrate(d); S = fresh(); if (d) { Object.assign(S.shards, d.shards || {}); S.armors = (d.armors || []).filter((k) => Gear.ARMOR[k]); S.worn = Gear.ARMOR[d.worn] ? d.worn : null; S.village = { built: (d.village && d.village.built) || [], rescued: (d.village && d.village.rescued) || [] }; Object.assign(S.shells, d.shells || {}); Object.assign(S.charms, d.charms || {}); S.items = d.items || {}; S.pick = d.pick || null; S.book = !!d.book; S.kills = d.kills || {}; S.pack = d.pack || []; S.stock = d.stock || []; S.beach = d.beach || null; S.beachDue = !!d.beachDue; S.clears = d.clears || {}; S.dojo = d.dojo || 1; S.up = d.up || {}; S.armUp = d.armUp || {}; } Gear.changed(); };
   Gear.snapshot = () => JSON.parse(JSON.stringify(S));
   Gear.onChange = null;
   Gear.changed = () => { Gear.onChange && Gear.onChange(); window.Menu && Menu.refresh && Menu.refresh(); };
@@ -230,6 +268,7 @@
   Gear.worn = () => (S.worn ? Gear.ARMOR[S.worn] : null);
   Gear.wornId = () => S.worn;
   // the forge: three shards for the element's weapon or its cloth
+  Gear.ZONE_DMG = [1, 1, 1.25, 1.5, 1.75, 2, 2.25];
   Gear.COST = 3;
   Gear.canCraft = (el, kind) => { const E = Gear.ELEMENTS[el]; if (!E || S.shards[el] < Gear.COST) return false; return kind === "weapon" ? !Combat.unlocked.has(E.weapon) : !S.armors.includes(E.cloth); };
   Gear.craft = (el, kind) => {
@@ -239,11 +278,38 @@
     Gear.changed(); return true;
   };
 
+  // ---------------------------------------------------------------- the smith's upgrades
+  // Kamaka can temper a weapon or reinforce a suit. Ordinary weapons take five levels (+12% damage each),
+  // so an early club can keep up late in the game; elemental weapons, already strong, take two. Battle
+  // suits take three (+1 heart and a little block each); a cloth, one. Each level asks for shells and
+  // shards, and the shards climb through the elements of the journey (tribal, then storm, blood and
+  // stone), so the top levels only come within reach later on.
+  const SHELL_UP = [null, { clam: 2, limpet: 1 }, { auger: 2, cone: 1 }, { limpet: 3, triton: 1 }, { clam: 3, miter: 1, helmet: 1 }, { auger: 4, cone: 1, trumpet: 1 }];
+  const SHARD_UP = [null, ["tribal", 1], ["tribal", 2], ["storm", 2], ["blood", 2], ["earth", 2]];
+  const ARM_UP = [null, [{ limpet: 2, cone: 1 }, ["tribal", 2]], [{ clam: 3, triton: 1 }, ["water", 2]], [{ auger: 3, miter: 1, helmet: 1 }, ["earth", 2]]];
+  Gear.UP_DMG = 0.12;
+  Gear.upLevel = (kind, id) => (kind === "weapon" ? S.up[id] : S.armUp[id]) || 0;
+  Gear.upMax = (kind, id) => (kind === "weapon" ? (Gear.WEAPON_EL[id] ? 2 : 5) : Gear.ARMOR[id] && Gear.ARMOR[id].el ? 1 : 3);
+  Gear.upCost = (kind, id) => {
+    const L = Gear.upLevel(kind, id) + 1; if (L > Gear.upMax(kind, id)) return null;
+    if (kind === "weapon") { const el = Gear.WEAPON_EL[id]; return { shells: SHELL_UP[L], shards: el ? [el, 2 * L] : SHARD_UP[L] }; }
+    const A = Gear.ARMOR[id]; if (A.el) return { shells: { cone: 1, miter: 1 }, shards: [A.el, 2] };
+    return { shells: ARM_UP[L][0], shards: ARM_UP[L][1] };
+  };
+  Gear.canUpgrade = (kind, id) => { const c = Gear.upCost(kind, id); if (!c) return false; if (Gear.infinite) return true; return S.shards[c.shards[0]] >= c.shards[1] && Object.entries(c.shells).every(([k, n]) => S.shells[k] >= n); };
+  Gear.upgrade = (kind, id) => {
+    if (!Gear.canUpgrade(kind, id)) return false;
+    const c = Gear.upCost(kind, id);
+    if (!Gear.infinite) { S.shards[c.shards[0]] -= c.shards[1]; for (const [k, n] of Object.entries(c.shells)) S.shells[k] -= n; }
+    if (kind === "weapon") S.up[id] = (S.up[id] || 0) + 1; else S.armUp[id] = (S.armUp[id] || 0) + 1;
+    Gear.changed(); return true;
+  };
   // ---------------------------------------------------------------- effects
   Gear.stats = () => {
     const a = Gear.worn() || {};
     const ch = S.charms;
-    return { hp: (a.hp || 0) + ch.heart * 2, block: a.block || 0, speed: a.speed || 1, rollCd: a.rollCd || 1, kb: a.kb === undefined ? 1 : a.kb, crit: a.crit || 0, el: a.el || null, elMul: a.elMul || 1, dmgAll: (a.dmgAll || 0) + ch.whet * 0.08,
+    const up = S.worn ? S.armUp[S.worn] || 0 : 0;
+    return { hp: (a.hp || 0) + ch.heart * 2 + up * 2, block: (a.block || 0) + (a.el ? 0 : up * 0.03), speed: a.speed || 1, rollCd: a.rollCd || 1, kb: a.kb === undefined ? 1 : a.kb, crit: a.crit || 0, el: a.el || null, elMul: a.elMul || 1, dmgAll: (a.dmgAll || 0) + ch.whet * 0.08,
       momMul: a.momMul || 1, startMom: a.startMom || 0, regen: a.regen || 0, lifesteal: a.lifesteal || 0, chain: a.chain || 0, waterWalk: !!a.waterWalk, immune: a.immune || [], fireSoak: !!a.fireSoak, hazardHalf: !!a.hazardHalf, healMul: a.healMul || 1, trail: !!a.trail };
   };
   // push the worn armour's numbers into the combat engine
@@ -251,6 +317,7 @@
     const st = Gear.stats();
     Combat.critBonus = st.crit; Combat.momMul = st.momMul; Combat.lifesteal = st.lifesteal; Combat.chainChance = st.chain;
     Combat.dmgMul = (wid) => (1 + st.dmgAll) * (st.el && Gear.WEAPON_EL[wid] === st.el ? st.elMul : 1);
+    Combat.upgrades = S.up;
   };
   // what a blow does to you after armour: returns the damage that lands (0 = none) and whether it was blocked
   Gear.incoming = (dmg, src) => {
@@ -258,6 +325,8 @@
     src = String(src || "");
     if (st.immune.some((k) => src.includes(k))) return { dmg: 0, immune: true };
     if (st.block && Math.random() < st.block) return { dmg: 0, blocked: true };
+    // creatures hit harder deeper into the journey: zones 1-2 as tested, rising to double by zone 6
+    const zone = window.Level && Level.cur && Level.cur.def.zone; if (zone) dmg = Math.max(1, Math.round(dmg * Gear.ZONE_DMG[zone - 1]));
     if (st.fireSoak && FIRE_SRC.test(src)) dmg -= 1;
     if (st.hazardHalf && /steam|boil|flames|rock|geyser|zap/.test(src) && dmg > 1) dmg -= 1;
     return { dmg: Math.max(0, dmg) };

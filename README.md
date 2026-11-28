@@ -22,12 +22,17 @@ with the weapon to fill its Surge diamonds; the next combo finisher becomes the 
   the water sparkles, plants and palms sway in wind gusts, leaves and petals blow past, and cloud shadows drift over.
 - Two merchants at market stalls, crabs that scuttle away from you, butterflies, and a sealed temple gate
   (the dungeon entrance for a later stage).
-- **Hale Koa, the training hut** (south of the market): walk in and test every weapon in the game on the training
-  dummies. There are 17 melee weapons: Koa Blade, the Hawaiian ʻIhe, Pololū, Pāhoa, Newa, Leiomano and the Koʻi stone axe, Mako Fangs
-  (slasher), Lava Maul (blunt), Ember Heel (painterly fire kicks), Stormcaller (clouds and lightning), Tidecutter and
-  Glowtide (water and its bioluminescent variant), Starfall (celestial), Pele's Grip (stone, raising spikes from the
-  ground), Kākau Bands (tribal symbol: tattoo sigils, niho bands and erupting totem pillars) and Makau Kaula
-  (chain-sickle: short whips, orbits, a long throw and a widening spiral).
+- **Hale Koa, the training hut** (south of the market): the rack holds the weapons you've earned (all 19 in the
+  test world), armour stands hold every suit and cloth (E to wear one you own), and straw dummies stand on the
+  mat. The hut grows in phases: the **Duel Hall** (west) for partner duels and duels with the islanders you've
+  freed, and the **Arena Wing** (east) with a Creature Hall and a Boss Hall where you can call anything you've
+  met. Their carved tiki fountains flood a hall for sea creatures and drain it for land ones. Nobody dies in
+  Hale Koa: brought down, you yield. See `DESIGN.md`.
+- Weapons: Koa Blade, the Hawaiian ʻIhe, Pololū, Pāhoa, Newa, Leiomano and the Koʻi stone axe, Mako Fangs
+  (slasher), the Ola Maul (life: roots split from the ground), Ember Heel (painterly fire kicks), Stormcaller
+  (clouds and lightning), Tidecutter and Glowtide (water and its bioluminescent variant), Starfall (celestial),
+  Pele's Grip (stone), Kākau Bands (tribal), Makau Kaula (chain-sickle), and Koʻi-Lua, the two-headed plasma
+  battle axe (every element at once; the end-game weapon).
 - **Ana ʻŌlino, the glowing sea cave**: walk into the opening in the south-east lava rock. The pool is a
   bioluminescent brush-stroke painting in the spirit of *The Starry Night* (strokes traced along swirling
   currents, light flowing along them). A whale shark and lemon sharks glide beneath as silhouettes, and the hero is
@@ -63,7 +68,7 @@ with the weapon to fill its Surge diamonds; the next combo finisher becomes the 
   You start with the ʻIhe, Pāhoa and Newa; the dojo still lets you try everything.
 - **Sound:** every sound is synthesised. The highlands has a jungle soundscape (cicadas, crickets, coquí frogs,
   birds, distant war drums). The sanctum breathes like a volcano: rumble, lava bubbling, steam, groaning stone, drips.
-  - Elemental weapons carry their element through every swing: the Lava Maul and Ember Heel ignite and roar, the
+  - Elemental weapons carry their element through every swing: the Ember Heel ignites and roars, the Ola Maul rustles and creaks, the
     Tidecutter and Glowtide gush and bubble, and Starfall plays a plucked harp (Karplus-Strong strings).
   - Hits land with a distorted crunch and a sub-bass thud, and every enemy sounds like what it's made of.
 
@@ -109,6 +114,26 @@ with the weapon to fill its Surge diamonds; the next combo finisher becomes the 
     volleys and heat bursts. At half health it calls every wisp home and rises as one giant fire spirit.
 - Bosses and mini-bosses get a health bar across the top of the screen, and ×2 or ×3 health with 2 or 3 heroes.
 
+## Zone 2: the Archipelago
+- **Level 1: The Outer Isles.** A wide map for exploring, creatures in pockets you can take on or slip past:
+  a lone crab on the landing beach, a crab pack in the pebble cove, the tiki camp, sharks in the channels, rays in
+  the east shallows. Two fights shut the doors: **the Feeding Frenzy** out on the Blue Road (a great school of
+  fish arrives and the sharks and tiger sharks follow it in: survive 45 seconds) and **the Headland**.
+- **Level 2: The Coral Atolls.** Rings of pink coral round lagoons, reef flats and coral gardens under the
+  shallows, and a boxed-in fight in each atoll. The boss, **Pāpaʻi-Loa**, a giant Japanese spider crab, holds
+  the island in the great atoll: stilt legs that stab, a sweeping claw, a trampling scuttle, foam, and crabs.
+- **Level 3: The Thermal Cliffs.** East along basalt cliffs: the steaming shallows and their thermal sharks,
+  up the stairs to the pueo roost (a flock that bombs and swoops together), down past a tiki camp, the Boiling
+  Bay, and the boss **Kai-Uila, the Storm Ray**, made of many ray silhouettes, in a lagoon with no land at all.
+- **Sea creatures** (sharks, rays, the Storm Ray) can only be struck from the water. Sharks line up and lunge,
+  leap sandbars and beach themselves after you; a stranded shark can be struck by anyone. Rays arc current at
+  anyone on the shore.
+- Art from the concept sheets (`assets/sea_*`, cut by `tools/build_sea_assets.py`): pebbled sand, pink coral rock,
+  basalt flagstones and columnar cliffs, reef flora, the crab, the brute and the pueo. Fish schools drift by
+  under the surface. Each land has its own soundscape (gulls and whale song; snapping shrimp; steam, cliff wind
+  and owls).
+- The maps come from `tools/zone2gen.py` (run it after editing).
+
 ## Performance
 - Area ground is painted in 128px chunks on demand: what's on screen at once, the rest in spare frame time. Entering
   the Highlands went from about 1.1s to about 0.15s.
@@ -119,15 +144,15 @@ with the weapon to fill its Surge diamonds; the next combo finisher becomes the 
 
 ## Progression, gear and the village
 - **Weapons:** you start with the ʻIhe and Pāhoa. The first land of each zone gives a weapon (Zone 1: Newa from
-  the Shrine of Kū; Zone 2: Leiomano). Planned: Koa Blade (Zone 3), Makau Kaula (4), Pololū (5), Koʻi (6).
-  The dojo rack lends any weapon for practice only.
-- **Specials:** elemental weapons build up by landing combo finishers, then unleash a special: Kākau (The
-  Awakening), Stormcaller (Tempest), Glowtide (Glowing Maelstrom), Starfall (The Heavens), Ahi Staff (Wheel of
-  Pele), Ember Heel (Pele's Stride), Lava Maul (Eruption), Tidecutter (Riptide), Mako Fangs (Blood Frenzy),
-  Pele's Grip (Earthshaker).
-- **Shards:** creatures sometimes drop a shard of their element (fire: fire-dancers, fire geckos; magma: wisps;
-  water: sharks; storm: rays; tribal: spear, dart, brute tikis). Three make that element's weapon or cloth set
-  at Kamaka's forge.
+  the Shrine of Kū; Zone 2: Leiomano). Planned: Koa Blade (Zone 3), Makau Kaula (4), Pololū (5), Koʻi (6). Each
+  weapon's power fits when it's earned (`DESIGN.md`).
+- **Specials:** elemental weapons charge their special from the damage you deal (dummies count), then the next
+  combo finisher unleashes it: Kākau (The Awakening), Stormcaller (Tempest), Glowtide (Glowing Maelstrom),
+  Starfall (The Heavens), Ahi Staff (Wheel of Pele), Ember Heel (Pele's Stride), Ola Maul (Wildwood), Tidecutter
+  (Riptide), Mako Fangs (Blood Frenzy), Pele's Grip (Earthshaker), Koʻi-Lua (Nā Lā Māhoe, the Twin Suns).
+- **Shards:** creatures sometimes drop a shard of their element (tribal: tikis; fire: fire-dancers, fire geckos,
+  wisps, thermal sharks; life: vines, snakes, the hydra; water: crabs, sharks; storm: rays). Three make that
+  element's weapon or cloth set at Kamaka's forge. The forge's Temper tab upgrades weapons and suits.
 - **Armour:** one worn at a time. Six battle suits (one from each zone's second land), nine elemental cloth sets
   (from shards). Each changes your stats and the colour of your vest.
 - **Shells (the currency):** common (clam, lance auger, Hawaiian limpet), uncommon (leopard cone, Nicobar triton,
@@ -138,24 +163,19 @@ with the weapon to fill its Surge diamonds; the next combo finisher becomes the 
   (70% common, 25% uncommon, 5% rare); each Archipelago land has 3 to find.
 - **The village:** each zone's third land rescues someone. Zone 1: Makani the trader reopens his stall. Zone 2:
   Kamaka the smith raises his forge. More plots wait for later buildings.
-- **Makani's trades:** heals and the bestiary always; two shards and two talismans that change each time you come
-  home. A common shell is worth about 1, an uncommon about 4, a rare about 15: a tonic is 2 commons, a shard or
-  talisman one or two levels' earnings, the bestiary 3 Nicobar tritons and a triton's trumpet.
+- **Makani's trades:** heals and the bestiary always; shards and talismans that change each time you come home,
+  from a pool that grows with every level you clear (the full table is in `DESIGN.md`). A common shell is worth
+  about 1, an uncommon about 4, a rare about 15.
 - **Battle prep:** before Kahu Lā sends you, choose up to five weapons, the armour to wear, and two items to
   pack (each heal or talisman takes a slot). In battle, only packed items can be used: H heals, T unleashes a
   talisman (its element's special, grander), Y picks which.
 - **Inventory (I):** weapons in hand and owned, armour, shells, shards and items. The HUD shows your shells
   under your hearts. Settings has Gear and Bestiary tabs.
 
-## Playtesting
-- **Kilo the Wayfinder** stands on the beach at the island's top-left (sky-blue cloak, a marker over his head).
-  Talk to him and pick any of the six levels. You go with a full kit:
-  - every weapon, all battle suits and cloth sets (Obsidian Guard worn)
-  - 5 tonics, 3 salves, 3 of every talisman
-  - 9 of every shard, 30 of every shell
-  The prepare screen opens so you can choose your five weapons, armour and two packed items.
-- It's a sandbox: your real gear and progress are put aside, nothing is saved during the trip, and your own kit
-  comes back as soon as you land on the island again.
+## The test world
+- **Test World** on the main menu opens a sandbox: every weapon, suit, cloth and creature; heals and talismans
+  that never run out; a free market; everyone rescued and every building up; the whole of Hale Koa; and 15 shells
+  on the beach, at least one of every kind. Nothing in it is saved.
 
 ## Settings and controls
 - **Esc** opens Settings (it pauses solo play). Tabs: Co-op, Controls (every gameplay control), Sound (volume and
@@ -171,15 +191,18 @@ with the weapon to fill its Surge diamonds; the next combo finisher becomes the 
 | `js/props.js` | Placement of trees/plants/rocks, procedural stalls/temple/tikis, wind sway |
 | `js/cave.js` | The sea cave: layout, stroke-painted bioluminescent pool, sharks, ripples |
 | `js/combat.js` | Every melee weapon, combo strings, hit detection, slash effects, hit-stop, shake |
-| `js/dojo.js` | Hale Koa training hut interior, weapon rack, training dummies |
+| `js/dojo.js` | Hale Koa's hall: the weapon rack, armour stands, training dummies, the side doorways |
 | `js/palette.js` | The master palette (generated by `tools/palette.py`; see `STYLE.md`) |
 | `js/ruins.js` | Sun Gate ruin art: gates with flow-field sun discs, crystals, braziers, columns, shrine, Kahu Lā, sun seals |
 | `js/levels.js` | Sanctum + Highlands: per-pixel terrain (island materials), cliffs, valley parallax, props, arenas, berries |
 | `js/gear.js` | Shards, armour and cloth, shells (the currency), the shop's trades, items and the battle pack, the village |
 | `js/forge.js` | Kamaka's forge: the island building, its interior, the smith |
-| `js/sea.js` | Zone 2 water terrain, shore art, corals, thermal vents |
+| `js/sea.js` | Zone 2 water terrain, shore art, reef flora, fish schools and the frenzy, thermal vents |
+| `js/dojowing.js` | Hale Koa's wings: the Duel Hall and the Arena Wing (fountains and floods, lecterns, duelists) |
+| `js/assets_sea.js` | Zone 2 art cut from the concept sheets (generated by `tools/build_sea_assets.py`) |
+| `tools/zone2gen.py` | Generates the Zone 2 maps → `js/zone2.js` |
 | `js/enemies3.js` | Zone 2 creatures and bosses |
-| `js/zone2.js` | Zone 2 level definitions |
+| `js/zone2.js` | Zone 2 level definitions (generated) |
 | `js/title.js` | Title screen and save slots |
 | `js/enemies2.js` | Zone 1 levels 2–3 creatures: bush snake, stampede runner, fire gecko, fire-dancer, the hydra and the Bonfire Hive |
 | `js/enemies.js` | Highlands creatures: AI, per-pixel bodies (verlet vine, flame wisp, carved tiki masks), projectiles |
