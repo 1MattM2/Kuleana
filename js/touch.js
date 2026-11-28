@@ -40,7 +40,7 @@
     let id = null;
     d.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); id = e.pointerId; d.setPointerCapture(id); d.classList.add("down"); window.Ambience && Ambience.start(); key("keydown", code); if (!hold) setTimeout(() => key("keyup", code), 60); });
     const up = (e) => { if (e.pointerId !== id) return; id = null; d.classList.remove("down"); if (hold) key("keyup", code); };
-    d.addEventListener("pointerup", up); d.addEventListener("pointercancel", up);
+    d.addEventListener("pointerup", up); d.addEventListener("pointercancel", up); d.addEventListener("lostpointercapture", up);
     el.appendChild(d);
   }
   for (const [label, code, r] of [["MENU", "Escape", 10], ["CO-OP", "KeyC", 60], ["INV", "KeyI", 110]]) {
@@ -68,8 +68,15 @@
     const m = Math.min(1, l / R);
     Pad.mag = m < 0.18 ? 0 : m; Pad.x = l ? dx / Math.min(l, R) * (m < 0.18 ? 0 : 1) : 0; Pad.y = l ? dy / Math.min(l, R) * (m < 0.18 ? 0 : 1) : 0;
   });
-  const end = (e) => { if (e.pointerId !== sid) return; sid = null; stick.style.display = "none"; Pad.active = false; Pad.x = Pad.y = Pad.mag = 0; };
+  const release = () => { sid = null; stick.style.display = "none"; Pad.active = false; Pad.x = Pad.y = Pad.mag = 0; };
+  Pad.release = release;
+  const end = (e) => { if (e.pointerId !== sid) return; release(); };
   addEventListener("pointerup", end); addEventListener("pointercancel", end);
+  // a thumb lifted while the browser was busy (going full screen, a menu opening over it, a system gesture)
+  // can lose its pointerup: when no finger is touching the screen at all, the stick lets go
+  addEventListener("touchend", (e) => { if (e.touches.length === 0) release(); }, { passive: true });
+  addEventListener("touchcancel", () => release(), { passive: true });
+  addEventListener("blur", release); document.addEventListener("visibilitychange", release);
 
   // hide the controls while the settings menu is open
   (function tick() { el.style.display = (window.Menu && Menu.open) || (window.Title && Title.open) ? "none" : "block"; requestAnimationFrame(tick); })();

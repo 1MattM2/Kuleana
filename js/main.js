@@ -133,11 +133,19 @@
     if (/^Digit[1-5]$/.test(e.code)) Combat.selectSlot(+e.code.slice(5) - 1);
     if (e.code.startsWith("Arrow") || e.code === "Space" || e.code === "Tab") e.preventDefault();
   });
-  addEventListener("keyup", (e) => (keys[e.code] = false));
+  // Stuck-key guards. A held key can lose its keyup: on a Mac the system swallows keyups while Cmd is down
+  // (Cmd+Tab, Cmd+anything), switching tabs or apps hides it, and a menu or dialog can take it. So: let go
+  // of everything when Cmd/Ctrl/Alt go up, when the page is hidden or loses focus, and when any key comes
+  // up together with a modifier.
+  const releaseAll = () => { for (const k in keys) keys[k] = false; if (window.TouchPad && TouchPad.release) TouchPad.release(); };
+  addEventListener("keyup", (e) => { keys[e.code] = false; if (e.key === "Meta" || e.key === "Control" || e.key === "Alt" || e.metaKey) releaseAll(); });
+  addEventListener("keydown", (e) => { if (e.metaKey || e.ctrlKey) releaseAll(); }, true);
+  document.addEventListener("visibilitychange", releaseAll);
+  addEventListener("pagehide", releaseAll);
   addEventListener("pointerdown", (e) => { if (window.Title && Title.open) return; window.Ambience && Ambience.start(); if (window.Menu && Menu.open) return; if (pick.open) { pickTap(e); return; } if (invUI.open) { invUI.open = false; return; } if (shopUI.open) { shopTap(e); return; } if (forgeUI.open) { forgeTap(e); return; } if (loadoutUI.open) { loadoutTap(e); return; } if (globe.open) { globeTap(e); return; } if (itemsHud && itemsHud.battle && !player.dead) { const gx = (e.clientX * (screen.width / innerWidth)) / SCALE, gy = (e.clientY * (screen.height / innerHeight)) / SCALE, sl = itemsHud.slots.find((q) => gx >= q.x && gx < q.x + q.w && gy >= q.y && gy < q.y + q.h); if (sl) { if (sl.act === "heal") useHeal(); else useTalisman(); return; } } if (e.pointerType !== "mouse" || player.dead) return; if (e.button === 0 && !dialog && fade.dir === 0) Combat.attack(); if (e.button === 2 && !dialog && fade.dir === 0) startRoll(); });
   addEventListener("contextmenu", (e) => e.preventDefault());
   addEventListener("wheel", (e) => Combat.cycle(e.deltaY > 0 ? 1 : -1), { passive: true });
-  addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
+  addEventListener("blur", () => releaseAll());
 
   // ------------------------------------------------------------------ player
   const player = { x: 0, y: 0, dir: "down", frame: 0, anim: 0, moving: false, stepT: 0, hp: 10, maxHp: 10, inv: 0, rolling: false, rollT: 0, rollCd: 0, moveA: 0, kx: 0, ky: 0, hurtT: -9 };
@@ -1268,11 +1276,18 @@
   }
 
   // ------------------------------------------------------------------ resize
+  // the size of what's actually visible: on phones the visual viewport (it shrinks and grows with the
+  // browser's address bar, and after a rotation innerWidth/innerHeight can be stale for a moment)
+  const viewSize = () => { const v = window.visualViewport; const w = v ? Math.round(v.width) : innerWidth, h = v ? Math.round(v.height) : innerHeight; return [Math.max(1, w || innerWidth), Math.max(1, h || innerHeight)]; };
+  let lastVW = 0, lastVH = 0;
   function resize() {
-    const dpr = Math.min(2, window.devicePixelRatio || 1);   // past 2x the extra pixels cost frames, not sharpness (the art is pixel art)
-    const w = Math.floor(innerWidth * dpr), h = Math.floor(innerHeight * dpr);
+    // past 2x the extra pixels cost frames, not sharpness (the art is pixel art); phones get 1.5x, which also
+    // keeps the canvas well inside mobile browsers' memory limits (a canvas over the limit goes blank)
+    const dpr = Math.min(TOUCH ? 1.5 : 2, window.devicePixelRatio || 1);
+    const [cw, ch] = viewSize(); lastVW = cw; lastVH = ch;
+    const w = Math.floor(cw * dpr), h = Math.floor(ch * dpr);
     screen.width = w; screen.height = h;
-    screen.style.width = innerWidth + "px"; screen.style.height = innerHeight + "px";
+    screen.style.width = cw + "px"; screen.style.height = ch + "px";
     SCALE = Math.max(1, Math.floor(Math.min(w / BASE_W, h / BASE_H)));
     VW = Math.ceil(w / SCALE); VH = Math.ceil(h / SCALE);
     // world layers are one pixel larger so they can be shifted by a sub-pixel amount
@@ -2054,6 +2069,21 @@
     console.log("world built in", Math.round(performance.now() - t0), "ms");
     player.x = World.START.x; player.y = World.START.y;
     addEventListener("resize", resize);
+    // phones: re-measure after a rotation (twice: browsers report the new size late) and whenever the
+    // address bar slides in or out; and a cheap check twice a second catches anything else
+    addEventListener("orientationchange", () => { setTimeout(resize, 120); setTimeout(resize, 600); });
+    if (window.visualViewport) visualViewport.addEventListener("resize", resize);
+    setInterval(() => { const [w, h] = viewSize(); if (w !== lastVW || h !== lastVH) resize(); window.scrollTo(0, 0); }, 500);
+    // full screen on a phone: the first tap asks the browser to go full screen and hold landscape (Android and
+    // most browsers; iPhone Safari can't, so there "Add to Home Screen" gives the full-screen app instead)
+    if (TOUCH) {
+      const goFull = () => {
+        const d = document.documentElement, rq = d.requestFullscreen || d.webkitRequestFullscreen;
+        if (rq && !document.fullscreenElement && !document.webkitFullscreenElement) { try { const r = rq.call(d, { navigationUI: "hide" }); if (r && r.then) r.then(() => { try { window.screen.orientation && window.screen.orientation.lock && window.screen.orientation.lock("landscape").catch(() => {}); } catch (e) {} setTimeout(resize, 200); }).catch(() => {}); } catch (e) {} }
+      };
+      addEventListener("pointerdown", goFull, { capture: true });
+      document.addEventListener("fullscreenchange", () => setTimeout(resize, 150));
+    }
     requestAnimationFrame((n) => { last = n; frame(n); });
     if (window.Title) Title.ready(); else Game.begin(0, null);
   }
