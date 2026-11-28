@@ -175,11 +175,21 @@ def clean_frame(box, OW, OH):
                 for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                     yy, xx = cy + dy, cx + dx
                     if 0 <= yy < OH and 0 <= xx < OW and not op[yy, xx] and not seen2[yy, xx]: seen2[yy, xx] = True; q.append((yy, xx)); comp.append((yy, xx))
-            if len(comp) <= 2:
+            if len(comp) <= 4:
                 for (yy, xx) in comp: filled[yy, xx] = True
     DARK = BRUTE_PAL[((BRUTE_PAL).sum(1)).argmin()]
     out[filled, :3] = DARK; out[filled, 3] = 255
     # a uniform 1px outline in the sprite's darkest colour
+    # trim spurs: a pixel hanging on by a single neighbour (grid-line stubs, a stray tip)
+    for _ in range(2):
+        op = out[..., 3] > 0; pad_ = np.pad(op, 1)
+        nb = pad_[:-2, 1:-1].astype(int) + pad_[2:, 1:-1] + pad_[1:-1, :-2] + pad_[1:-1, 2:]
+        spur = op & (nb <= 1); out[spur] = 0
+        # and 1px-tall lines: grid-line stubs from the concept sheet sticking out sideways
+        op = out[..., 3] > 0; pad_ = np.pad(op, 1)
+        flat = op & ~pad_[:-2, 1:-1] & ~pad_[2:, 1:-1]; out[flat] = 0
+        op = out[..., 3] > 0; pad_ = np.pad(op, 1)
+        thin = op & ~pad_[1:-1, :-2] & ~pad_[1:-1, 2:]; out[thin] = 0
     # sel-out: the outermost pixels of the figure darkened to a deep tint of their own colour (no added ring)
     op = out[..., 3] > 0; pad_ = np.pad(op, 1)
     rim = op & ~(pad_[:-2, 1:-1] & pad_[2:, 1:-1] & pad_[1:-1, :-2] & pad_[1:-1, 2:])
@@ -221,6 +231,25 @@ def brute_anim():
                     if 0 <= yy < H0 and 0 <= xx < W0 and BGC[yy, xx] and not seen[yy, xx]: seen[yy, xx] = True; q.append((yy, xx)); comp.append((yy, xx))
             if len(comp) > 260:
                 for (y, x) in comp: bgm[y, x] = True
+    # The concept paints his shadowed wrists in the background's own navy, so with the background gone the fists
+    # hang free of the arms (a band ~12px tall in the walk frames). Bridge such narrow gaps: a closing of the
+    # figure with a tall, thin element (and a short wide one) fills gaps up to ~16px between figure parts, and
+    # the bridged pixels take a dark shadowed-forearm brown.
+    fig = ~bgm
+    def dil(m, ry, rx):
+        o = m.copy()
+        for dy in range(-ry, ry + 1):
+            o |= np.roll(m, dy, 0)
+        o2 = o.copy()
+        for dx in range(-rx, rx + 1):
+            o2 |= np.roll(o, dx, 1)
+        return o2
+    def ero(m, ry, rx):
+        return ~dil(~m, ry, rx)
+    closed = ero(dil(fig, 9, 2), 9, 2) | ero(dil(fig, 2, 7), 2, 7)
+    bridge = closed & ~fig
+    src[bridge, 0] = 46; src[bridge, 1] = 30; src[bridge, 2] = 28
+    bgm = bgm & ~bridge
     src[bgm, 3] = 0
     cw, rows = 1376 / 6, [(0, 244), (250, 510), (518, 768)]   # (clear of the grid lines between rows)
     BW, BH, OW, OH = 236, 266, 70, 79   # (room for raised fists and swung arms: nothing cut off)
