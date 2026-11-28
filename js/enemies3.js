@@ -805,7 +805,7 @@
   };
 
   // ================================================================== Kai-Uila, the Storm Ray (L3 boss)
-  ST.giantray = { hp: 2400, r: 30, mat: "flesh", kb: 0, boss: true, big: 34, aquatic: true, name: "KAI-UILA, THE STORM RAY", colors: ["#3a5468", "#9adcff", "#20384a"] };
+  ST.giantray = { hp: 1920, r: 30, mat: "flesh", kb: 0, boss: true, big: 34, aquatic: true, name: "KAI-UILA, THE STORM RAY", colors: ["#3a5468", "#9adcff", "#20384a"] };
   ST.rayling = { hp: 9999, r: 7, mat: "flesh", kb: 0, noStun: true, barY: 12, aquatic: true, colors: ["#3a5468", "#9adcff", "#20384a"] };
   // the great ray's outline (u forward, v across), after the concept: cephalic fins, swept wings, a
   // long tail. Small rays fill it, packed along the wings like scales.

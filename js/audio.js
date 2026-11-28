@@ -72,7 +72,7 @@
     // a slightly larger audio buffer than the default: a stall on the main thread (building an area, a
     // busy fight) no longer starves the sound card, which is what made the sound cut in and out
     const touch = window.TouchPad && TouchPad.enabled;
-    try { ac = new AC({ latencyHint: touch ? "playback" : 0.12 }); } catch (e) { ac = new AC(); }   // a deeper buffer rides out stalls
+    try { ac = new AC({ latencyHint: touch ? "playback" : 0.16 }); } catch (e) { ac = new AC(); }   // a deeper buffer rides out stalls
     Amb.started = true;
     // every node a sound builds is counted (see the budget in Amb.sfx)
     for (const m of ["createGain", "createBiquadFilter", "createBufferSource", "createOscillator", "createStereoPanner", "createWaveShaper", "createDelay"]) { const f = ac[m] && ac[m].bind(ac); if (f) ac[m] = (...a) => { Amb._made(); return f(...a); }; }

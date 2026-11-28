@@ -158,7 +158,15 @@
   const shadowOf = (c, k) => { const r = c & 255, g = (c >>> 8) & 255, b = (c >>> 16) & 255; return (255 << 24) | (((b * k) | 0) << 16) | (((g * k) | 0) << 8) | ((r * k) | 0); };
   Water._swim = { tick: swimTick, raster: swimRaster, shadowOf, get mask() { return smask; } };
   // `Wd` is the water map to draw: the island (World) by default, or a sea level's own (js/sea.js)
+  // The water is slow-moving, so it is repainted every other frame; in between, the last frame's water is
+  // drawn shifted by however far the camera moved (half the per-pixel work, no visible difference).
+  let lastW = null;
   Water.render = function (dst, camX, camY, vw, vh, t, Wd) {
+    const W0 = Wd || World;
+    if (lastW && lastW.wd === W0 && lastW.vw === vw && lastW.vh === vh && !lastW.skipped && Math.abs(camX - lastW.x) < 6 && Math.abs(camY - lastW.y) < 6) {
+      lastW.skipped = true; dst.drawImage(canvas, lastW.x - camX, lastW.y - camY); return;
+    }
+    lastW = { wd: W0, vw, vh, x: camX, y: camY, skipped: false };
     ensure(vw, vh); noiseGrid(camX, camY, vw, vh);
     Wd = Wd || World;
     const W = Wd.W, H = Wd.H, terr = Wd.terr, wd = Wd.waterDist, ld = Wd.landDist, ocean = Wd.oceanMask, nearO = Wd.nearOcean;
