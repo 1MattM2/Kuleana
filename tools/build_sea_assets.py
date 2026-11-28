@@ -90,6 +90,37 @@ def ecut(box, height, colors=30, pred=dark_bg, keep=80):
     return selout(trim(crisp(reg, size, colors, sharpen=True)))
 print("creatures")
 put("e_brute", ecut((48, 44, 512, 512), 58, 40))
+# the brute's animation sheet (Brute_concept_animation.webp): a 6x3 grid of frames. Row 1 the walk, row 2 the
+# double-fist slam, row 3 a punch and a ground smash. Each frame is cut on a fixed box anchored at the
+# feet (so they line up), the navy ground and grid keyed out, and brought down to the game's scale.
+def brute_anim():
+    src = np.array(Image.open(os.path.join(SRC, "Brute_concept_animation.webp")).convert("RGBA")).astype(np.int32)
+    r, g, b = src[..., 0], src[..., 1], src[..., 2]
+    bgm = (b >= r) & (src[..., :3].max(2) < 80)
+    src[bgm, 3] = 0
+    cw, rows = 1376 / 6, [(0, 246), (246, 512), (512, 768)]
+    BW, BH, OW, OH = 216, 232, 64, 69
+    frames = []
+    for ri, (y0, y1) in enumerate(rows):
+        for ci in range(6):
+            x0, x1 = int(ci * cw) + 3, int((ci + 1) * cw) - 3
+            cell = ~bgm[y0:y1, x0:x1]
+            if cell.sum() < 2000: continue                                 # the empty cell
+            ys = np.where(cell.sum(1) > 6)[0]; feet = y0 + ys.max()
+            cx = (x0 + x1) // 2
+            box = np.zeros((BH, BW, 4), np.int32)
+            sy0, sx0 = feet + 4 - BH, cx - BW // 2
+            ys0, xs0 = max(0, sy0), max(0, sx0); ys1, xs1 = min(src.shape[0], sy0 + BH), min(src.shape[1], sx0 + BW)
+            box[ys0 - sy0:ys1 - sy0, xs0 - sx0:xs1 - sx0] = src[ys0:ys1, xs0:xs1]
+            # keep only this cell's pixels (no neighbours' fists)
+            mx = np.zeros_like(box[..., 3]); mx[:, max(0, x0 - sx0):max(0, min(BW, x1 - sx0))] = 1; box[..., 3] *= mx
+            box[box[..., 3] == 0] = 0
+            d = crisp(box.astype(np.uint8), (OW, OH), 40)
+            frames.append(d)
+    sheet = np.concatenate(frames, axis=1)
+    print("  brute anim frames", len(frames))
+    return sheet
+put("e_brute_anim", brute_anim())
 put("e_ray", ecut((604, 48, 772, 222), 22, 12))
 put("e_crab", ecut((864, 48, 1032, 222), 16, 20))
 put("e_owl", ecut((588, 328, 772, 512), 26, 28))

@@ -403,7 +403,7 @@
     } else if (e.state === "hook") {
       // a heavy step in and a wide swing of the fist
       const u = Math.min(1, e.st / 0.22);
-      tryMove(e, Math.cos(e.aim) * 150 * (1 - u) * dt, Math.sin(e.aim) * 150 * (1 - u) * dt);
+      tryMove(e, Math.cos(e.aim) * 240 * (1 - u) * dt, Math.sin(e.aim) * 240 * (1 - u) * dt);
       for (const q of E.alive || []) { const k = keyOf(q); if (e.hitSet[k]) continue; const dq = Math.hypot(q.x - e.x, q.y - e.y); if (dq < 50 && Math.abs(angDiff(Math.atan2(q.y - e.y, q.x - e.x), e.aim)) < 1.1 && q._api.hurt(2, e.x, e.y, "fists")) { e.hitSet[k] = 1; Combat.shake = Math.min(1, Combat.shake + 0.3); } }
       // sometimes the other fist follows straight after
       if (e.st > 0.3) { if (e.hooks < 2 && Math.random() < 0.55 && d < 90) { e.state = "windHook"; e.st = 0.3; } else { e.hooks = 0; e.state = "walk"; e.st = 0; e.cd = d < 60 ? rnd(0.45, 0.8) : rnd(1.1, 1.8); } }
@@ -418,7 +418,10 @@
         sfx(api, "throw");
       }
     } else if (e.state === "toss") { if (e.st > 0.45) { e.state = "walk"; e.st = 0; e.cd = rnd(1.2, 2); } }
-    else if (e.state === "windSlam") { if (e.st > 0.65) { e.state = "slam"; e.st = 0; e.hitSet = {}; hitAny(e, e.x, e.y - 6, 30, 2, e.hitSet, "fists"); L.fx.push({ kind: "quake", x: e.x, y: e.y + 2, t: 0, dur: 0.5, R: 62, dmg: 1 }); sfx(api, "stone"); Combat.shake = Math.min(1, Combat.shake + 0.5); } }
+    else if (e.state === "windSlam") {
+      // at the last moment he lunges in, so a guard raised too late doesn't save you
+      if (e.st > 0.42 && d > 22 && d < 110) { const a = Math.atan2(P.y - e.y, P.x - e.x); tryMove(e, Math.cos(a) * 260 * dt, Math.sin(a) * 260 * dt); e.face = Math.cos(a) >= 0 ? 1 : -1; }
+      if (e.st > 0.65) { e.state = "slam"; e.st = 0; e.hitSet = {}; hitAny(e, e.x, e.y - 6, 30, 2, e.hitSet, "fists"); L.fx.push({ kind: "quake", x: e.x, y: e.y + 2, t: 0, dur: 0.5, R: 62, dmg: 1 }); sfx(api, "stone"); Combat.shake = Math.min(1, Combat.shake + 0.5); } }
     else if (e.state === "slam") { if (e.st > 0.5) { e.state = "walk"; e.st = 0; e.cd = d < 60 ? rnd(0.5, 0.9) : rnd(1.4, 2.2); } }
     else if (e.state === "stagger") { e.armor = 1.6; if (e.st > 1.4) { e.state = "walk"; e.st = 0; e.cd = 0.8; } }
   };
@@ -435,7 +438,25 @@
     const part = (keep) => { const [c, x] = K.canvas(W, H), im = x.createImageData(W, H), o = new Uint32Array(im.data.buffer); for (let y = 0; y < H; y++) for (let xx = 0; xx < W; xx++) if (keep(xx, y)) o[y * W + xx] = d0[y * W + xx]; x.putImageData(im, 0, 0); return c; };
     return (BRUTE = { W, H, body: part((x, y) => !armL(x, y) && !armR(x, y)), L: part(armL), R: part(armR), pL: [14 * k, 15 * k], pR: [47 * k, 15 * k] });
   }
+  // the brute's own animation, from the user's concept sheet (frames 64x69, anchored at the feet):
+  //   0-5 the walk, 6 stance, 7 wind-up, 8-9 fists raised, 10 the ground strike, 11 recover,
+  //   12 step, 13 fist drawn back, 14 the punch into the ground, 15 fists high, 16 stance
+  const BA = { W: 64, H: 69 }, bruteFrame = (i) => { const sh = img("e_brute_anim"); if (!sh) return null; const k = "f" + i; if (!BA[k]) { const [c, x] = K.canvas(BA.W, BA.H); x.drawImage(sh, i * BA.W, 0, BA.W, BA.H, 0, 0, BA.W, BA.H); BA[k] = c; } return BA[k]; };
+  function bruteAnimFrame(e, t) {
+    const st = e.state;
+    if (st === "windSlam") { const u = e.st / 0.65; return u < 0.35 ? 7 : u < 0.75 ? 8 : 9; }
+    if (st === "slam") return e.st < 0.16 ? 10 : e.st < 0.34 ? 11 : 6;
+    if (st === "windHook") return 13;
+    if (st === "hook") return e.st < 0.16 ? 14 : 11;
+    if (st === "windToss") return e.st < 0.3 ? 8 : 15;
+    if (st === "toss") return 11;
+    if (st === "guard") return 7;
+    if (st === "windCharge") return 7;
+    if (e.moving) return Math.floor((e.walkPh || 0) / (Math.PI / 3)) % 6;
+    return Math.sin(t * 1.6 + e.ph) > 0.85 ? 16 : 6;
+  }
   E.DRAW.brute = function (e, ctx, ox, oy, t, g, introY, fl) {
+    if (img("e_brute_anim")) return drawBruteAnim(e, ctx, ox, oy, t, g, introY, fl);
     const B = bruteParts(), x = Math.round(e.x - ox), y = Math.round(e.y - oy + introY), f = e.face;
     const charge = e.state === "charge";
     e.walkPh = (e.walkPh || 0) + (e.moving ? (charge ? 0.32 : 0.13) : 0);
@@ -474,6 +495,22 @@
     if (e.state === "windSlam" || e.state === "windCharge" || e.state === "windHook" || e.state === "windToss") telegraph(ctx, x, y - B.H - (e.state === "windToss" ? 26 : 6), t);
     if (e.state === "stagger") for (let k = 0; k < 3; k++) { const a = t * 6 + k * 2.1; px(ctx, x + Math.cos(a) * 10, y - B.H - 2 + Math.sin(a) * 2, 1, 1, "#fff4b8"); }
   };
+  function drawBruteAnim(e, ctx, ox, oy, t, g, introY, fl) {
+    const x = Math.round(e.x - ox), y = Math.round(e.y - oy + introY), f = e.face, charge = e.state === "charge";
+    e.walkPh = (e.walkPh || 0) + (e.moving ? (charge ? 0.34 : 0.16) : 0);
+    const fr = bruteFrame(bruteAnimFrame(e, t)), bob = e.moving ? Math.round(Math.abs(Math.sin(e.walkPh)) * (charge ? 2 : 1)) : 0;
+    const lean = charge ? 0.14 : e.state === "windCharge" ? 0.08 * Math.min(1, e.st / 0.4) : e.state === "stagger" ? Math.sin(t * 9) * 0.06 : 0;
+    ctx.fillStyle = "rgba(10,12,16,0.38)"; ctx.beginPath(); ctx.ellipse(x, y, 20, 5, 0, 0, TAU); ctx.fill();
+    ctx.save(); ctx.translate(x, y - bob); ctx.transform(f, 0, lean * f, 1, 0, 0);
+    ctx.drawImage(fl ? tinted(fr) : fr, -BA.W / 2, -BA.H + 4);
+    ctx.restore();
+    const top = y - BA.H + 4;
+    if (e.state === "windToss") { const u = Math.min(1, e.st / 0.3), OB = R().obsidian, ry = Math.round(top - 4 - u * 6), rx = x - 10; px(ctx, rx, ry, 20, 10, rgb(OB[0])); px(ctx, rx + 1, ry, 18, 9, rgb(OB[4])); px(ctx, rx + 1, ry, 18, 3, rgb(OB[5])); px(ctx, rx + 4, ry + 4, 4, 2, rgb(OB[2])); for (let k = 0; k < 6; k++) px(ctx, rx + 1 + k * 3, ry - 2 + (k % 2), 2, 2, rgb(R().fern[2 + (k % 2)])); }
+    if (e.state === "slam" && e.st < 0.2 || e.state === "hook" && e.st < 0.16) for (let k = 0; k < 2; k++) Combat.addPart({ x: e.x + f * 10 + rnd(-10, 10), y: e.y - 2, vx: rnd(-60, 60), vy: rnd(-90, -30), g: 260, life: 0.5, col: css(R().soil[3 + k]), size: 2, kind: "debris" });
+    if (e.state === "windCharge" || charge || e.state === "windToss" || e.state === "windHook") { if (g) glow(g, x, top + 20, 18, "255,200,90", 0.35); }
+    if (e.state === "windSlam" || e.state === "windCharge" || e.state === "windHook" || e.state === "windToss") telegraph(ctx, x, top - (e.state === "windToss" ? 18 : 2), t);
+    if (e.state === "stagger") for (let k = 0; k < 3; k++) { const a = t * 6 + k * 2.1; px(ctx, x + Math.cos(a) * 10, top - 4 + Math.sin(a) * 2, 1, 1, "#fff4b8"); }
+  }
   // darters of a brute's tribe stand behind him for cover and lean out to shoot
   const dartBase = AI.dart;
   AI.dart = function (e, dt, t, P, L, api, d, live) {
