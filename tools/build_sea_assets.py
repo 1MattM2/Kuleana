@@ -107,8 +107,8 @@ def clean_frame(box, OW, OH):
         cols = bs[bs[..., 3] > 0][:, :3]
         BRUTE_PAL = np.unique(cols, axis=0)
     im = Image.fromarray(box.astype(np.uint8), "RGBA")
-    rgb = im.convert("RGB").filter(ImageFilter.MedianFilter(3))
-    al = im.getchannel("A").point(lambda v: 255 if v > 0 else 0).filter(ImageFilter.MaxFilter(3))
+    rgb = Image.blend(im.convert("RGB").filter(ImageFilter.MedianFilter(3)), im.convert("RGB").filter(ImageFilter.MedianFilter(5)), 0.5)
+    al = im.getchannel("A").point(lambda v: 255 if v > 0 else 0).filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3))
     # the colour under newly grown edge pixels: the nearest real pixel's
     src_rgb = np.array(rgb).astype(np.int32); a0 = np.array(im.getchannel("A")) > 0; a1 = np.array(al) > 0
     grow = a1 & ~a0
@@ -125,7 +125,7 @@ def clean_frame(box, OW, OH):
         for x in range(OW):
             y0, y1, x0, x1 = int(y * fy), int((y + 1) * fy), int(x * fx), int((x + 1) * fx)
             m = a1[y0:y1, x0:x1]
-            if m.mean() < 0.42: continue
+            if m.mean() < 0.34: continue
             blk = src_rgb[y0:y1, x0:x1][m]
             # the block's most common colour (crisp, keeps the carving's contrast) rather than its median
             q = (blk // 12) * 12; keys, cnt = np.unique(q, axis=0, return_counts=True); best = keys[cnt.argmax()]
@@ -165,7 +165,7 @@ def clean_frame(box, OW, OH):
     # sel-out: the outermost pixels of the figure darkened to a deep tint of their own colour (no added ring)
     op = out[..., 3] > 0; pad_ = np.pad(op, 1)
     rim = op & ~(pad_[:-2, 1:-1] & pad_[2:, 1:-1] & pad_[1:-1, :-2] & pad_[1:-1, 2:])
-    out[rim, :3] = (out[rim, :3] * 0.45 + DARK * 0.3).astype(np.int32)
+    out[rim, :3] = (out[rim, :3] * 0.55 + DARK * 0.3).astype(np.int32)
     return out
 
 def brute_anim():
