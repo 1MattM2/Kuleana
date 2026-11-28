@@ -1071,7 +1071,7 @@
   };
 
   // ================================================================== Pāpaʻi-Loa, the giant spider crab (L2 boss)
-  ST.spidercrab = { hp: 1450, r: 26, mat: "wood", kb: 0, boss: true, big: 30, name: "PĀPAʻI-LOA, THE GIANT SPIDER CRAB", colors: ["#d86a3a", "#f4e0c8", "#8a3018"] };
+  ST.spidercrab = { hp: 1090, r: 26, mat: "wood", kb: 0, boss: true, big: 30, name: "PĀPAʻI-LOA, THE GIANT SPIDER CRAB", colors: ["#d86a3a", "#f4e0c8", "#8a3018"] };
   // eight stilt legs, four a side, and two long claw arms; every foot is planted and steps on its own
   // (right side: from forward-up round to back-down; the left side mirrors it)
   const LEGS = [];
@@ -1085,8 +1085,14 @@
     e.feet.forEach((f, i) => {
       const h = home(LEGS[i]);
       if (f.stab) { f.u = 1; return; }
-      if (f.u < 1) { f.u = Math.min(1, f.u + dt / 0.16); f.x = f.fx + (f.tx - f.fx) * f.u; f.y = f.fy + (f.ty - f.fy) * f.u; f.lift = Math.sin(f.u * Math.PI) * 10; if (f.u >= 1) f.lift = 0; }
-      else if (Math.hypot(h.x - f.x, h.y - f.y) > 22 && stepping < 3 && (i % 2) === ((e.t * 4) | 0) % 2) { f.fx = f.x; f.fy = f.y; f.tx = h.x + (h.x - f.x) * 0.4; f.ty = h.y + (h.y - f.y) * 0.4; f.u = 0; stepping++; }
+      const lag = Math.hypot(h.x - f.x, h.y - f.y);
+      if (f.u < 1) {
+        // a step: its target follows the body while the foot is in the air, so it never lands behind
+        f.tx += (h.x + (h.x - f.fx) * 0.25 - f.tx) * Math.min(1, dt * 10); f.ty += (h.y + (h.y - f.fy) * 0.25 - f.ty) * Math.min(1, dt * 10);
+        f.u = Math.min(1, f.u + dt / (f.dur || 0.16)); const ease = f.u * f.u * (3 - 2 * f.u);
+        f.x = f.fx + (f.tx - f.fx) * ease; f.y = f.fy + (f.ty - f.fy) * ease; f.lift = Math.sin(f.u * Math.PI) * 10; if (f.u >= 1) f.lift = 0;
+      }
+      else if (lag > 22 && (stepping < 3 || lag > 40) && ((i % 2) === ((e.t * 4) | 0) % 2 || lag > 34)) { f.fx = f.x; f.fy = f.y; f.tx = h.x + (h.x - f.x) * 0.3; f.ty = h.y + (h.y - f.y) * 0.3; f.u = 0; f.dur = lag > 40 ? 0.08 : lag > 30 ? 0.11 : 0.16; stepping++; }
     });
     void ca; void sa;
   }
@@ -1104,7 +1110,7 @@
       walk(want, fury ? 50 : 40);
       if (e.cd <= 0) {
         const r = Math.random(); e.st = 0;
-        if (r < 0.26) { e.state = "stabs"; e.n = 0; }
+        if (r < 0.26 && d < 120) { e.state = "stabs"; e.n = 0; }
         else if (r < 0.46 && d < 150) { e.state = "windSweep"; e.aim = toP; e.sweeps = fury ? 2 : 1; sfx(api, "warcry"); }
         else if (r < 0.62) { e.state = "windScuttle"; e.aim = toP + (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2; e.runs = fury ? 2 : 1; sfx(api, "clack"); }
         else if (r < 0.84) { e.state = "windFoam"; e.foam = Math.random() < 0.55 ? "fan" : "ring"; sfx(api, "inhale"); }
@@ -1113,7 +1119,7 @@
     } else if (e.state === "stabs") {
       // one leg after another lifted high and driven down where you stand
       const gap = fury ? 0.4 : 0.5, N = fury ? 5 : 3;
-      if (e.st > e.n * gap && e.n < N) { for (const q of heroes) { const lead = 0.35 + (e.n % 2) * 0.15, x2 = q.x + (q.vx || 0) * lead, y2 = q.y + (q.vy || 0) * lead; L.fx.push({ kind: "stab", x: x2, y: y2, t: 0, dur: 0.6, R: 15, dmg: 2 }); const f = e.feet && e.feet.reduce((b, ff) => (!b || Math.hypot(ff.x - x2, ff.y - y2) < Math.hypot(b.x - x2, b.y - y2) ? ff : b), null); if (f) { f.stab = { x: x2, y: y2, t0: t }; } } e.n++; sfx(api, "clack"); }
+      if (e.st > e.n * gap && e.n < N) { for (const q of heroes) { if (Math.hypot(q.x - e.x, q.y - e.y) > 130) continue; const lead = 0.35 + (e.n % 2) * 0.15; let x2 = q.x + (q.vx || 0) * lead, y2 = q.y + (q.vy || 0) * lead; const dd = Math.hypot(x2 - e.x, y2 - e.y); if (dd > 105) { x2 = e.x + (x2 - e.x) * 105 / dd; y2 = e.y + (y2 - e.y) * 105 / dd; } L.fx.push({ kind: "stab", x: x2, y: y2, t: 0, dur: 0.6, R: 15, dmg: 2 }); const f = e.feet && e.feet.reduce((b, ff) => (!b || Math.hypot(ff.x - x2, ff.y - y2) < Math.hypot(b.x - x2, b.y - y2) ? ff : b), null); if (f) { f.stab = { x: x2, y: y2, t0: t }; } } e.n++; sfx(api, "clack"); }
       if (e.feet) for (const f of e.feet) if (f.stab && t - f.stab.t0 > 0.75) { f.x = f.stab.x; f.y = f.stab.y; f.stab = null; }
       if (e.st > N * gap + 0.8) { e.state = "stalk"; e.cd = rnd(1.3, 2); if (e.feet) for (const f of e.feet) f.stab = null; }
     } else if (e.state === "windSweep") { e.claw = Math.min(1, e.st / 0.65); e.aim += angDiff(toP, e.aim) * Math.min(1, dt * 2.2); if (e.st > 0.65) { e.state = "sweep"; e.st = 0; e.hitSet = {}; sfx(api, "spearSweep"); } }
@@ -1143,7 +1149,7 @@
       if (e.again && e.st > 1.5) { e.again = 0; volley(e.foam === "fan" ? "ring" : "fan"); }
       if (e.st > (fury ? 2 : 1.1)) { e.blown = 0; e.state = "stalk"; e.cd = rnd(1.5, 2.2); }
     }
-    else if (e.state === "windPound") { e.claw = Math.min(1, e.st / 0.55); if (e.st > 0.6) { e.state = "pound"; e.st = 0; for (const sg of [-1, 1]) L.fx.push({ kind: "quake", x: e.x + sg * 40, y: e.y + 10, t: 0, dur: 0.55, R: 90, dmg: 2 }); if (fury) for (const q of heroes) L.fx.push({ kind: "stab", x: q.x, y: q.y, t: -0.25, dur: 0.75, R: 16, dmg: 2 }); sfx(api, "stone"); Combat.shake = 1; } }
+    else if (e.state === "windPound") { e.claw = Math.min(1, e.st / 0.55); if (e.st > 0.6) { e.state = "pound"; e.st = 0; for (const sg of [-1, 1]) L.fx.push({ kind: "quake", x: e.x + sg * 40, y: e.y + 10, t: 0, dur: 0.55, R: 90, dmg: 2 }); if (fury) for (const q of heroes) if (Math.hypot(q.x - e.x, q.y - e.y) < 130) L.fx.push({ kind: "stab", x: q.x, y: q.y, t: -0.25, dur: 0.75, R: 16, dmg: 2 }); sfx(api, "stone"); Combat.shake = 1; } }
     else if (e.state === "pound") { if (e.st > 0.8) { e.state = "stalk"; e.claw = 0; e.cd = rnd(1.2, 2); } }
     crabFeet(e, dt);
   };
