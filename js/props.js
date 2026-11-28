@@ -112,70 +112,67 @@
   const TIKI_PAL = { o: [34, 20, 16], a: [184, 122, 70], b: [144, 88, 50], c: [100, 58, 34], k: [26, 16, 14], e: [242, 226, 186], r: [196, 62, 42] };
 
   // ---- a carved Kū face, shared by the tiki statues (koa wood) and the temple gate's mask (stone).
-  // u runs -1..1 across the face, v 0..1 down it. Returns what is carved there:
-  // 0 surface, 1 raised (catches the light), 2 recess, 3 eye, 4 pupil, 5 tooth, 6 tongue, 7 deep shadow
+  // Every feature is cut the way a carver cuts it: a groove around its edge with a lit lip inside, so
+  // the face reads as relief, not paint. u runs -1..1 across, v 0..1 down. Returns:
+  // 0 surface, 1 raised (lit), 2 groove, 3 shell (eye), 4 pupil, 5 tooth, 6 tongue, 7 deep shadow, 8 red ochre, 9 black paint
+  const koru = (du, dv, R) => { const d = Math.hypot(du, dv); if (d > R) return -1; const a = Math.atan2(dv, du); return (((d / R) * 2.2 - a / (Math.PI * 2)) % 1 + 1) % 1; };
   function kuFace(u, v) {
-    const au = Math.abs(u);
-    if (v < 0.06) return 1;                                                   // the brow band
-    if (v > 0.11 && v < 0.19 && au < 0.92) return v < 0.13 ? 1 : 0;           // heavy brow ridge
-    if (v >= 0.19 && v < 0.22 && au < 0.9) return 2;                          // carved line under it
-    const de = ((au - 0.46) / 0.27) ** 2 + ((v - 0.34) / 0.14) ** 2;          // deep-set eyes of pearl shell
-    if (de < 1) { if (de > 0.5) return 2; return ((au - 0.43) / 0.1) ** 2 + ((v - 0.35) / 0.07) ** 2 < 1 ? 4 : 3; }
-    if (v > 0.27 && v < 0.63) {                                               // the flaring nose
-      const hw = 0.1 + (v - 0.27) * 0.6;
-      if (au < hw) { if (v > 0.55 && au > hw - 0.13) return 7; return u > hw - 0.06 ? 2 : 1; }
+    const au = Math.abs(u), side = u < 0 ? -1 : 1;
+    // forehead: a band of chevrons pointing down to the brow
+    if (v < 0.13) { if (v < 0.025) return 1; return ((au * 5 + v * 9) % 1) < 0.28 ? 2 : (v < 0.06 ? 1 : 0); }
+    // brows: heavy arches that end in koru curls at the temples
+    const fb = ((au - 0.44) / 0.5) ** 2 + ((v - 0.36) / 0.21) ** 2;
+    if (v < 0.36 && fb > 0.95 && fb < 1.45) return fb > 1.3 ? 2 : 1;
+    const kb = koru(au - 0.86, v - 0.27, 0.11); if (kb >= 0) return kb < 0.4 ? 2 : 1;
+    // almond eyes of pearl shell, lidded by a groove and a lit rim
+    const fe = ((au - 0.43) / 0.27) ** 2 + ((v - 0.37) / 0.095) ** 2;
+    if (fe < 1.7) {
+      if (fe >= 1.25) return 2;
+      if (fe >= 1) return 1;
+      const fp = ((au - 0.42) / 0.14) ** 2 + ((v - 0.375) / 0.08) ** 2;
+      return fp < 1 ? 4 : 3;
     }
-    const dm = (u / 0.82) ** 2 + ((v - 0.81) / 0.17) ** 2;                    // the great figure-eight mouth
-    if (dm < 1) {
-      if (dm > 0.66) return 1;                                                // thick carved lips
+    // red ochre tear lines under each eye
+    if (v > 0.47 && v < 0.5 && au > 0.3 && au < 0.6) return 8;
+    // the nose: a long ridge flaring to two nostril spirals
+    if (v > 0.3 && v < 0.67) {
+      const hw = 0.07 + (v - 0.3) * 0.48;
+      if (au < hw + 0.07) {
+        if (au >= hw) return 2;
+        if (v > 0.56) { const kn = koru(au - hw * 0.62, v - 0.61, 0.07); if (kn >= 0) return kn < 0.45 ? 7 : 1; }
+        return u < 0 ? 1 : 0;
+      }
+    }
+    // cheek spirals
+    const kc = koru(au - 0.8, v - 0.6, 0.15); if (kc >= 0 && kc < 0.36) return 2;
+    // the great figure-eight mouth: double-cut lips, two rows of teeth, the tongue thrust out
+    const fm = (u / 0.82) ** 2 + ((v - 0.82) / 0.155) ** 2;
+    if (fm < 1.3) {
+      if (fm >= 1.08) return 2;
+      if (fm >= 0.72) return fm > 0.9 ? 1 : 0;
+      if (fm >= 0.64) return 2;
       const col = Math.floor((u + 1) * 7) & 1;
-      if (v < 0.79) return col ? 5 : 7;                                       // upper teeth
-      if (au < 0.3 && v > 0.8) return 6;                                      // the tongue thrust out
-      if (v > 0.88) return col ? 5 : 7;                                       // lower teeth
+      if (v < 0.79) return col ? 5 : 7;
+      if (au < 0.28 && v > 0.8) return 6;
+      if (v > 0.87) return col ? 5 : 7;
       return 7;
     }
-    const dc = Math.hypot(au - 0.8, (v - 0.6) * 1.3);                         // koru spirals on the cheeks
-    if (dc < 0.17) { const a = Math.atan2(v - 0.6, au - 0.8), f = ((dc / 0.17) * 2 - a / (Math.PI * 2)) % 1; if ((f + 1) % 1 < 0.38) return 2; }
+    // niho (shark's teeth) along the jaw
+    if (v > 0.97) return ((au * 8) % 1) < 0.5 - (v - 0.97) * 12 ? 9 : 0;
     return 0;
   }
-  // the koa tiki: a fanned crest, a red-painted band, the Kū face, arms carved over the belly, and
-  // short legs on a stone plinth. Lit from the left like everything else, with a dark outline.
+  // a band of niho: triangles of teeth, alternately painted and bare
+  const niho = (x, y, h) => { const k = Math.floor(x / 3), f = x % 3; return y < h - Math.abs(f - 1) * (h / 1.6) ? (k & 1 ? 9 : 8) : 0; };
+  // The koa tiki, pixelled by hand (left half drawn, right half mirrored a shade darker, lit from the
+  // left): a crest of three carved feather blades, a painted niho band (shark's teeth in red ochre),
+  // a chevron-carved brow, shell eyes in deep sockets, ochre tear lines, cheek koru, a flared nose,
+  // the great Kū mouth with teeth and tongue, a bone-tooth collar, arms bound across the belly over a
+  // koru navel, bent legs, and a mossy stone plinth.
+  const TIKI_ART = ["........4543........", "..45....4kk3....43..", "..4k5...4kk3...4k3..", "...4k5..4kk3..4k3...", "....4k5.4kk3.4k3....", ".....4k54kk34k3.....", "...11111111111111...", "..5555444433334444..", "..rrkrrkrrrrkrrkrr..", "..rkkrkkrkkrkkrkkr..", "..kkkkkkkkkkkkkkkk..", "..5555444433334444..", "..5kk4kk4kk3kk3kk4..", "..4444444433333333..", "..4555555544444443..", "..4k111115411111k3..", "..4kwwpwk54kwpwwk3..", "..4kwppwk54kwppwk3..", "..4k1111k43k1111k3..", "..43rrr334322rrr23..", "..3k1k33343222k1k2..", "..3kk3334433222kk2..", "..33333kk43kk22222..", "..3k555555444444k2..", "..3kwkwkwkkwkwkwk2..", "..3kkkkttttttkkkk2..", "..3kwkwkwttwkwkwk2..", "..2k555555444444k1..", "...22222221111111...", "...kkkkkkkkkkkkkk...", "...wwkwwkwwkwwkww...", "...wkkwkkwwkkwkkw...", "..4555544433344443..", "..5k444443233333k4..", "..45k4444323333k43..", "..445k4k4323k3k433..", "..4445k443233k4333..", "..44445k3kk2k43333..", "..444k44411333k333..", "..444k44k11k33k333..", ".mggggggggggggggggm.", ".GGGGGGGGGGGGGGGGGG."];
   function makeTiki() {
-    const W = 18, H = 34, cx = 9, KO = PAL.R.koa, KA = PAL.R.kapa, OB = PAL.R.obsidian, FE = PAL.R.fern, ST = PAL.R.stone, pk = PAL.pk;
-    const wood = (lit, m) => {
-      let i = lit > 0.5 ? 4 : lit > 0.12 ? 3 : lit > -0.3 ? 2 : 1;
-      if (m === 1) i += 1; else if (m === 2) i -= 1;
-      return pk(KO[Math.max(0, Math.min(6, i))]);
-    };
-    return Ruins.raster(W, H, (x, y) => {
-      const dx = x + 0.5 - cx;
-      const lit = (hw) => -dx / hw * 0.75 + 0.22 + (K.hash2(x, y >> 1, 5) - 0.5) * 0.12;     // a carved log, round and grained
-      if (y <= 6) {                                                                          // the fanned crest, ridged like feathers
-        const hw = 3 + (6 - y) * 0.85; if (Math.abs(dx) > hw) return 0;
-        const ridge = Math.round(dx / 1.6) & 1;
-        return y === 0 ? pk(KO[5]) : wood(lit(hw), ridge ? 1 : 2);
-      }
-      if (y === 7) return Math.abs(dx) < 7 ? pk(KA[x < cx ? 2 : 1]) : 0;                   // a band of red earth paint
-      if (y === 8) return Math.abs(dx) < 7 ? pk(KO[1]) : 0;
-      if (y <= 21) {                                                                         // the face
-        const hw = 7.4 - (y > 19 ? (y - 19) * 0.6 : 0); if (Math.abs(dx) > hw) return 0;
-        const m = kuFace(dx / 7, (y - 9) / 13);
-        if (m === 3) return pk(KA[3]); if (m === 4) return pk(OB[0]); if (m === 5) return pk(KA[3]); if (m === 6) return pk(PAL.R.hibiscus[2]); if (m === 7) return pk(OB[1]);
-        return wood(lit(hw), m);
-      }
-      if (y === 22) return Math.abs(dx) < 6 ? pk(KA[x < cx ? 2 : 1]) : 0;
-      if (y <= 29) {                                                                         // the body, arms folded over the belly
-        const hw = 6.2; if (Math.abs(dx) > hw) return 0;
-        const v = (y - 23) / 6, armX = 5.6 - v * 4.2, onArm = Math.abs(Math.abs(dx) - armX) < 0.9 && v < 0.95;
-        if (onArm) return wood(lit(hw), 1);
-        if (Math.abs(Math.abs(dx) - armX) < 1.7 && Math.abs(dx) > armX) return wood(lit(hw), 2);
-        if (Math.abs(dx) < 1 && (y === 25 || y === 27)) return pk(KO[1]);                 // carved chevrons on the chest
-        return wood(lit(hw), 0);
-      }
-      if (y <= 31) { const hw = 6; if (Math.abs(dx) > hw) return 0; if (Math.abs(dx) < 1.1) return pk(OB[1]); return wood(lit(hw), y === 31 ? 2 : 0); }
-      if (y === 32) return Math.abs(dx) < 7.5 ? pk(K.hash2(x, 3, 9) > 0.7 ? FE[3] : ST[2]) : 0;          // stone plinth, a little mossy
-      return Math.abs(dx) < 7.5 ? pk(ST[1]) : 0;
-    }, true);
+    const KO = PAL.R.koa, KA = PAL.R.kapa, OB = PAL.R.obsidian, FE = PAL.R.fern, ST = PAL.R.stone;
+    const C = { k: KO[0], 1: KO[1], 2: KO[2], 3: KO[3], 4: KO[4], 5: KO[5], r: KA[2], R: KA[1], w: KA[3], p: OB[0], t: PAL.R.hibiscus[2], g: ST[2], G: ST[1], m: FE[3] };
+    return Ruins.raster(TIKI_ART[0].length, TIKI_ART.length, (x, y) => { const c = C[TIKI_ART[y][x]]; return c ? PAL.pk(c) : 0; }, true);
   }
 
   // Market stall: thatch roof, posts, counter of goods (fruit + potions as in the concept)
@@ -317,23 +314,12 @@
     block(28, 14, 112, 15, 3);
     block(50, 2, 68, 13, 3);
     carved(29, 15, 110, 13, 4, 0);
-    // the crest mask: the same carved Kū face as the tikis, cut in the temple's grey stone, with
-    // eyes of amber that seem to burn from inside
-    for (let y = 0; y < 30; y++) for (let x = 62; x < 106; x++) {
-      const dx = x + 0.5 - 84;
-      if (y < 6) {                                                         // a fanned crest above the face
-        const hw = 13 + y * 1.4; if (Math.abs(dx) > hw) continue;
-        px(ctx, x, y, Math.abs(dx) > hw - 1 || y === 0 ? css(0) : css(Math.round(dx / 2.2) & 1 ? (dx < 0 ? 5 : 4) : 2));
-        continue;
-      }
-      const hw = 20 - (y > 26 ? (y - 26) * 2 : 0); if (Math.abs(dx) > hw) continue;
-      if (Math.abs(dx) > hw - 1) { px(ctx, x, y, css(0)); continue; }
-      const m = kuFace(dx / 19, (y - 6) / 23), lit = -dx / 19 * 0.8 + 0.2;
-      let c;
-      if (m === 3) c = "#f0a030"; else if (m === 4) c = "#ffe27a"; else if (m === 5) c = css(5); else if (m === 6) c = "#a8402c"; else if (m === 7) c = css(0);
-      else { let i = lit > 0.45 ? 4 : lit > 0 ? 3 : lit > -0.4 ? 2 : 1; if (m === 1) i += 1; if (m === 2) i -= 1; c = css(Math.max(0, Math.min(5, i))); }
-      px(ctx, x, y, c);
-    }
+    // the crest mask: the tikis' Kū face cut large in the temple's grey stone, pixelled by hand (left
+    // half mirrored): a fan of carved blades, a banded brow, eyes of amber burning in deep sockets,
+    // ochre tear lines, koru cheeks, a flared nose, two rows of teeth around the tongue, niho at the chin
+    const MASK = ["................4543................", "............45..4543..43............", "........45..45..4543..43..43........", "....45..45..45..4543..43..43..43....", "....45..45..45..4543..43..43..43....", "000000000000000000000000000000000000", "055555555555555555444444444444444440", "044444444444444444333333333333333330", "000000000000000000000000000000000000", "044455555555554455443344444444443330", "044000000000004455443300000000000330", "04400aaaaaa00044554433000aaaaaa00330", "0440aaaayya00044554433000ayyaaaa0330", "04400aaaaaa00044554433000aaaaaa00330", "044400000000444455443333000000003330", "0444rrrrr444444455443333333rrrrr3330", "044400004444440455443033333300003330", "044044404444400455443003333303330330", "044040404444000045430000333303030330", "044044004444444444333333333300330330", "044400044444444444333333333330003330", "044000000000000000000000000000000330", "040555555555555555444444444444444030", "040550505050505050040404040404044030", "04050000000000tttttttt00000000004030", "0405505050505050tttt0404040404044030", "040555555555555555444444444444444030", "044000000000000000000000000000000330", "004404404404404404303303303303303300", "000400400400400400003003003003003000"];
+    const MC = { a: "#f0a030", y: "#ffe27a", t: "#a8402c", r: "#9a4a34" };
+    for (let y = 0; y < MASK.length; y++) for (let x = 0; x < MASK[y].length; x++) { const ch = MASK[y][x]; if (ch === ".") continue; px(ctx, 66 + x, y, MC[ch] || css(+ch)); }
     // moss & vines
     const r = K.rng(77);
     for (let k = 0; k < 140; k++) {

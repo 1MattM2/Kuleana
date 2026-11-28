@@ -259,18 +259,18 @@
       ],
       spawn: { x: 12, y: 53 },
       props: [{k: "taro", x: 24.8, y: 7.9}, {k: "boulder", x: 36.8, y: 26.7, s: 1}, {k: "palm", x: 8.9, y: 53.2}, {k: "fern", x: 9.1, y: 27.9}, {k: "fern", x: 22.5, y: 8.4}, {k: "smallplant", x: 10.3, y: 6.4}, {k: "palm", x: 48.0, y: 21.6}, {k: "hibiscus", x: 48.1, y: 32.8}, {k: "palm", x: 37.5, y: 22.9}, {k: "taro", x: 50.2, y: 31.0}, {k: "smallplant", x: 16.0, y: 54.0}, {k: "palm", x: 51.2, y: 52.3}, {k: "palm", x: 33.7, y: 22.5}, {k: "palm", x: 40.5, y: 49.0}, {k: "smallplant", x: 48.2, y: 50.1}, {k: "palm", x: 5.4, y: 52.1}, {k: "smallplant", x: 5.9, y: 27.0}, {k: "fern", x: 46.6, y: 49.3}, {k: "smallplant", x: 35.9, y: 29.0}, {k: "boulder", x: 43.6, y: 31.1, s: 2}, {k: "smallplant", x: 9.1, y: 4.8}, {k: "hibiscus", x: 50.2, y: 50.8}, {k: "fern", x: 8.4, y: 7.3}, {k: "palm", x: 5.5, y: 54.2}, {k: "palm", x: 7.1, y: 24.4}, {k: "hibiscus", x: 46.6, y: 54.3}, {k: "boulder", x: 35.7, y: 22.3, s: 1}, {k: "monstera", x: 9.0, y: 51.5}, {k: "palm", x: 17.1, y: 56.5}, {k: "taro", x: 11.2, y: 7.9}, {k: "hibiscus", x: 52.7, y: 25.1}, {k: "fern", x: 52.5, y: 19.7}, {k: "smallplant", x: 12.0, y: 22.4}, {k: "palm", x: 46.1, y: 20.5}, {k: "monstera", x: 48.5, y: 53.6}, {k: "fern", x: 53.1, y: 22.9}, {k: "taro", x: 40.9, y: 31.9}, {k: "palm", x: 18.0, y: 50.8}, {k: "smallplant", x: 54.8, y: 22.0}, {k: "palm", x: 18.1, y: 55.4}, {k: "palm", x: 8.2, y: 56.4}, {k: "smallplant", x: 15.9, y: 51.0}, {k: "palm", x: 20.5, y: 9.7}, {k: "fern", x: 34.3, y: 27.5}, {k: "fern", x: 39.1, y: 23.4}, {k: "hibiscus", x: 54.9, y: 25.7}, {k: "fern", x: 39.1, y: 49.5}, {k: "palm", x: 8.7, y: 29.6}, {k: "fern", x: 51.9, y: 28.1}, {k: "palm", x: 40.5, y: 30.0}, {k: "palm", x: 6.5, y: 55.8}, {k: "fern", x: 49.5, y: 26.1}, {k: "palm", x: 49.9, y: 54.9}, {k: "hibiscus", x: 19.7, y: 11.4}, {k: "smallplant", x: 55.0, y: 20.3}, {k: "taro", x: 10.8, y: 20.7}, {k: "monstera", x: 10.1, y: 55.5}, {k: "monstera", x: 52.4, y: 30.6}, {k: "fern", x: 8.3, y: 26.3}, {k: "palm", x: 39.5, y: 28.3}, {k: "boulder", x: 11.1, y: 9.6, s: 2}, {k: "palm", x: 41.2, y: 33.8}, {k: "smallplant", x: 26.6, y: 7.0}, {k: "hibiscus", x: 38.6, y: 25.9}, {k: "palm", x: 6.7, y: 22.5}, {k: "palm", x: 34.6, y: 23.8}, {k: "fern", x: 47.2, y: 56.2}, {k: "fern", x: 46.2, y: 30.9}, {k: "hibiscus", x: 40.5, y: 54.6}, {k: "fern", x: 53.8, y: 29.8}, {k: "hibiscus", x: 7.8, y: 5.8}, {k: "fern", x: 14.7, y: 55.0}, {k: "fern", x: 38.4, y: 29.5}, {k: "monstera", x: 17.2, y: 53.0}, {k: "palm", x: 42.6, y: 55.4}, {k: "taro", x: 40.6, y: 51.0}, {k: "palm", x: 6.6, y: 6.8}, {k: "palm", x: 39.2, y: 20.8}, {k: "boulder", x: 33.7, y: 25.9, s: 2}, {k: "palm", x: 50.4, y: 28.4}, {k: "smallplant", x: 49.0, y: 34.0}, {k: "smallplant", x: 4.1, y: 26.2}, {k: "monstera", x: 48.7, y: 23.4}, {k: "fern", x: 50.8, y: 22.0}, {k: "taro", x: 37.4, y: 24.7}, {k: "smallplant", x: 44.1, y: 20.7}, {k: "smallplant", x: 15.6, y: 49.4}, {k: "palm", x: 39.4, y: 52.7}, {k: "smallplant", x: 42.1, y: 56.9}, {k: "fern", x: 9.5, y: 47.7}, {k: "monstera", x: 50.1, y: 20.6}, {k: "monstera", x: 45.2, y: 55.1}, {k: "taro", x: 22.0, y: 10.3}, {k: "taro", x: 48.2, y: 51.9}, {k: "fern", x: 12.9, y: 11.5}, {k: "boulder", x: 7.4, y: 54.4, s: 1}, {k: "palm", x: 42.3, y: 48.9}, {k: "fern", x: 6.1, y: 28.7}, {k: "palm", x: 33.0, y: 28.8}, {k: "monstera", x: 49.0, y: 30.0}, {k: "hibiscus", x: 12.2, y: 5.3}, {k: "taro", x: 51.6, y: 32.5}, {k: "smallplant", x: 11.4, y: 11.1}, {k: "taro", x: 5.2, y: 23.2}, {k: "fern", x: 9.1, y: 21.8}, {k: "hibiscus", x: 7.5, y: 51.6}, {k: "hibiscus", x: 53.0, y: 26.9}, {k: "smallplant", x: 51.0, y: 24.0}, {k: "fern", x: 10.8, y: 27.8}, {k: "palm", x: 18.5, y: 13.1}, {k: "smallplant", x: 38.6, y: 51.3}, {k: "smallplant", x: 52.8, y: 51.2}, {k: "palm", x: 41.4, y: 20.2}, {k: "fern", x: 19.9, y: 55.8}, {k: "monstera", x: 51.7, y: 53.9}, {k: "boulder", x: 9.6, y: 9.0, s: 1}, {k: "palm", x: 8.6, y: 49.7}, {k: "taro", x: 13.8, y: 12.9}, {k: "fern", x: 40.8, y: 21.9}, {k: "smallplant", x: 38.1, y: 53.7}, {k: "gate", x: 12, y: 49.2}, {k: "gate", x: 22, y: 4.6}, {k: "tiki", x: 8.6, y: 50.4}, {k: "tiki", x: 15.6, y: 50.4}, {k: "column", x: 37.6, y: 48.8}, {k: "column", x: 37.6, y: 55.4}, {k: "brazier", x: 40, y: 47.8}, {k: "brazier", x: 48, y: 47.8}, {k: "column", x: 33, y: 20.2}, {k: "column", x: 55, y: 20.2}, {k: "tiki", x: 44, y: 19.4}, {k: "crystals", big: 1, x: 26, y: 6.2}, {k: "crystals", x: 7, y: 6.4}, {k: "brazier", x: 19.4, y: 4.4}, {k: "brazier", x: 24.6, y: 4.4}],
-      enemies: [{e: "gecko", x: 9, y: 54}, {e: "gecko", x: 15, y: 55}, {e: "vine", x: 6, y: 52}, {e: "snake", x: 20, y: 25}, {e: "snake", x: 26, y: 24.5}, {e: "gecko", x: 23, y: 25.6}, {e: "snake", x: 6, y: 22}, {e: "vine", x: 10, y: 21}, {e: "dart", x: 5, y: 26, tribe: 12}, {e: "spear", x: 9, y: 27, tribe: 12}, {e: "gecko", x: 4, y: 24}],
+      enemies: [{e: "gecko", x: 9, y: 54}, {e: "gecko", x: 15, y: 55}, {e: "vine", x: 6, y: 52}, {e: "snake", x: 44, y: 40}, {e: "snake", x: 17, y: 24.6}, {e: "dart", x: 10, y: 20, tribe: 12}, {e: "snake", x: 11, y: 28}, {e: "snake", x: 20, y: 25}, {e: "snake", x: 26, y: 24.5}, {e: "gecko", x: 23, y: 25.6}, {e: "snake", x: 6, y: 22}, {e: "vine", x: 10, y: 21}, {e: "dart", x: 5, y: 26, tribe: 12}, {e: "spear", x: 9, y: 27, tribe: 12}, {e: "gecko", x: 4, y: 24}],
       arenas: [
         { title: "THE PASS OF WINDS", rect: [36, 45, 53, 58], seals: [[35.2, 50.6, 36.2, 54.2], [41.6, 43.4, 46.4, 44.4]],
-          waves: [[{e: "snake", x: 41, y: 50, enter: "scurry"}, {e: "snake", x: 47, y: 54, enter: "scurry"}, {e: "gecko", x: 40, y: 54, enter: "scurry"}, {e: "gecko", x: 48, y: 50, enter: "scurry"}],
-                  [{e: "spear", x: 42, y: 49, tribe: 11}, {e: "spear", x: 46, y: 49, tribe: 11}, {e: "dart", x: 40, y: 52, tribe: 11}, {e: "dart", x: 49, y: 53, tribe: 11}, {e: "vine", x: 44, y: 55, enter: "burst"}],
-                  [{e: "snake", x: 40, y: 51, enter: "scurry"}, {e: "snake", x: 48, y: 53, enter: "scurry"}, {e: "wisp", x: 44, y: 50, enter: "descend"}, {e: "wisp", x: 42, y: 54, enter: "descend"}]] },
-        { title: "THE THUNDERING RIDGE", sub: "Survive the stampede", rect: [30, 18, 58, 33], seals: [[41.6, 33.2, 46.4, 34.2], [29.6, 22.6, 30.6, 27.4]], survive: 28, herd: 1.7,
+          waves: [[{e: "snake", x: 41, y: 50, enter: "scurry"}, {e: "snake", x: 47, y: 54, enter: "scurry"}, {e: "snake", x: 44, y: 49, enter: "scurry"}, {e: "gecko", x: 40, y: 54, enter: "scurry"}, {e: "gecko", x: 48, y: 50, enter: "scurry"}],
+                  [{e: "spear", x: 42, y: 49, tribe: 11}, {e: "spear", x: 46, y: 49, tribe: 11}, {e: "dart", x: 40, y: 52, tribe: 11}, {e: "dart", x: 49, y: 53, tribe: 11}, {e: "spear", x: 44, y: 48.6, tribe: 11}, {e: "vine", x: 44, y: 55, enter: "burst"}, {e: "vine", x: 39, y: 50, enter: "burst"}],
+                  [{e: "snake", x: 40, y: 51, enter: "scurry"}, {e: "snake", x: 48, y: 53, enter: "scurry"}, {e: "wisp", x: 44, y: 50, enter: "descend"}, {e: "wisp", x: 42, y: 54, enter: "descend"}, {e: "snake", x: 46, y: 51, enter: "scurry"}, {e: "dart", x: 50, y: 51, tribe: 13}]] },
+        { title: "THE THUNDERING RIDGE", sub: "Survive the stampede", rect: [30, 18, 58, 33], seals: [[41.6, 33.2, 46.4, 34.2], [29.6, 22.6, 30.6, 27.4]], survive: 34, herd: 1.3,
           waves: [[{e: "gecko", x: 38, y: 23, enter: "scurry"}, {e: "gecko", x: 50, y: 23, enter: "scurry"}, {e: "gecko", x: 40, y: 29, enter: "scurry"}, {e: "gecko", x: 48, y: 29, enter: "scurry"}],
-                  [{e: "snake", x: 44, y: 22, enter: "scurry"}, {e: "gecko", x: 36, y: 26, enter: "scurry"}, {e: "gecko", x: 52, y: 26, enter: "scurry"}],
+                  [{e: "snake", x: 44, y: 22, enter: "scurry"}, {e: "snake", x: 38, y: 29, enter: "scurry"}, {e: "gecko", x: 36, y: 26, enter: "scurry"}, {e: "gecko", x: 52, y: 26, enter: "scurry"}],
                   [{e: "vine", x: 38, y: 27, enter: "burst"}, {e: "vine", x: 50, y: 27, enter: "burst"}, {e: "gecko", x: 44, y: 30, enter: "scurry"}]] },
         { title: "THE GARDEN OF MANY HEADS", rect: [5, 2, 27, 13], seals: [[5.6, 12.6, 10.4, 13.4]], unlocks: "crown",
-          waves: [[{e: "hydra", x: 16, y: 7.5, enter: "burst"}]] },
+          waves: [[{e: "hydra", x: 16, y: 7.5, enter: "burst"}, {e: "vine", x: 8, y: 6, enter: "burst"}, {e: "vine", x: 24, y: 9, enter: "burst"}]] },
       ],
       gates: [{ x: 12, y: 50.4, to: "sanctum" }, { x: 22, y: 5.8, to: "sanctum" }],
     },
@@ -969,8 +969,10 @@
       }
     }
     for (const b of L.pickups) {
-      if (b.vy !== undefined) { b.vy += 220 * dt; b.y += b.vy * dt; if (b.vy > 0 && t - b.t0 > 0.3) delete b.vy; }
-      for (const q of heroes) if (!b.got && !q.dead && Math.hypot(q.x - b.x, q.y - 8 - b.y) < 14) { b.got = true; api.heal(2, q); api.sfx("berry"); }
+      if (b.vy !== undefined) { b.vy += 220 * dt; b.y += b.vy * dt; if (b.vy > 0 && t - b.t0 > 0.3) { delete b.vy; onGround(b); } }
+      // picked up from a generous reach, and drawn the last few pixels toward the hero
+      for (const q of heroes) { const dd = Math.hypot(q.x - b.x, q.y - 8 - b.y); if (!b.got && !q.dead && dd < 40 && dd > 1 && b.vy === undefined) { const k = Math.min(1, dt * 6); b.x += (q.x - b.x) * k; b.y += (q.y - 8 - b.y) * k; } }
+      for (const q of heroes) if (!b.got && !q.dead && Math.hypot(q.x - b.x, q.y - 8 - b.y) < 26) { b.got = true; api.heal(2, q); api.sfx("berry"); }
     }
     L.pickups = L.pickups.filter((b) => !b.got && t - b.t0 < 40);
   };
@@ -1062,6 +1064,12 @@
     }
   };
   Level.dropBerry = (x, y, t) => Level.cur.pickups.push({ x, y: y - 10, t0: t, vy: -70 });
+  // a berry that lands in rock, a prop or over a drop rolls out to the nearest ground you can stand on
+  function onGround(b) {
+    const ok = (x, y) => walk(tAt(x, y + 8)) && !Level.solidAt(x, y + 8) && !Level.solidAt(x - 5, y + 8) && !Level.solidAt(x + 5, y + 8);
+    if (ok(b.x, b.y)) return;
+    for (let r = 4; r < 200; r += 4) for (let a = 0; a < Math.PI * 2; a += 0.35) { const x = b.x + Math.cos(a) * r, y = b.y + Math.sin(a) * r; if (ok(x, y)) { b.x = x; b.y = y; return; } }
+  }
 
   // ------------------------------------------------------------------ drawing
   Level.drawBack = function (ctx, ox, oy, LW, LH, t) {

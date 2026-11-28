@@ -64,10 +64,35 @@
     return { frames, R, n };
   }
   function crop(img, x0, y0, w, h) { const [c, x] = K.canvas(w, h); x.drawImage(img, -x0, -y0); return c; }
+  // The spearman's mask, carved in more detail over the original (same wood, same light from the
+  // top-left): a notched brow band, deep sockets with a glint of shell in each eye, a ridged nose with
+  // flared nostrils, cheek grooves, and a gaping mouth with upper and lower teeth and a red tongue.
+  // Drawn into the body sprite (the spear columns are already cut away, so x is offset by 5).
+  function spearMask(body) {
+    const C = { O: [32, 16, 19], H: [198, 142, 114], A: [180, 125, 104], B: [171, 110, 85], C: [152, 96, 77], D: [135, 84, 68], E: [120, 71, 58], F: [106, 61, 52], G: [79, 40, 33], K: [58, 24, 19], W: [214, 200, 172], Y: [250, 236, 200], R: [150, 40, 34] };
+    const M = [
+      "OHHHAAAACCO",
+      "OAGHAGAHGCO",
+      "OBGGGBGGGDO",
+      "OBKWKAKYKDO",
+      "OCKKGHGKKEO",
+      "OCAGBHBGCEO",
+      "ODCBAHCDGFO",
+      "ODGKGBGKGFO",
+      "OEKKKKKKKGO",
+      "OEKWKWKWKGO",
+      "OFKKRRRKKGO",
+      "OFGWKWKWGGO",
+      "OGGKKKKKGKO",
+    ];
+    const ctx = body.getContext("2d");
+    for (let y = 0; y < M.length; y++) for (let x = 0; x < M[y].length; x++) { const c = C[M[y][x]]; ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`; ctx.fillRect(8 - 5 + x, 8 + y, 1, 1); }
+  }
   function buildTikis() {
     const sp = A.img.e_tikispear, dt = A.img.e_tikidart;
     // spearman: the spear is columns 0-4, gripped at (3.5, 22.5); it points straight up in the sprite
     const spBody = crop(sp, 5, 0, sp.width - 5, sp.height);
+    spearMask(spBody);
     // darter: the blowpipe (and the hand on it) is columns 15-25, rows 13-20, held at its left end
     const dtBody = crop(dt, 0, 0, 15, dt.height);
     return {
