@@ -74,22 +74,11 @@
   };
   Gear.TIER_NAME = ["common", "uncommon", "rare"];
   Gear.randomShell = (tier) => { const ks = Object.keys(Gear.SHELLS).filter((k) => Gear.SHELLS[k].tier === tier); return ks[(Math.random() * ks.length) | 0]; };
-  // each shell drawn small and true to life (cached)
-  const shellCache = {};
-  Gear.shellArt = (k) => {
-    if (shellCache[k]) return shellCache[k];
-    const [c, x] = K.canvas(13, 13), P = (px, py, col) => { x.fillStyle = col; x.fillRect(px, py, 1, 1); };
-    const O = "#2a1c18";
-    if (k === "clam") { for (let y = 0; y < 9; y++) for (let xx = -6; xx <= 6; xx++) { const r = Math.hypot(xx, 9 - y); if (r > 7.5 || y > 8) continue; const rib = Math.round(Math.atan2(9 - y, xx) * 4) % 2; P(6 + xx, 2 + y, r > 6.6 ? O : rib ? "#e8b8a8" : "#f8e4d4"); } for (let xx = 3; xx <= 9; xx++) P(xx, 11, "#c89888"); }
-    else if (k === "auger") { for (let s = 0; s < 12; s++) { const w = Math.max(0, 2.6 - s * 0.2); for (let o = -w; o <= w; o++) P(Math.round(2 + s * 0.75 + o * 0.6), Math.round(11 - s * 0.85 + o * 0.6), Math.abs(o) >= w - 0.5 ? O : (s % 3 === 0 ? "#8a5a3a" : "#f2e2c8")); } }
-    else if (k === "limpet") { for (let y = 0; y < 13; y++) for (let xx = 0; xx < 13; xx++) { const dx = xx - 6, dy = (y - 7) * 1.3, r = Math.hypot(dx, dy); if (r > 5.6) continue; const ray = Math.round(Math.atan2(dy, dx) * 3) % 2; P(xx, y, r > 4.9 ? O : r < 1.2 ? "#f4ece0" : ray ? "#7a7a70" : "#c8c0b0"); } }
-    else if (k === "cone") { for (let y = 0; y < 12; y++) { const w = y < 3 ? 2 + y * 1.3 : 6 - (y - 3) * 0.6; for (let xx = -Math.round(w); xx <= Math.round(w); xx++) P(6 + xx, y, Math.abs(xx) >= Math.round(w) ? O : K.hash2(xx + 9, y, 5) > 0.72 ? "#5a3820" : "#f4efe4"); } }
-    else if (k === "triton") { for (let y = 0; y < 13; y++) { const w = 1 + Math.sin((y / 12) * Math.PI) * 4.5; for (let xx = -Math.round(w); xx <= Math.round(w); xx++) P(6 + xx, y, Math.abs(xx) >= Math.round(w) ? O : y % 4 === 0 ? "#f2d8a8" : xx < 0 ? "#c87a3a" : "#9a5428"); if (y % 4 === 1) { P(6 - Math.round(w) - 1, y, "#e8c890"); P(6 + Math.round(w) + 1, y, "#e8c890"); } } }
-    else if (k === "miter") { for (let y = 0; y < 13; y++) { const w = y < 8 ? 0.5 + y * 0.45 : 4 - (y - 8) * 0.7; for (let xx = -Math.round(w); xx <= Math.round(w); xx++) P(6 + xx, y, Math.abs(xx) >= Math.round(w) ? O : (xx + y) % 3 === 0 && y % 2 ? "#d84a2a" : "#f6f0e6"); } }
-    else if (k === "helmet") { for (let y = 0; y < 13; y++) for (let xx = 0; xx < 13; xx++) { const dx = xx - 6, dy = y - 7, r = Math.hypot(dx, dy * 1.1); if (r > 6) continue; P(xx, y, r > 5.3 ? O : dx > 1 && dy > 0 ? "#e89a5a" : r < 2.4 ? "#f4e6c8" : (xx + y) % 4 === 0 ? "#8a5a34" : "#d8b888"); } for (const hx of [2, 6, 10]) { P(hx, 1, "#f4e6c8"); P(hx, 2, "#c8a070"); } }
-    else if (k === "trumpet") { for (let s = 0; s < 13; s++) { const w = Math.max(0.5, 3.4 - s * 0.22); for (let o = -w; o <= w; o += 1) P(Math.round(1 + s * 0.85 + o * 0.5), Math.round(11 - s * 0.7 + o * 0.85), Math.abs(o) >= w - 0.5 ? O : (s + Math.round(o)) % 3 === 0 ? "#6a3418" : "#f2d6a0"); } P(2, 11, "#f08a4a"); P(3, 12, "#f08a4a"); }
-    shellCache[k] = c; return c;
-  };
+  // each shell drawn true to life by js/shellart.js (cached): 16x16 lying on the sand and on the HUD, and a
+  // 32x32 icon for the purse and Makani's counter
+  const shellCache = {}, iconCache = {};
+  Gear.shellArt = (k) => shellCache[k] || (shellCache[k] = ShellArt.draw(k, 16));
+  Gear.shellIcon = (k) => iconCache[k] || (iconCache[k] = ShellArt.draw(k, 32));
 
   // ---------------------------------------------------------------- Makani's trades
   // Prices: a common shell is worth about 1, an uncommon about 4, a rare about 15 (a level pays a handful). Heals to carry (H), elemental shards, talismans (one-use elemental super attacks, T to
@@ -363,7 +352,7 @@
       <p class="mn-note" style="margin-top:10px">Shards <span class="mn-dim">(3 of one element makes its weapon or cloth at the forge)</span></p>
       <div class="mn-shards">${Gear.ORDER.map((k) => { const E = Gear.ELEMENTS[k]; return `<span class="mn-shard"><i style="background:${E.col}"></i>${E.name} <b>${st.shards[k]}</b></span>`; }).join("")}</div>
       <p class="mn-note" style="margin-top:10px">Shells <span class="mn-dim">(trade them at Makani's stall)</span></p>
-      <div class="mn-shards">${Object.entries(Gear.SHELLS).map(([k, sh]) => `<span class="mn-shard"><img src="${Gear.shellArt(k).toDataURL()}" style="width:13px;height:13px;image-rendering:pixelated;vertical-align:-2px;margin-right:4px">${sh.name} <b>${st.shells[k]}</b> <span class="mn-dim">${Gear.TIER_NAME[sh.tier]}</span></span>`).join("")}</div>`;
+      <div class="mn-shards">${Object.entries(Gear.SHELLS).map(([k, sh]) => `<span class="mn-shard"><img src="${Gear.shellArt(k).toDataURL()}" style="width:16px;height:16px;image-rendering:pixelated;vertical-align:-4px;margin-right:4px">${sh.name} <b>${st.shells[k]}</b> <span class="mn-dim">${Gear.TIER_NAME[sh.tier]}</span></span>`).join("")}</div>`;
     el.querySelectorAll("[data-wear]").forEach((b) => (b.onclick = () => { Gear.wear(b.dataset.wear || null); }));
   };
 })();

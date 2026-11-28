@@ -459,7 +459,7 @@
     const OB = PAL.packed.obsidian, SO = PAL.packed.soil, GR = PAL.packed.grass, SA = PAL.packed.sand, GL = PAL.packed.glyph, ST = PAL.packed.stone, FE = PAL.packed.fern, HZ = PAL.packed.haze;
     const rock = A.px.tex_rock.data, grassT = A.px.tex_grass.data, sandT = A.px.tex_sand.data, glyph = A.px.tex_glyph.data;
     const pebT = A.px.tex_pebble && A.px.tex_pebble.data, pinkT = A.px.tex_pinkcoral && A.px.tex_pinkcoral.data;
-    const CORAL_R = [K.rgb(166, 120, 130), K.rgb(184, 136, 146), K.rgb(200, 154, 160), K.rgb(214, 170, 174), K.rgb(228, 190, 190)];
+    const CORAL_R = [K.rgb(160, 104, 120), K.rgb(184, 126, 140), K.rgb(204, 148, 158), K.rgb(220, 168, 174), K.rgb(234, 190, 190)];
     // a 64px texture laid in big patches, each shifted and sometimes mirrored, so its repeat never shows
     const patch64 = (x, y, salt) => {
       const pcx = Math.floor((x + K.noise(x / 40, y / 40) * 46) / 150), pcy = Math.floor((y + K.noise(x / 40 + 70, y / 40) * 46) / 150);
@@ -707,11 +707,11 @@
         } else if (t === CORAL) {
           // pink coral rock: the reef raised into land. Darker and wet where the sea laps it, a sunlit crust
           // just above that, and here and there a living head of brighter coral
-          // a soft, weathered coral stone in muted dusty rose: broad gentle patches of tone, a few pores,
-          // no busy polyp pattern
-          void pinkT;
-          const cv = K.fbm(x / 52 + 3, y / 52, 3) * 0.75 + K.noise(x / 13 + 9, y / 13) * 0.25 + B(x, y) * 0.07;
-          c = CORAL_R[Math.max(0, Math.min(4, Math.floor((cv - 0.22) * 8.5)))];
+          // weathered coral stone in a soft rose: the reef rock's own structure (its polyps and ridges) kept,
+          // but at half strength under broad gentle patches of tone, and in muted colours
+          let tl = 0.5; if (pinkT) { const v = pinkT[patch64(x, y, 31)]; tl = ((v & 255) * 0.3 + ((v >>> 8) & 255) * 0.59 + ((v >>> 16) & 255) * 0.11 - 70) / 170; }
+          const cv = (K.fbm(x / 52 + 3, y / 52, 3) * 0.75 + K.noise(x / 13 + 9, y / 13) * 0.25) * 0.55 + tl * 0.45 + B(x, y) * 0.06;
+          c = CORAL_R[Math.max(0, Math.min(4, Math.floor((cv - 0.2) * 7.5)))];
           if (K.hash2(x >> 1, y >> 1, 77) > 0.993) c = CORAL_R[0];
           else if (K.hash2(x, y, 78) > 0.996) c = CORAL_R[4];
           let near = 9; for (let dd = 1; dd <= 4 && near === 9; dd++) for (const [dx, dy] of [[dd, 0], [-dd, 0], [0, dd], [0, -dd]]) if (isWet(T_(x + dx, y + dy))) { near = dd; break; }
@@ -1315,7 +1315,7 @@
     if (L.water) { Level.camHint = { x: ox + LW / 2, y: oy + LH / 2 }; Water.render(ctx, ox, oy, LW, LH, t, L.water); Sea.drawUnder(ctx, L, ox, oy, LW, LH, t); Sea.drawFish(ctx, L, ox, oy, LW, LH, t); Sea.drawCrabs(ctx, L, ox, oy, LW, LH); }
     eachBridge(ox, oy, LW, LH, (v, X, Y, tx, ty) => { const tm = L.tm, a = v === BH ? tm.at(tx, ty - 1) !== v : tm.at(tx - 1, ty) !== v, b = v === BH ? tm.at(tx, ty + 1) !== v : tm.at(tx + 1, ty) !== v; ctx.drawImage(bridgeTile(v, (tx * 7 + ty * 3) % 3, a, b), X, Y); });
     for (const v of L.vines) if (v.x > ox - 10 && v.x < ox + LW + 10 && v.y > oy - 60 && v.y < oy + LH + 10) Ruins.drawVine(ctx, v.x - ox, v.y - oy, v.len, t, v.ph);
-    for (const b of L.pickups) { const bob = b.vy === undefined ? Math.round(Math.sin(t * 3 + b.x) * 1.5) : 0; if (b.el) drawShard(ctx, b, b.x - ox, b.y - oy + bob, t); else if (b.shell) { ctx.drawImage(Gear.shellArt(b.shell), Math.round(b.x - 6 - ox), Math.round(b.y - 10 - oy + bob)); if (Math.sin(t * 3 + b.x) > 0.85) { ctx.fillStyle = "#ffffff"; ctx.fillRect(Math.round(b.x + 3 - ox), Math.round(b.y - 11 - oy + bob), 1, 1); } } else ctx.drawImage(Ruins.berry, Math.round(b.x - 4 - ox), Math.round(b.y - 6 - oy + bob)); }
+    for (const b of L.pickups) { const bob = b.vy === undefined ? Math.round(Math.sin(t * 3 + b.x) * 1.5) : 0; if (b.el) drawShard(ctx, b, b.x - ox, b.y - oy + bob, t); else if (b.shell) { ctx.drawImage(Gear.shellArt(b.shell), Math.round(b.x - 8 - ox), Math.round(b.y - 12 - oy + bob)); if (Math.sin(t * 3 + b.x) > 0.85) { ctx.fillStyle = "#ffffff"; ctx.fillRect(Math.round(b.x + 3 - ox), Math.round(b.y - 11 - oy + bob), 1, 1); } } else ctx.drawImage(Ruins.berry, Math.round(b.x - 4 - ox), Math.round(b.y - 6 - oy + bob)); }
   };
   // an elemental shard: a faceted crystal in its element's colour, turning and glinting
   function drawShard(ctx, b, x, y, t) {

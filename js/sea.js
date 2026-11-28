@@ -224,8 +224,10 @@
   function growReef(L) {
     L.reefGrown = true;
     if (!(L.def.sea && L.def.level === 2)) return;
-    const r = K.rng(L.name.length * 131 + 7), U = L.under || (L.under = []), have = U.map((u) => [u.x, u.y]), names = ["f_coralmix", "f_sponges", "f_brain", "f_sponge", "f_coralmix", "f_seagrass", "f_grass1"];
-    const n = Math.round((L.W * L.H) / (32 * 32) * 0.11);
+    // (half as much as at first: every other placed piece is left out, and fewer are grown)
+    L.under = (L.under || []).filter((u, i) => u.kind !== "flora" || i % 2 === 0);
+    const r = K.rng(L.name.length * 131 + 7), U = L.under, have = U.map((u) => [u.x, u.y]), names = ["f_coralmix", "f_sponges", "f_brain", "f_sponge", "f_coralmix", "f_seagrass", "f_grass1"];
+    const n = Math.round((L.W * L.H) / (32 * 32) * 0.05);
     for (let k = 0, made = 0; k < n * 6 && made < n; k++) {
       const x = 16 + r() * (L.W - 32), y = 16 + r() * (L.H - 32), w = Level.waterAt(x, y);
       if (w !== 11 && w !== 12) continue;

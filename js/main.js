@@ -490,8 +490,8 @@
     y = py0 + 22; T2("PURSE", rx, y, 6, "#a89880"); y += 10;
     T2(`${Gear.shellTotal()} shells`, rx, y + 1, 7, "#ffe08a");
     y += 14;
-    Object.entries(Gear.SHELLS).forEach(([k, sh], i) => { const x = rx + (i % 2) * (colW / 2), yy = y + Math.floor(i / 2) * 15; sctx.drawImage(Gear.shellArt(k), x * u, yy * u, 13 * u, 13 * u); T2(`${Gear.state().shells[k]}  ${sh.name}`, x + 15, yy + 3, 5, ["#f4e6c8", "#9ae0ff", "#ffd27a"][sh.tier]); });
-    y += 64;
+    Object.entries(Gear.SHELLS).forEach(([k, sh], i) => { const x = rx + (i % 2) * (colW / 2), yy = y + Math.floor(i / 2) * 17; sctx.imageSmoothingEnabled = false; sctx.drawImage(Gear.shellIcon(k), x * u, yy * u, 16 * u, 16 * u); T2(`${Gear.state().shells[k]}  ${sh.name}`, x + 18, yy + 5, 5, ["#f4e6c8", "#9ae0ff", "#ffd27a"][sh.tier]); });
+    y += 70;
     // shards
     T2("SHARDS", rx, y, 6, "#a89880"); y += 9;
     Gear.ORDER.forEach((el, i) => { const E = Gear.ELEMENTS[el], x = rx + (i % 5) * (colW / 5), yy = y + Math.floor(i / 5) * 11; R(E.col, x, yy + 1, 4, 6); T2(String(Gear.state().shards[el]), x + 7, yy, 6, Gear.state().shards[el] ? "#fff6dc" : "#5a4a58"); });
@@ -530,7 +530,7 @@
     // your shells along the top
     const ks = Object.keys(Gear.SHELLS); let sx = px0 + 10;
     sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.textAlign = "left";
-    for (const k of ks) { sctx.imageSmoothingEnabled = false; sctx.drawImage(Gear.shellArt(k), sx * u, (py0 + 20) * u, 13 * u, 13 * u); sctx.fillStyle = "#fff6dc"; sctx.fillText(String(Gear.state().shells[k]), (sx + 14) * u, (py0 + 24) * u); sx += Math.floor((pw - 20) / ks.length); }
+    for (const k of ks) { sctx.imageSmoothingEnabled = false; sctx.drawImage(Gear.shellIcon(k), sx * u, (py0 + 18) * u, 16 * u, 16 * u); sctx.fillStyle = "#fff6dc"; sctx.fillText(String(Gear.state().shells[k]), (sx + 17) * u, (py0 + 23) * u); sx += Math.floor((pw - 20) / ks.length); }
     shopUI.hit = [{ x: px0 + pw - 14, y: py0 + 4, w: 10, h: 10, close: 1 }];
     for (let r = 0; r < rows && shopUI.top + r < items.length; r++) {
       const i = shopUI.top + r, it = items[i], y = py0 + 40 + r * RH, sel = i === shopUI.sel, can = Gear.canBuy(it), out = Gear.soldOut(it);
@@ -540,7 +540,7 @@
       sctx.font = `${7 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = out ? "#7a6a6a" : can ? "#fff6dc" : "#b8a8a0"; sctx.fillText(it.name + (it.cap ? `  (${Gear.count(it.id)}/${it.cap})` : out ? "  (owned)" : ""), (px0 + 15) * u, (y + 2) * u);
       // the price, in shells
       let cx = px0 + pw - 10;
-      for (const [k, n] of Object.entries(it.cost).reverse()) { cx -= 24; sctx.drawImage(Gear.shellArt(k), cx * u, (y) * u, 13 * u, 13 * u); sctx.fillStyle = Gear.state().shells[k] >= n ? "#9ae69a" : "#e88a7a"; sctx.fillText("x" + n, (cx + 13) * u, (y + 3) * u); }
+      for (const [k, n] of Object.entries(it.cost).reverse()) { cx -= 26; sctx.imageSmoothingEnabled = false; sctx.drawImage(Gear.shellIcon(k), cx * u, (y - 2) * u, 16 * u, 16 * u); sctx.fillStyle = Gear.state().shells[k] >= n ? "#9ae69a" : "#e88a7a"; sctx.fillText("x" + n, (cx + 15) * u, (y + 3) * u); }
       shopUI.hit.push({ x: px0 + 4, y: y - 1, w: pw - 8, h: RH, i });
     }
     const it = items[shopUI.sel];
@@ -1400,7 +1400,7 @@
   // your shells, under the hearts
   function drawPurse(ctx) {
     const y = scene === "level" || Combat.momentum > 0 ? 22 : 16, x = 6;
-    ctx.drawImage(Gear.shellArt("clam"), x - 2, y - 3);
+    ctx.drawImage(Gear.shellArt("clam"), x - 4, y - 5);
     purseHud = { x, y };
   }
   let purseHud = null;
@@ -1823,7 +1823,7 @@
         if (c.kind === "crab") ctx.drawImage((c.ghost ? Props.ghostCrabFrames() : Props.crabFrames)[Math.floor(c.frame) % 2], Math.round(c.x - 4 - ox), Math.round(c.y - 5 - oy));
         else ctx.drawImage(Props.butterflyFrames[c.col][Math.floor(t * 9 + c.sp) % 2], Math.round(c.x - 2 - ox), Math.round(c.y - c.z - oy - Math.abs(Math.sin(t * 3 + c.sp)) * 3));
       } else if (o.kind === "npc") { if (!o.vendor || Gear.rescued("vendor")) drawNPC(ctx, o, ox, oy, t); }
-      else if (o.shell) { const img = Gear.shellArt(o.shell.k); ctx.drawImage(img, Math.round(o.shell.x - 6 - ox), Math.round(o.shell.y - 10 - oy)); if (Math.sin(t * 3 + o.shell.x) > 0.85) { ctx.fillStyle = "#ffffff"; ctx.fillRect(Math.round(o.shell.x + 3 - ox), Math.round(o.shell.y - 11 - oy), 1, 1); } }
+      else if (o.shell) { const img = Gear.shellArt(o.shell.k); ctx.drawImage(img, Math.round(o.shell.x - 8 - ox), Math.round(o.shell.y - 12 - oy)); if (Math.sin(t * 3 + o.shell.x) > 0.85) { ctx.fillStyle = "#ffffff"; ctx.fillRect(Math.round(o.shell.x + 3 - ox), Math.round(o.shell.y - 11 - oy), 1, 1); } }
       else o.draw(ctx, ox, oy, t);
     }
     ctx = bctx;
