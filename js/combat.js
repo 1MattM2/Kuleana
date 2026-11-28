@@ -13,6 +13,8 @@
     ivory: ["#0c2a30", "#2b7880", "#d6cfb6", "#f4eedc", "#ffffff"],
     crimson: ["#1e0610", "#8c1022", "#e43444", "#ffb4b0", "#ffffff"],
     magma: ["#160604", "#6c1608", "#e2521a", "#ffb432", "#fff2a6"],
+    life: ["#0c1a08", "#2e5a1c", "#5aa83a", "#a8e070", "#f0ffd0"],
+    plasma: ["#1c1838", "#6a6ad8", "#c8d4ff", "#ffffff", "#ffffff"],
     fire: ["#2a0408", "#a01a10", "#ec561c", "#ffb63c", "#fff4b8"],
     storm: ["#12122a", "#3a4a8c", "#9cbaff", "#fff4a4", "#ffffff"],
     water: ["#06183a", "#1450a8", "#36a0ea", "#a8e8ff", "#ffffff"],
@@ -22,6 +24,10 @@
     koa: ["#1a0c06", "#6a3a1a", "#b8783a", "#e8b878", "#fff0d0"],
     kakau: ["#0c0808", "#3a1610", "#c4422a", "#f2b45e", "#fff2cc"],
   };
+
+  // every element's colour, for plasma's prismatic fringes (plasma is all of them at once)
+  const PRISM = ["#f2b45e", "#ff8a3a", "#7ad860", "#5ab8ff", "#a8c4ff", "#5af2e8", "#ff5a6a", "#c8b4ff", "#d8c49a"];
+  const LEAF = ["#3e8a2a", "#5aa83a", "#8ad050", "#c8f080", "#2a6a1e"];
 
   // ---------------------------------------------------------------- state
   const C = (window.Combat = {
@@ -57,11 +63,21 @@
         px(x, "#1a0a0a", 1, gy - 1, 5, 3); px(x, "#a01a24", 1, gy, 5, 1); px(x, "#2a1a10", 6, gy - 2, 1, 5);
         px(x, "#202430", 7, gy - 1, 9, 2); px(x, "#e8f0ff", 7, gy - 1, 8, 1); px(x, "#ffffff", 15, gy - 2, 2, 1); px(x, "#e8f0ff", 16, gy - 3, 1, 1);
         return { c, gx: 3, gy };
-      case "maul":
+      case "maul": // Ola Maul: a koa mallet head bound in living vine, moss on its crown, a seed of green light
         px(x, "#2a1608", 0, gy - 1, 17, 3); px(x, "#8a5a30", 0, gy, 17, 1);
-        px(x, "#0e0a0e", 16, gy - 6, 11, 13); px(x, "#3a3036", 17, gy - 5, 9, 11); px(x, "#5a4e52", 17, gy - 5, 9, 2);
-        px(x, "#ff8a2a", 19, gy - 3, 1, 3); px(x, "#ffcc4a", 20, gy - 1, 3, 1); px(x, "#ff8a2a", 23, gy, 1, 3); px(x, "#ff5a1a", 21, gy + 2, 2, 1);
+        px(x, "#1a0e06", 16, gy - 6, 11, 13); px(x, "#5a3a1e", 17, gy - 5, 9, 11); px(x, "#8a6234", 17, gy - 5, 9, 2); px(x, "#3a2412", 17, gy + 4, 9, 1);
+        for (let i = 0; i < 9; i++) px(x, i % 3 ? "#3e8a2a" : "#8ad050", 17 + i, gy - 3 + ((i * 5) % 7), 1, 1);
+        px(x, "#5aa83a", 16, gy - 7, 4, 2); px(x, "#8ad050", 22, gy - 7, 3, 1); px(x, "#c8f080", 21, gy - 1, 2, 2); px(x, "#f0ffd0", 21, gy - 1, 1, 1);
+        for (let i = 0; i < 4; i++) px(x, "#3e8a2a", 12 + i, gy - 2 + (i % 2) * 4, 1, 1);
         return { c, gx: 4, gy };
+      case "lua": { // Koʻi-Lua: a long koa haft, sennit wraps, and two crescent heads of moonstone that hold plasma
+        const [c2, x2] = K.canvas(32, 20), g2 = 10;
+        px(x2, "#120a10", 0, g2 - 1, 27, 3); px(x2, "#6a3a1e", 0, g2 - 1, 27, 1); px(x2, "#3a2010", 0, g2, 27, 1);
+        for (let i = 0; i < 4; i++) { px(x2, "#f2ecda", 4 + i * 2, g2 - 1, 1, 3); px(x2, "#f2ecda", 16 + i * 2, g2 - 1, 1, 3); }
+        for (const sg of [-1, 1]) for (let k = 0; k < 9; k++) { const w = Math.round(3 + Math.sin((k / 8) * Math.PI) * 4), yy = g2 + sg * (2 + k); px(x2, "#1c1838", 22 - w / 2 + (k > 6 ? 2 : 0), yy, w + 2, 1); px(x2, k % 3 ? "#c8d4ff" : "#ffffff", 23 - w / 2 + (k > 6 ? 2 : 0), yy, w, 1); if (k > 2) px(x2, "#6a6ad8", 22 + w / 2 + (k > 6 ? 2 : 0), yy, 1, 1); }
+        px(x2, "#1c1838", 26, g2 - 2, 5, 5); px(x2, "#ffffff", 27, g2 - 1, 3, 3); px(x2, "#ff8a3a", 27, g2 - 1, 1, 1); px(x2, "#5ab8ff", 29, g2 + 1, 1, 1); px(x2, "#7ad860", 29, g2 - 1, 1, 1); px(x2, "#c8b4ff", 27, g2 + 1, 1, 1);
+        return { c: c2, gx: 5, gy: g2 };
+      }
       case "firestaff":
         px(x, "#1a0c06", 0, gy - 1, 26, 3); px(x, "#8a5228", 0, gy, 26, 1); px(x, "#c88a48", 2, gy - 1, 22, 1);
         for (let i = 4; i < 24; i += 6) px(x, "#3a1a0c", i, gy - 1, 1, 3);
@@ -188,10 +204,15 @@
       { dur: 0.46, lunge: 6, start: (s) => { arc(s, { span: 3.2, r: 26, W: 12, pal: P.stone, dir: -1, dur: 0.4 }); hitArc(s, 0.12, { range: 48, span: 3.2, dmg: 14, stop: 0.07, shake: 0.4 }); sfx("heavy"); sfx("chop", 0.12); } },
       { dur: 0.85, lunge: 20, dash: true, start: (s) => { arc(s, { span: TAU * 1.1, r: 28, W: 14, pal: P.stone, dir: 1, dur: 0.5, sq: 0.7, from: s.a }); smash(s, 30, P.stone, 0.42); hitCircle(s, 0.2, { x: 0, y: 0, r: 46, dmg: 12, stop: 0.06, shake: 0.4 }); hitCircle(s, 0.44, { fwd: 30, r: 36, dmg: 30, stop: 0.14, shake: 0.9 }); C.events.push({ t: at(0.44), fn: () => { const c = aimPoint(s, 30); splinters(c.x, c.y); splinters(c.x, c.y); } }); sfx("heavy"); sfx("boom", 0.42); } },
     ] },
-    { id: "maul", name: "Lava Maul", cls: "Blunt", col: "#ff8a3a", unlock: "The forge: 3 magma shards", moves: [
-      { dur: 0.48, lunge: 6, start: (s) => { arc(s, { span: 2.6, r: 26, W: 12, pal: P.magma, dir: 1, dur: 0.44, style: "magma" }); hitArc(s, 0.16, { range: 46, span: 2.8, dmg: 16, stop: 0.07, shake: 0.4 }); sfx("heavy"); } },
-      { dur: 0.75, lunge: 10, start: (s) => { arc(s, { span: 1.4, r: 20, W: 12, pal: P.magma, dir: 1, dur: 0.3, style: "magma", sq: 0.45, from: s.a - Math.PI * 0.8 }); smash(s, 30, P.magma, 0.24); hitCircle(s, 0.26, { fwd: 30, r: 40, dmg: 34, stop: 0.14, shake: 1, flash: 0.25 }); sfx("boom", 0.24); } },
-    ], ult: { name: "Eruption", dur: 1.5, lunge: 0, start: (s) => { addFx({ type: "darken", dur: 1.5, tint: "70,20,4" }); smash(s, 0, P.magma, 0.18); for (let k = 0; k < 8; k++) { const a = (k / 8) * TAU, d = 50 + (k % 2) * 22, c = { x: s.x + Math.cos(a) * d, y: s.y - 6 + Math.sin(a) * d * 0.7 }; C.events.push({ t: at(0.4 + k * 0.07), fn: () => { addFx({ type: "bloom", x: c.x, y: c.y + 4, dur: 0.9, seed: Math.random() * 99 }); ring(c.x, c.y + 6, 20, P.magma, 0.5); for (let j = 0; j < 12; j++) part({ x: c.x, y: c.y, vx: (Math.random() - 0.5) * 60, vy: -90 - Math.random() * 120, g: 260, life: 0.9, col: ["#ff6a2a", "#ffb63c", "#3a2020"][j % 3], size: 2, kind: "debris", glow: j % 3 < 2 }); } }); hitCircle(s, 0.4 + k * 0.07, { at: c, r: 28, dmg: 16, burn: 1, stop: 0.04, shake: 0.4, quiet: k % 2 }); } hitCircle(s, 0.2, { x: 0, y: 0, r: 56, dmg: 22, stop: 0.1, shake: 0.9 }); hitCircle(s, 1.1, { x: 0, y: 0, r: 100, dmg: 30, burn: 1, stop: 0.12, shake: 1, flash: 0.5 }); sfx("boom", 0.2); sfx("stone", 0.5); sfx("boom", 1.1); } } },
+    { id: "maul", name: "Ola Maul", cls: "Life · Maul", col: "#7ad860", unlock: "The forge: 3 life shards", ultCost: 170, moves: [
+      { dur: 0.48, lunge: 6, start: (s) => { arc(s, { span: 2.6, r: 26, W: 12, pal: P.life, dir: 1, dur: 0.44, style: "life" }); hitArc(s, 0.16, { range: 46, span: 2.8, dmg: 16, stop: 0.07, shake: 0.4 }); sfx("heavy"); } },
+      { dur: 0.75, lunge: 10, start: (s) => { arc(s, { span: 1.4, r: 20, W: 12, pal: P.life, dir: 1, dur: 0.3, style: "life", sq: 0.45, from: s.a - Math.PI * 0.8 }); roots(s, 30, 0.24, 7, 1); hitCircle(s, 0.26, { fwd: 30, r: 40, dmg: 34, stop: 0.14, shake: 1, flash: 0.2 }); sfx("boom", 0.24); sfx("roots", 0.24); } },
+    ], ult: { name: "Wildwood", dur: 1.5, lunge: 0, start: (s) => {
+      addFx({ type: "darken", dur: 1.5, tint: "8,34,6" }); roots(s, 0, 0.18, 10, 1.2);
+      for (let k = 0; k < 8; k++) { const a = (k / 8) * TAU, d = 50 + (k % 2) * 22, c = { x: s.x + Math.cos(a) * d, y: s.y - 6 + Math.sin(a) * d * 0.7 }; C.events.push({ t: at(0.4 + k * 0.07), fn: () => { rootsAt(c.x, c.y + 6, 5, 0.9, a); leaves(c.x, c.y, 14); if (k % 2 === 0 && window.Ambience && Ambience.sfx) Ambience.sfx("roots"); } }); hitCircle(s, 0.4 + k * 0.07, { at: c, r: 28, dmg: 16, stop: 0.04, shake: 0.4, quiet: k % 2 }); }
+      hitCircle(s, 0.2, { x: 0, y: 0, r: 56, dmg: 22, stop: 0.1, shake: 0.9 });
+      C.events.push({ t: at(1.1), fn: () => { addFx({ type: "grove", x: C.p.x, y: C.p.y, dur: 1.1, seed: Math.random() * 99 }); ring(C.p.x, C.p.y + 4, 100, P.life, 0.6); leaves(C.p.x, C.p.y - 20, 50); C.flash = 0.5; C.flashCol = "200,255,170"; } });
+      hitCircle(s, 1.1, { x: 0, y: 0, r: 100, dmg: 30, stop: 0.12, shake: 1, flash: 0.4 }); sfx("lifeFinale"); sfx("boom", 1.1); } } },
     { id: "firestaff", name: "Ahi Staff", cls: "Fire · Twirling staff", col: "#ff9a3a", unlock: "The forge: 3 fire shards", moves: [
       { dur: 0.34, lunge: 7, start: (s) => { fire(s, { span: 2.6, r: 22, W: 9, dir: 1, dur: 0.34 }); hitArc(s, 0.08, { range: 42, span: 2.8, dmg: 11, burn: 1 }); sfx("fire"); } },
       { dur: 0.34, lunge: 7, start: (s) => { fire(s, { span: 2.6, r: 22, W: 9, dir: -1, dur: 0.34 }); hitArc(s, 0.08, { range: 42, span: 2.8, dmg: 12, burn: 1 }); sfx("fire"); } },
@@ -225,6 +246,25 @@
       { dur: 0.6, lunge: 18, dash: true, start: (s) => { arc(s, { span: 3.8, r: 34, W: 16, pal: P.star, dir: 1, dur: 0.6, style: "star", sq: 0.55 }); iai(s, 90, P.star); hitLine(s, 0.16, { len: 90, w: 20, dmg: 20, stop: 0.09, shake: 0.5, flash: 0.25 }); sfx("celSwing"); sfx("celHit", 0.16); } },
       { dur: 0.95, lunge: 0, start: (s) => { const c = aimPoint(s, 42); for (let k = 0; k < 5; k++) { const a = k * 1.3, d = k ? 15 : 0; star(c.x + Math.cos(a) * d, c.y + Math.sin(a) * d * 0.7, 0.3 + k * 0.08); hitCircle(s, 0.4 + k * 0.08, { at: { x: c.x + Math.cos(a) * d, y: c.y + Math.sin(a) * d * 0.7 }, r: 16, dmg: 9, stop: 0.05, shake: 0.35 }); sfx("chime", 0.36 + k * 0.08); } sfx("celSwing"); } },
     ], ult: { name: "The Heavens", dur: 1.7, lunge: 0, start: (s) => { heavens(s); sfx("celFinale"); } } },
+    { id: "lua", name: "Koʻi-Lua", cls: "Plasma · Twin-headed axe", col: "#f4f6ff", unlock: "The last road (in lands to come)", ultCost: 340, moves: [
+      // the forward head cuts, and the haft carries round so the back head cuts again; you step through it
+      { dur: 0.52, lunge: 0, path: (u) => [easeOut(u / 0.7) * 16, Math.sin(Math.min(1, u / 0.7) * Math.PI) * 5], start: (s) => { arc(s, { span: 2.7, r: 26, W: 13, pal: P.plasma, dir: 1, dur: 0.26, style: "plasma" }); C.events.push({ t: at(0.16), fn: () => arc(Object.assign({}, s, { x: C.p.x, y: C.p.y }), { span: 2.9, r: 31, W: 13, pal: P.plasma, dir: 1, dur: 0.3, style: "plasma", from: s.a + 1.2 }) }); hitArc(s, 0.08, { range: 50, span: 2.9, dmg: 22, stop: 0.06, shake: 0.4 }); hitArc(s, 0.26, { range: 56, span: 3.1, dmg: 20, stop: 0.06, shake: 0.4 }); sfx("plasmaSwing"); sfx("plasmaSwing", 0.16); } },
+      // a backhand cleave, then the axe whirls once round you as you drive forward
+      { dur: 0.62, lunge: 0, path: (u) => [u < 0.3 ? -easeOut(u / 0.3) * 6 : -6 + easeOut((u - 0.3) / 0.6) * 28, 0], start: (s) => { arc(s, { span: 2.4, r: 28, W: 14, pal: P.plasma, dir: -1, dur: 0.24, style: "plasma", sq: 0.5 }); C.events.push({ t: at(0.22), fn: () => arc(Object.assign({}, s, { x: C.p.x, y: C.p.y }), { span: TAU * 1.05, r: 32, W: 13, pal: P.plasma, dir: 1, dur: 0.36, style: "plasma", sq: 0.72, from: s.a + Math.PI }) }); hitArc(s, 0.1, { range: 52, span: 2.6, dmg: 24, stop: 0.07, shake: 0.5 }); hitCircle(s, 0.36, { x: 0, y: 0, r: 54, dmg: 18, stop: 0.05, shake: 0.4 }); sfx("plasmaSwing"); sfx("plasmaSwing", 0.22); } },
+      // up and over with both heads: a leaping split that cracks the ground open in a line of white fire
+      { dur: 0.95, lunge: 0, dash: true, path: (u) => [easeOut(u / 0.5) * 34, 0], start: (s) => { arc(s, { span: 2.2, r: 24, W: 15, pal: P.plasma, dir: 1, dur: 0.4, style: "plasma", sq: 0.38, from: s.a - Math.PI * 0.9 }); C.events.push({ t: at(0.4), fn: () => { const c = aimPoint(Object.assign({}, s, { x: C.p.x, y: C.p.y }), 22); addFx({ type: "fissure", x: c.x, y: c.y + 10, a: s.a, len: 100, dur: 1.0, seed: Math.random() * 99, ground: true }); addFx({ type: "fissureGlow", x: c.x, y: c.y + 10, a: s.a, len: 100, dur: 1.0 }); prismBurst(c.x, c.y, 26); C.shake = 1; } }); hitLine(s, 0.42, { len: 120, w: 22, dmg: 46, stop: 0.14, shake: 1, flash: 0.35, from: 18 }); sfx("plasmaSwing"); sfx("plasmaSplit", 0.4); } },
+    ], ult: { name: "Nā Lā Māhoe", dur: 2.0, lunge: 0, path: (u) => [easeOut(u / 0.6) * 46, 0], start: (s) => {
+      // the Twin Suns: you spin forward with two suns wheeling round you, every element rolls out in rings,
+      // and it all ends in one white nova
+      addFx({ type: "darken", dur: 2.0, tint: "10,6,30" });
+      addFx({ type: "suns", follow: true, dur: 1.7, seed: Math.random() * 99 });
+      for (let k = 0; k < 5; k++) C.events.push({ t: at(k * 0.22), fn: () => arc(Object.assign({}, s, { x: C.p.x, y: C.p.y }), { span: TAU * 1.05, r: 30 + k * 4, W: 14, pal: P.plasma, dir: k % 2 ? -1 : 1, dur: 0.34, style: "plasma", sq: 0.72, from: s.a + k * 1.3 }) });
+      for (let k = 0; k < 6; k++) hitCircle(s, 0.12 + k * 0.18, { x: 0, y: 0, r: 60, dmg: 12, stop: 0.03, shake: 0.35, quiet: k % 2 });
+      PRISM.forEach((col, k) => C.events.push({ t: at(0.35 + k * 0.09), fn: () => { addFx({ type: "pring", x: C.p.x, y: C.p.y + 4, r: 40 + k * 12, col, dur: 0.7, ground: true }); } }));
+      for (let k = 0; k < 3; k++) hitCircle(s, 0.6 + k * 0.25, { x: 0, y: 0, r: 120, dmg: 10, stop: 0.03, shake: 0.3, quiet: 1 });
+      C.events.push({ t: at(1.45), fn: () => { addFx({ type: "nova", x: C.p.x, y: C.p.y, dur: 1.0 }); addFx({ type: "psigil", x: C.p.x, y: C.p.y + 4, dur: 1.4, ground: true, rot: Math.random() * TAU }); prismBurst(C.p.x, C.p.y - 10, 70); C.flash = 1; C.flashCol = "255,255,255"; C.shake = 1; } });
+      hitCircle(s, 1.45, { x: 0, y: 0, r: 150, dmg: 64, stop: 0.2, shake: 1, flash: 1 });
+      sfx("plasmaNova"); } } },
     { id: "stone", name: "Pele's Grip", cls: "Stone · Gauntlet", col: "#d8c49a", unlock: "The forge: 3 stone shards", moves: [
       { dur: 0.36, lunge: 8, start: (s) => { punch(s); spikes(s, 1, 24, 0.08); hitCircle(s, 0.1, { fwd: 22, r: 18, dmg: 12, stop: 0.06, shake: 0.4 }); sfx("stone", 0.06); } },
       { dur: 0.7, lunge: 0, start: (s) => { stomp(s); spikes(s, 6, 20, 0.12, 13); for (let k = 0; k < 6; k++) hitCircle(s, 0.14 + k * 0.06, { fwd: 20 + k * 13, r: 14, dmg: 6, stop: 0.03, shake: 0.25, quiet: k % 2 }); sfx("stone", 0.12); sfx("stone", 0.3); } },
@@ -305,10 +345,7 @@
     if (o.burn) for (let k = 0; k < 8; k++) part({ x: d.x + (Math.random() - 0.5) * 14, y: d.y - 10 - Math.random() * 24, vx: (Math.random() - 0.5) * 20, vy: -20 - Math.random() * 30, life: 0.6, col: ["#ffb63c", "#ec561c", "#fff4b8"][k % 3], size: 1, kind: "ember" });
     if (o.shock) for (let k = 0; k < 6; k++) part({ x: d.x, y: d.y - 20, vx: (Math.random() - 0.5) * 120, vy: (Math.random() - 0.5) * 120, life: 0.25, col: "#fff4a4", size: 1, kind: "spark" });
     C.combo++; C.comboT = C.clock;
-    if (C.swing && C.swing.final && !C.swing.counted && C.swing.w.ult) {
-      C.swing.counted = true; const ww = C.swing.w; ww.charge = Math.min(C.SURGE, (ww.charge || 0) + 1);
-      if (ww.charge === C.SURGE) { C.readyT = C.clock; sfx("ultReady"); }
-    }
+    chargeUp(dmg);
     if (!o.quiet) { sfx(crit ? "crit" : "hit"); const el = HIT_EL[w.id]; if (el) sfx(el); if (d.mat) sfx("mat_" + d.mat); }
     if (d.hp <= 0 && !d.dead) {
       d.dead = true; d.respawn = C.clock + 1.6; C.shake = Math.min(1, C.shake + 0.5); C.lastStop = -9; stopFor(0.06);
@@ -343,7 +380,7 @@
       C.momentum = Math.min(100, C.momentum + (crit ? 9 : 5) * (C.momMul || 1)); C.momT = C.clock; C.combo++; C.comboT = C.clock;
       stopFor((o.stop || 0.045) * (crit ? 1.3 : 1)); C.shake = Math.min(1, C.shake + (o.shake || 0.22) * (crit ? 1.3 : 1));
       impact(d.x, d.y - 20, w, crit);
-      if (C.swing && C.swing.final && !C.swing.counted && C.swing.w.ult) { C.swing.counted = true; const ww = C.swing.w; ww.charge = Math.min(C.SURGE, (ww.charge || 0) + 1); if (ww.charge === C.SURGE) { C.readyT = C.clock; sfx("ultReady"); } }
+      chargeUp(dmg);
       if (!o.quiet) { sfx(crit ? "crit" : "hit"); const el = HIT_EL[w.id]; if (el) sfx(el); if (d.mat) sfx("mat_" + d.mat); }
       return;
     }
@@ -354,7 +391,7 @@
     if (!o.quiet) { sfx("hit"); if (d.mat) sfx("mat_" + d.mat); }
     if (d.hp <= 0 && !d.dead) { d.dead = true; d.respawn = C.clock + 1.6; if (d.enemy) { window.Enemies && Enemies.death(d); C.kills = (C.kills || 0) + 1; if (C.onKill) C.onKill(d); sfx("boom"); } }
   }
-  const HIT_EL = { heel: "hitFire", maul: "hitFire", storm: "hitStorm", tide: "hitWater", glowtide: "hitWater", stone: "stone", starfall: "hitStar", kakau: "hitTribal" };
+  const HIT_EL = { lua: "plasmaHit", heel: "hitFire", maul: "hitLife", storm: "hitStorm", tide: "hitWater", glowtide: "hitWater", stone: "stone", starfall: "hitStar", kakau: "hitTribal" };
   C.addPart = (p) => part(p);
   function part(p) { p.age = 0; p.max = p.life; p.g = p.g || 0; C.parts.push(p); }
   function addFx(f) { f.t0 = f.t0 === undefined ? C.clock : f.t0; C.fx.push(f); return f; }
@@ -366,6 +403,8 @@
     addFx(Object.assign({ type: "arc", follow: true, a0: from, a1: from + o.dir * o.span, sq: 0.74, style: "plain", grow: 0 }, o));
     if (o.style === "water" || o.style === "glow") for (let k = 0; k < 10; k++) C.events.push({ t: at(0.04 + k * 0.025), fn: () => { const a = from + o.dir * o.span * Math.min(1, (k + 1) / 9); part({ x: C.p.x + Math.cos(a) * (o.r + 6), y: C.p.y - 10 + Math.sin(a) * (o.r + 6) * 0.74, vx: Math.cos(a) * 40, vy: Math.sin(a) * 30 - 30, g: 220, life: 0.5, col: o.style === "glow" ? (k % 2 ? "#baffef" : "#c8a8ff") : (k % 2 ? "#a8e8ff" : "#ffffff"), size: 1, kind: "drop", glow: o.style === "glow" }); } });
     if (o.style === "star") for (let k = 0; k < 8; k++) C.events.push({ t: at(0.04 + k * 0.03), fn: () => { const a = from + o.dir * o.span * Math.min(1, (k + 1) / 8); part({ x: C.p.x + Math.cos(a) * (o.r + 3), y: C.p.y - 10 + Math.sin(a) * (o.r + 3) * 0.74, vx: Math.cos(a) * 10, vy: -8, life: 0.7, col: k % 2 ? "#ffe8a2" : "#ffffff", size: 1, kind: "star4", glow: true }); } });
+    if (o.style === "life") for (let k = 0; k < 10; k++) C.events.push({ t: at(0.05 + k * 0.028), fn: () => { const a = from + o.dir * o.span * ((k + 1) / 10); part({ x: C.p.x + Math.cos(a) * (o.r + 4), y: C.p.y - 10 + Math.sin(a) * (o.r + 4) * 0.74, vx: Math.cos(a) * 40 + (Math.random() - 0.5) * 20, vy: -20 - Math.random() * 30, g: 40, drag: 1.6, life: 0.9 + Math.random() * 0.5, col: LEAF[k % 5], size: 2, kind: "leaf" }); } });
+    if (o.style === "plasma") for (let k = 0; k < 12; k++) C.events.push({ t: at(0.03 + k * 0.022), fn: () => { const a = from + o.dir * o.span * Math.min(1, (k + 1) / 11); part({ x: C.p.x + Math.cos(a) * (o.r + 5), y: C.p.y - 10 + Math.sin(a) * (o.r + 5) * 0.74, vx: Math.cos(a) * 60 + (Math.random() - 0.5) * 30, vy: Math.sin(a) * 40 - 20, drag: 3, life: 0.45, col: k % 3 ? "#ffffff" : PRISM[(k * 4) % 9], size: 1, kind: "spark", glow: true }); } });
     if (o.style === "magma") for (let k = 0; k < 8; k++) C.events.push({ t: at(0.06 + k * 0.03), fn: () => { const a = from + o.dir * o.span * ((k + 1) / 8); part({ x: C.p.x + Math.cos(a) * (o.r + 6), y: C.p.y - 10 + Math.sin(a) * (o.r + 6) * 0.74, vx: Math.cos(a) * 50, vy: -20 - Math.random() * 30, g: 200, life: 0.6, col: k % 2 ? "#ffb432" : "#ff6a1a", size: 1, kind: "ember", glow: true }); } });
   }
   function fire(s, o) {
@@ -380,6 +419,13 @@
   function cuts(s, d, R, dur) { const c = aimPoint(s, d); const list = []; for (let k = 0; k < 14; k++) list.push({ t: k * (dur / 14), a: Math.random() * Math.PI, ox: (Math.random() - 0.5) * R * 2, oy: (Math.random() - 0.5) * R * 1.4, len: 12 + Math.random() * 12 }); addFx({ type: "cuts", x: c.x, y: c.y, list, dur: dur + 0.25, pal: P.crimson }); }
   function smash(s, d, pal, t) { const c = aimPoint(s, d); C.events.push({ t: at(t), fn: () => { ring(c.x, c.y + 8, 56, pal, 0.55); addFx({ type: "crack", x: c.x, y: c.y + 8, dur: 1.4, ground: true, rays: Array.from({ length: 7 }, (_, k) => ({ a: (k / 7) * TAU + Math.random() * 0.5, len: 18 + Math.random() * 22, seed: Math.random() * 99 })), hot: pal === P.magma }); dust(c.x, c.y + 8, 22); for (let k = 0; k < 14; k++) part({ x: c.x, y: c.y + 4, vx: (Math.random() - 0.5) * 140, vy: -60 - Math.random() * 80, g: 280, life: 0.8, col: k % 2 ? "#ffb432" : "#3a3036", size: k % 3 ? 1 : 2, kind: "debris", glow: k % 2 === 1 }); } }); }
   function ring(x, y, r, pal, dur) { addFx({ type: "ring", x, y, r, pal, dur, ground: true }); }
+  // life: roots split up out of the ground from where the blow lands, leaves fly
+  function rootsAt(x, y, n, dur, a0) { addFx({ type: "roots", x, y, dur: dur || 1.2, ground: true, list: Array.from({ length: n }, (_, k) => ({ a: (a0 !== undefined ? a0 : 0) + (k / n) * TAU + (Math.random() - 0.5) * 0.6, len: 18 + Math.random() * 26, seed: Math.random() * 99, w: 3 + Math.random() * 2 })) }); dust(x, y, 6); for (let k = 0; k < 8; k++) part({ x, y, vx: (Math.random() - 0.5) * 120, vy: -40 - Math.random() * 70, g: 260, life: 0.6, col: ["#5a3a1e", "#8a6234", "#3a2412"][k % 3], size: k % 2 + 1, kind: "debris" }); }
+  function roots(s, d, t, n, sc) { const c = aimPoint(s, d); C.events.push({ t: at(t), fn: () => { const c2 = d ? aimPoint(Object.assign({}, s, { x: C.p.x, y: C.p.y }), d) : { x: C.p.x, y: C.p.y - 10 }; ring(c2.x, c2.y + 8, 50 * (sc || 1), P.life, 0.5); addFx({ type: "roots", x: c2.x, y: c2.y + 8, dur: 1.4, ground: true, list: Array.from({ length: n }, (_, k) => ({ a: (k / n) * TAU + Math.random() * 0.5, len: (26 + Math.random() * 26) * (sc || 1), seed: Math.random() * 99, w: 4 + Math.random() * 2 })) }); leaves(c2.x, c2.y, 18); dust(c2.x, c2.y + 8, 10); } }); void c; }
+  function leaves(x, y, n) { for (let k = 0; k < n; k++) { const a = Math.random() * TAU; part({ x: x + Math.cos(a) * 6, y: y + Math.sin(a) * 4, vx: Math.cos(a) * (30 + Math.random() * 70), vy: Math.sin(a) * 30 - 50 - Math.random() * 40, g: 50, drag: 1.4, life: 1 + Math.random() * 0.8, col: LEAF[k % 5], size: 2, kind: "leaf" }); } }
+  C.leaves = leaves;
+  // plasma: a spray of sparks in every element's colour around a white core
+  function prismBurst(x, y, n) { for (let k = 0; k < n; k++) { const a = Math.random() * TAU, sp = 60 + Math.random() * 140; part({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.7 - 30, drag: 2.2, life: 0.6 + Math.random() * 0.6, col: k % 3 ? PRISM[k % 9] : "#ffffff", size: k % 4 ? 1 : 2, kind: "spark", glow: true }); } }
   function dust(x, y, n) { for (let k = 0; k < n; k++) { const a = Math.random() * TAU; part({ x: x + Math.cos(a) * 6, y: y + Math.sin(a) * 3, vx: Math.cos(a) * (40 + Math.random() * 50), vy: Math.sin(a) * 20 - 8, drag: 3, life: 0.7, col: ["#d8c8a0", "#b8a880", "#efe2c0"][k % 3], size: 2, kind: "smoke" }); } }
   function splash(x, y, n, pal) { for (let k = 0; k < n; k++) { const a = Math.random() * TAU; part({ x: x + Math.cos(a) * 14, y: y + Math.sin(a) * 10, vx: Math.cos(a) * 70, vy: Math.sin(a) * 40 - 60, g: 240, life: 0.7, col: k % 3 ? pal[3] : "#ffffff", size: 1, kind: "drop" }); } }
   function cloud(x, y, dur, sc) { addFx({ type: "cloud", x, y, dur, sc: sc || 1, seed: Math.random() * 99 }); }
@@ -481,7 +527,16 @@
     }
   };
   C.setTargets = (list) => { C.targets = list || []; };
-  C.SURGE = 3;   // landed combo finishers needed to unleash an ultimate
+  // The super charges from the damage you deal with the weapon in hand (training dummies count): three
+  // diamonds fill as you hit, and a full charge turns your next combo finisher into the super. Each weapon
+  // sets how much damage a full charge takes (ultCost), so heavy hitters don't charge faster than they should.
+  C.SURGE = 3;
+  C.ULT_COST = 150;
+  function chargeUp(dmg) {
+    const ww = C.swing ? C.swing.w : WEAPONS[C.cur]; if (!ww || !ww.ult || C.ultT > C.clock - (ww.ult.dur || 1.5)) return;
+    const was = ww.charge || 0; ww.charge = Math.min(C.SURGE, was + (dmg * C.SURGE) / (ww.ultCost || C.ULT_COST));
+    if (was < C.SURGE && ww.charge >= C.SURGE) { C.readyT = C.clock; sfx("ultReady"); }
+  }
   // ---- Momentum: chaining hits on enemies without getting hurt builds it (tiers I-III: harder,
   // faster hits). It drains if you stop fighting and is knocked down when you take a hit.
   C.momentum = 0; C.momT = -9;
@@ -546,6 +601,7 @@
       const l0 = easeOut(t0 / (m.dur * 0.4)), l1 = easeOut(C.moveT / (m.dur * 0.4));
       const step = (l1 - l0) * (m.lunge || 0);
       if (step !== 0) tryMove(Math.cos(C.aim) * step, Math.sin(C.aim) * step * 0.85);
+      if (m.path) { const [f0, s0] = m.path(Math.min(1, t0 / m.dur)), [f1, s1] = m.path(Math.min(1, C.moveT / m.dur)), df = f1 - f0, ds = s1 - s0, ca = Math.cos(C.aim), sa = Math.sin(C.aim); tryMove(ca * df - sa * ds, (sa * df + ca * ds) * 0.85); }
       if (m.dash && C.moveT < m.dur * 0.4) C.after.push({ x: p.x, y: p.y, dir: p.dir, t0: C.clock, ghost: true });
       if (C.moveT >= m.dur) { C.move = null; C.comboGap = 0.45; }
     } else if (C.comboGap > 0) { C.comboGap -= dt; if (C.comboGap <= 0) C.moveIdx = -1; }
@@ -560,7 +616,7 @@
       if (q.drag) { q.vx *= Math.exp(-q.drag * dt); q.vy *= Math.exp(-q.drag * dt); }
       q.vy += q.g * dt; q.x += q.vx * dt; q.y += q.vy * dt;
     }
-    C.after = C.after.filter((a) => C.clock - a.t0 < 0.3);
+    C.after = C.after.filter((a) => C.clock - a.t0 < (a.long ? 0.42 : 0.3));
     C.nums = C.nums.filter((n) => C.clock - n.t0 < 0.9);
     if (C.clock - C.comboT > 1.6) C.combo = 0;
     if (C.clock - C.momT > 2.4) C.momentum = Math.max(0, C.momentum - dt * 14);
@@ -640,6 +696,12 @@
     }
     if (f.style === "glow") { for (let k = 0; k < 4; k++) { const u = 0.3 + k * 0.2, a = aT + (aH - aT) * u; glowDot(g, cx + Math.cos(a) * r, cy + Math.sin(a) * r * sq, 20, k % 2 ? "34,204,226" : "160,120,255", 0.4); } }
     if (f.style === "magma") glowDot(g, hx, hy, 24, "255,140,40", 0.5);
+    if (f.style === "life") glowDot(g, hx, hy, 22, "150,230,100", 0.45);
+    if (f.style === "plasma") {
+      // a prismatic fringe outside the white blade: every element's colour in turn, flickering
+      for (let band = 0; band < 3; band++) { const pts = [], N = 18; for (let k = 0; k <= N; k++) { const u = k / N, a = aT + (aH - aT) * u, rr = r + W * prof(u) * (0.55 + band * 0.18) + (K.hash2(k, band, Math.floor(age * 24)) - 0.5) * 2; pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr * sq]); } pathLine(ctx, pts, 1, PRISM[(band * 3 + Math.floor(age * 18)) % 9]); }
+      glowDot(g, hx, hy, 30, "255,255,255", 0.6); glowDot(g, cx + Math.cos((aH + aT) / 2) * r, cy + Math.sin((aH + aT) / 2) * r * sq, 40, "200,210,255", 0.3);
+    }
     if (f.style === "niho") {
       const N = 9;
       for (let k = 1; k < N; k++) {
@@ -802,6 +864,64 @@
       if (f.hot && fade > 0.2) pathLine(ctx, pts.slice(0, 5), 0.9, p < 0.4 ? "#ffcc4a" : "#e2521a");
     }
     if (f.hot) glowDot(g, f.x - ox, f.y - oy, 30, "255,120,40", 0.45 * fade);
+  }
+  // roots: knotted tendrils of bark bursting up and out along the ground, sprouting leaves, then sinking
+  function drawRoots(f, ctx, g, ox, oy, age) {
+    const p = age / f.dur, grow = easeOut(p / 0.18), sink = p > 0.7 ? 1 - easeIn((p - 0.7) / 0.3) : 1;
+    for (const rt of f.list) {
+      const pts = []; let x = f.x - ox, y = f.y - oy, a = rt.a; const L = rt.len * grow;
+      for (let k = 0; k <= 7; k++) { if (k) { a += (K.hash2(k, 2, rt.seed) - 0.5) * 0.8; x += Math.cos(a) * L / 7; y += Math.sin(a) * L / 7 * 0.5; } pts.push([x, y - Math.sin((k / 7) * Math.PI) * 7 * sink * grow]); }
+      for (let k = 0; k < 7; k++) { const w = Math.max(0.6, rt.w * (1 - k / 8) * sink); pathLine(ctx, [pts[k], pts[k + 1]], w + 1.6, "#1e120a"); pathLine(ctx, [pts[k], pts[k + 1]], w, "#5a3a1e"); pathLine(ctx, [[pts[k][0], pts[k][1] - w * 0.3], [pts[k + 1][0], pts[k + 1][1] - w * 0.3]], Math.max(0.5, w * 0.35), "#8a6234"); }
+      if (sink > 0.4) for (let k = 2; k < 7; k += 2) { const q = pts[k], s2 = K.hash2(k, 5, rt.seed) > 0.5 ? 1 : -1; ctx.fillStyle = LEAF[(k + (rt.seed | 0)) % 5]; ctx.fillRect(Math.round(q[0] + s2 * 2), Math.round(q[1] - 2), 2, 1); ctx.fillRect(Math.round(q[0] + s2 * 3), Math.round(q[1] - 3), 1, 1); }
+    }
+    glowDot(g, f.x - ox, f.y - oy, 34, "150,230,100", 0.3 * (1 - p));
+  }
+  // Wildwood's crown: a great tangle of roots heaving up in the middle, throwing off leaves
+  function drawGrove(f, ctx, g, ox, oy, age) {
+    const p = age / f.dur, x = f.x - ox, y = f.y - oy, h = 44 * easeOut(p / 0.25) * (p > 0.6 ? 1 - easeIn((p - 0.6) / 0.4) : 1);
+    if (h < 1) return;
+    for (let k = 0; k < 7; k++) { const a = (k / 7) * TAU + f.seed, bx = x + Math.cos(a) * 10, by = y + Math.sin(a) * 5, pts = []; for (let j = 0; j <= 6; j++) { const u = j / 6; pts.push([bx + Math.cos(a) * u * 12 + Math.sin(u * 5 + k) * 3, by - u * h]); } pathLine(ctx, pts, 6 - k % 3, "#1e120a"); pathLine(ctx, pts, 4 - k % 3, "#5a3a1e"); pathLine(ctx, pts.map(([a2, b2]) => [a2 - 1, b2]), 1, "#8a6234"); }
+    for (let k = 0; k < 26; k++) { const a = K.hash2(k, 1, f.seed) * TAU, rr = 6 + K.hash2(k, 2, f.seed) * 18; ctx.fillStyle = LEAF[k % 5]; ctx.fillRect(Math.round(x + Math.cos(a) * rr), Math.round(y - h + Math.sin(a) * rr * 0.6), 2, 2); }
+    glowDot(g, x, y - h * 0.6, 60, "170,240,120", 0.5 * (1 - p));
+  }
+  // plasma: the fissure a split leaves in the ground, white-hot with every colour at its edges
+  function drawFissure(f, ctx, g, ox, oy, age) {
+    const p = age / f.dur, L = f.len * easeOut(p / 0.12), fade = 1 - easeIn((p - 0.45) / 0.55), ux = Math.cos(f.a), uy = Math.sin(f.a) * 0.8;
+    const pts = []; for (let k = 0; k <= 14; k++) { const u = k / 14, j = (K.hash2(k, 3, f.seed) - 0.5) * 7; pts.push([f.x - ox + ux * L * u - uy * j, f.y - oy + uy * L * u + ux * j]); }
+    pathLine(ctx, pts, 4 * fade + 1, "#120a1e");
+    pathLine(ctx, pts, 2.6 * fade + 0.4, PRISM[Math.floor(age * 20) % 9]);
+    pathLine(ctx, pts, 1.2 * fade + 0.2, "#ffffff");
+  }
+  function drawFissureGlow(f, ctx, g, ox, oy, age) { const p = age / f.dur, L = f.len * easeOut(p / 0.12); for (let k = 0; k <= 5; k++) glowDot(g, f.x - ox + Math.cos(f.a) * L * k / 5, f.y - oy + Math.sin(f.a) * L * 0.8 * k / 5, 26, k % 2 ? "220,230,255" : "255,255,255", 0.55 * (1 - p)); if (p < 0.5 && Math.random() < 0.7) part({ x: f.x + Math.cos(f.a) * L * Math.random(), y: f.y + Math.sin(f.a) * L * 0.8 * Math.random(), vx: (Math.random() - 0.5) * 20, vy: -50 - Math.random() * 50, life: 0.6, col: Math.random() < 0.5 ? "#ffffff" : PRISM[(Math.random() * 9) | 0], size: 1, kind: "spark", glow: true }); }
+  // the Twin Suns: two white suns wheeling round you, each trailing a ribbon of light
+  function drawSuns(f, ctx, g, ox, oy, age) {
+    const p = age / f.dur, cx = (f.p || C.p).x - ox, cy = (f.p || C.p).y - 12 - oy, R0 = 26 + 10 * Math.sin(p * Math.PI);
+    for (const sg of [0, Math.PI]) {
+      const pts = []; for (let k = 0; k < 14; k++) { const a = age * 11 + sg - k * 0.16; pts.push([cx + Math.cos(a) * R0, cy + Math.sin(a) * R0 * 0.6]); }
+      for (let k = 0; k < pts.length - 1; k++) pathLine(ctx, [pts[k], pts[k + 1]], 5 * (1 - k / 14) + 0.5, k < 3 ? "#ffffff" : PRISM[(k + Math.floor(age * 12)) % 9]);
+      const [sx, sy] = pts[0]; ctx.fillStyle = "#1c1838"; ctx.beginPath(); ctx.arc(sx, sy, 5, 0, TAU); ctx.fill(); ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(sx, sy, 3.6, 0, TAU); ctx.fill();
+      glowDot(g, sx, sy, 34, "255,255,255", 0.8); glowDot(g, sx, sy, 60, "200,200,255", 0.3);
+    }
+  }
+  function drawPring(f, ctx, g, ox, oy, age) {
+    const p = age / f.dur, r = f.r * easeOut(p), th = Math.max(0.6, 5 * (1 - p));
+    ctx.strokeStyle = "#120a1e"; ctx.lineWidth = th + 1.5; ctx.beginPath(); ctx.ellipse(f.x - ox, f.y - oy, r, r * 0.5, 0, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = f.col; ctx.lineWidth = th; ctx.beginPath(); ctx.ellipse(f.x - ox, f.y - oy, r, r * 0.5, 0, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = Math.max(0.5, th * 0.3); ctx.beginPath(); ctx.ellipse(f.x - ox, f.y - oy, r, r * 0.5, 0, 0, TAU); ctx.stroke();
+  }
+  // the nova: a white star that swallows the screen's centre, with spokes of every colour
+  function drawNova(f, ctx, g, ox, oy, age) {
+    const p = age / f.dur, x = f.x - ox, y = f.y - 14 - oy, R = 30 + 140 * easeOut(p), fade = 1 - easeIn(p);
+    for (let k = 0; k < 18; k++) { const a = (k / 18) * TAU + age * 0.8, L = R * (0.6 + 0.4 * K.hash2(k, 1, 7)); pathLine(ctx, [[x + Math.cos(a) * 10, y + Math.sin(a) * 6], [x + Math.cos(a) * L, y + Math.sin(a) * L * 0.6]], 2.4 * fade + 0.3, PRISM[k % 9]); pathLine(ctx, [[x + Math.cos(a) * 10, y + Math.sin(a) * 6], [x + Math.cos(a) * L * 0.7, y + Math.sin(a) * L * 0.42]], 1 * fade + 0.2, "#ffffff"); }
+    ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.ellipse(x, y, 26 * fade + 4, 16 * fade + 3, 0, 0, TAU); ctx.fill();
+    glowDot(g, x, y, R * 1.2, "255,255,255", 0.9 * fade); glowDot(g, x, y, R * 0.6, "220,220,255", 0.8 * fade);
+  }
+  // the ground sigil under the nova: rings of every element, turning, with lua (twin) crescents
+  function drawPsigil(f, ctx, g, ox, oy, age) {
+    const p = age / f.dur, x = f.x - ox, y = f.y - oy, s = easeOut(p / 0.2), fade = 1 - easeIn((p - 0.5) / 0.5), rot = f.rot + age * 0.9;
+    PRISM.forEach((col, k) => { const r = (30 + k * 10) * s; ctx.strokeStyle = col; ctx.globalAlpha = fade; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.5, 0, 0, TAU); ctx.stroke(); });
+    for (let k = 0; k < 8; k++) { const a = rot + (k / 8) * TAU, r0 = 30 * s, r1 = 116 * s; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * r0, y + Math.sin(a) * r0 * 0.5); ctx.lineTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1 * 0.5); ctx.stroke(); const cxx = x + Math.cos(a) * r1 * 0.8, cyy = y + Math.sin(a) * r1 * 0.4; ctx.beginPath(); ctx.arc(cxx, cyy, 4, a, a + Math.PI); ctx.stroke(); }
+    ctx.globalAlpha = 1;
   }
   function drawSpike(f, ctx, g, ox, oy, age) {
     const p = age / f.dur, x = f.x - ox, y = f.y - oy;
@@ -1063,7 +1183,7 @@
     if (f.spiral) glowDot(g, hx0, hy0, hr * 1.1, "170,210,255", 0.12);
   }
 
-  const DRAW = { band: drawBand, kpillar: drawKpillar, orbit: drawOrbit, chain: drawChain, biolum: drawBiolum, vortex: drawVortex, vglow: drawVglow, darken: drawDarken, const: drawConst, celsigil: drawCelsigil, pillar: drawPillar, meteor: drawMeteor, sigil: drawSigil, glyph: drawGlyph, arc: drawArc, fire: drawFire, bloom: drawBloom, thrust: drawThrust, iai: drawIai, jaw: drawJaw, cuts: drawCuts, ring: drawRing, crack: drawCrack, spike: drawSpike, cloud: drawCloud, bolt: drawBolt, star: drawStar, impact: drawImpact };
+  const DRAW = { roots: drawRoots, grove: drawGrove, fissure: drawFissure, fissureGlow: drawFissureGlow, suns: drawSuns, pring: drawPring, nova: drawNova, psigil: drawPsigil, band: drawBand, kpillar: drawKpillar, orbit: drawOrbit, chain: drawChain, biolum: drawBiolum, vortex: drawVortex, vglow: drawVglow, darken: drawDarken, const: drawConst, celsigil: drawCelsigil, pillar: drawPillar, meteor: drawMeteor, sigil: drawSigil, glyph: drawGlyph, arc: drawArc, fire: drawFire, bloom: drawBloom, thrust: drawThrust, iai: drawIai, jaw: drawJaw, cuts: drawCuts, ring: drawRing, crack: drawCrack, spike: drawSpike, cloud: drawCloud, bolt: drawBolt, star: drawStar, impact: drawImpact };
 
   C.drawGround = function (ctx, ox, oy) {
     for (const f of C.fx) if (f.ground) DRAW[f.type](f, ctx, ctx, ox, oy, C.clock - f.t0);
@@ -1077,6 +1197,7 @@
       if (q.kind === "smoke") { const r = q.size * (1 + q.age * 1.5); ctx.fillStyle = q.col; ctx.globalAlpha = 1; if (f > 0.35) { ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.8, 0, 0, TAU); ctx.fill(); } }
       else if (q.kind === "star4") star4(ctx, x, y, f > 0.5 ? 1 : 0, q.col);
       else if (q.kind === "rain") { ctx.fillStyle = q.col; ctx.fillRect(x, y, 1, 4); }
+      else if (q.kind === "leaf") { if (f < 0.1) continue; const fl = Math.sin(q.age * 14 + q.x * 0.3); ctx.fillStyle = q.col; ctx.fillRect(Math.round(x + fl * 2), y, fl > 0 ? 2 : 1, fl > 0 ? 1 : 2); }
       else { if (f < 0.15 && q.kind !== "debris") continue; ctx.fillStyle = q.col; ctx.fillRect(x, y, q.size, q.size); }
       if (q.glow) glowDot(g, x, y, 5, hexRGB(q.col.length === 7 ? q.col : "#ffffff"), 0.4 * f);
       any = true;

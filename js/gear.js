@@ -21,12 +21,15 @@
     blood: { name: "Blood", col: "#ff5a6a", glow: "255,90,106", weapon: "fangs", cloth: "cloth_blood" },
     storm: { name: "Storm", col: "#a8c4ff", glow: "168,196,255", weapon: "storm", cloth: "cloth_storm" },
     celestial: { name: "Celestial", col: "#c8b4ff", glow: "200,180,255", weapon: "starfall", cloth: "cloth_celestial" },
-    magma: { name: "Magma", col: "#ff6a2a", glow: "255,106,42", weapon: "maul", cloth: "cloth_magma" },
+    life: { name: "Life", col: "#7ad860", glow: "122,216,96", weapon: "maul", cloth: "cloth_life" },
     earth: { name: "Stone", col: "#d8c49a", glow: "216,196,154", weapon: "stone", cloth: "cloth_earth" },
+    // plasma is every element at once: no creature carries it and it has no shard (see Gear.ORDER)
+    plasma: { name: "Plasma", col: "#f4f6ff", glow: "255,255,255", weapon: "lua", cloth: "cloth_plasma" },
   };
-  Gear.ORDER = ["tribal", "fire", "magma", "water", "storm", "glow", "blood", "celestial", "earth"];
+  Gear.ORDER = ["tribal", "fire", "life", "water", "storm", "glow", "blood", "celestial", "earth"];
   // which creatures carry which element (more classes arrive with later lands)
-  Gear.ELEMENT_OF = { firedancer: "fire", firegecko: "fire", wisp: "magma", shark: "water", tshark: "water", ray: "storm", spear: "tribal", dart: "tribal", brute: "tribal" };
+  Gear.ELEMENT_OF = { firedancer: "fire", firegecko: "fire", wisp: "fire", hive: "fire", vine: "life", hydra: "life", snake: "life", gecko: "earth", runner: "earth",
+    crab: "water", spitcrab: "water", shark: "water", bigshark: "water", spidercrab: "water", tshark: "fire", ray: "storm", giantray: "storm", pueo: "earth", spear: "tribal", dart: "tribal", brute: "tribal" };
   Gear.DROP = 0.06;              // a shard is a lucky find, not a given
   Gear.dropChance = () => Gear.DROP * (S.charms.luck ? 2 : 1);
   Gear.WEAPON_EL = {};
@@ -53,8 +56,10 @@
     cloth_blood: { name: "Mako Cloth", el: "blood", desc: "Every dozen blows you land heals you.", hp: 2, elMul: 1.2, lifesteal: 12, pal: { v: [160, 30, 44], V: [100, 16, 30], l: [255, 112, 122] } },
     cloth_storm: { name: "Uila Cloth", el: "storm", desc: "Your blows arc lightning to another foe; shocks can't hurt you.", hp: 2, elMul: 1.2, chain: 0.18, immune: ["zap", "bolt"], pal: { v: [70, 80, 142], V: [40, 46, 90], l: [202, 222, 255] } },
     cloth_celestial: { name: "Hōkū Cloth", el: "celestial", desc: "Starlight finds the weak spot: more critical hits.", hp: 2, elMul: 1.2, crit: 0.1, pal: { v: [70, 50, 140], V: [40, 28, 90], l: [242, 222, 142] } },
-    cloth_magma: { name: "Pele Cloth", el: "magma", desc: "Fire's blows land a heart-half lighter.", hp: 2, elMul: 1.2, fireSoak: 1, pal: { v: [62, 30, 30], V: [32, 14, 14], l: [255, 122, 42] } },
+    cloth_life: { name: "Ola Cloth", el: "life", desc: "Woven with living fern: heals and berries mend you twice as much.", hp: 2, elMul: 1.2, healMul: 2, pal: { v: [58, 120, 44], V: [30, 70, 24], l: [168, 230, 112] } },
     cloth_earth: { name: "Pōhaku Cloth", el: "earth", desc: "Rooted like stone: nothing knocks you back.", hp: 4, elMul: 1.2, kb: 0, pal: { v: [122, 106, 88], V: [80, 68, 56], l: [202, 186, 152] } },
+    // the plasma cloth: white, edged in every element's colour, and a little of every gift at once; you leave a trail of white light
+    cloth_plasma: { name: "Kea Cloth", el: "plasma", desc: "White as the noon sun. A little of every gift: keen strikes, arcing shocks, mending, and fire and storm can't touch you.", hp: 4, elMul: 1.25, crit: 0.06, chain: 0.08, regen: 16, lifesteal: 18, speed: 1.05, immune: ["zap", "bolt", "flames", "steam", "boil"], trail: 1, pal: { v: [238, 240, 250], V: [176, 182, 206], l: [255, 255, 255] } },
   };
   Gear.NORMAL = ["kapa", "lauhala", "koabark", "niho", "ahuula", "obsidian"];
   const FIRE_SRC = /flame|fire|boil|steam|hive|wisp|mote|pulse|ember|talons|feather|rock|geyser/;
@@ -95,24 +100,26 @@
     t_fire: { name: "Ahi talisman", el: "fire", weapon: "firestaff", r: 1.5, desc: "Unleashes the Wheel of Pele, grander." },
     t_storm: { name: "Uila talisman", el: "storm", weapon: "storm", r: 1, desc: "Unleashes the Tempest (already vast), harder." },
     t_water: { name: "Kai talisman", el: "water", weapon: "tide", r: 1.5, desc: "Unleashes the Riptide, grander." },
-    t_magma: { name: "Pele talisman", el: "magma", weapon: "maul", r: 1.5, desc: "Unleashes the Eruption, grander." },
+    t_life: { name: "Ola talisman", el: "life", weapon: "maul", r: 1.5, desc: "Unleashes the Wildwood, grander." },
     t_tribal: { name: "Kū talisman", el: "tribal", weapon: "kakau", r: 1.3, desc: "Unleashes the Awakening, grander." },
     t_star: { name: "Hōkū talisman", el: "celestial", weapon: "starfall", r: 1.2, desc: "Unleashes the Heavens, grander." },
+    t_plasma: { name: "Lā talisman", el: "plasma", weapon: "lua", r: 1.25, desc: "Unleashes Nā Lā Māhoe, the Twin Suns, grander." },
   };
   Gear.SHOP = [
     { id: "tonic", kind: "heal", name: "ʻŌhelo tonic", desc: "Heals two hearts. Carry up to 5 (H to drink).", cap: 5, cost: { clam: 2 } },
     { id: "salve", kind: "heal", name: "Noni salve", desc: "Heals you fully. Carry up to 3.", cap: 3, cost: { limpet: 2, cone: 1 } },
     { id: "shard_tribal", kind: "shard", el: "tribal", name: "Tribal shard", desc: "Chipped from a tiki's mask.", cost: { clam: 3, auger: 2 } },
     { id: "shard_fire", kind: "shard", el: "fire", name: "Fire shard", desc: "Still warm in the hand.", cost: { limpet: 3, cone: 1 } },
-    { id: "shard_magma", kind: "shard", el: "magma", name: "Magma shard", desc: "Glows like a coal.", cost: { auger: 3, triton: 1 } },
+    { id: "shard_life", kind: "shard", el: "life", name: "Life shard", desc: "A seed of green light.", cost: { auger: 3, triton: 1 } },
     { id: "shard_water", kind: "shard", el: "water", name: "Water shard", desc: "Cool, with the sea inside it.", cost: { clam: 3, miter: 1 } },
     { id: "shard_storm", kind: "shard", el: "storm", name: "Storm shard", desc: "It hums against your palm.", cost: { limpet: 2, cone: 1, miter: 1 } },
     { id: "t_fire", kind: "talisman", cap: 3, cost: { auger: 2, cone: 1 } },
     { id: "t_storm", kind: "talisman", cap: 3, cost: { limpet: 2, miter: 1 } },
     { id: "t_water", kind: "talisman", cap: 3, cost: { clam: 2, miter: 1 } },
-    { id: "t_magma", kind: "talisman", cap: 3, cost: { auger: 2, triton: 1 } },
+    { id: "t_life", kind: "talisman", cap: 3, cost: { auger: 2, triton: 1 } },
     { id: "t_tribal", kind: "talisman", cap: 3, cost: { clam: 3, cone: 1 } },
     { id: "t_star", kind: "talisman", cap: 2, cost: { helmet: 1, cone: 1 } },
+    { id: "t_plasma", kind: "talisman", cap: 1, cost: { helmet: 2, trumpet: 1 } },
     { id: "book", kind: "book", name: "Moʻolelo of Beasts", desc: "A bestiary: what every creature is, and how it fights. (Settings > Bestiary)", cost: { trumpet: 1, triton: 3 } },
   ];
   for (const it of Gear.SHOP) if (it.kind === "talisman") Object.assign(it, { name: Gear.TALISMANS[it.id].name, desc: Gear.TALISMANS[it.id].desc + " One use (T)." });
@@ -170,7 +177,7 @@
   Gear.BEASTS = {
     gecko: ["Sun-crested gecko", "fire", "Darts in bursts, flares its crest, and lunges. Strike as it recovers."],
     vine: ["Vine-lasher", "earth", "Hides as a fern; lashes, sweeps, and spits thorn seeds, then tunnels away."],
-    wisp: ["Sun-wisp", "magma", "A flame spirit: traced swoops, rings of fire, homing sparks; pairs sweep a beam."],
+    wisp: ["Sun-wisp", "fire", "A flame spirit: traced swoops, rings of fire, homing sparks; pairs sweep a beam."],
     spear: ["Tiki spearman", "tribal", "War-cries, lunges, jabs in threes. Guards from the front: get behind it."],
     dart: ["Tiki darter", "tribal", "Keeps away and shows its line of fire. Close the gap."],
     snake: ["Bush snake", "earth", "Slithers fast, coils, and lunges far for two hearts. Roll through the strike."],
@@ -178,7 +185,7 @@
     hydra: ["Lau-Poʻo, the Many-Headed", "earth", "A giant plant whose heads lash and spit; wound it and it grows more. Mini-boss."],
     firedancer: ["Tiki fire-dancer", "fire", "Twirls a staff burning at both ends: a spinning wheel, a sweep, a ring of fire."],
     firegecko: ["Fire gecko", "fire", "Curls into a fireball and rolls at you, leaving flames behind."],
-    hive: ["Kahu-Ahi, the Bonfire Hive", "magma", "A nest that pours out wisps, then gathers them into one fire spirit. Boss."],
+    hive: ["Kahu-Ahi, the Bonfire Hive", "fire", "A nest that pours out wisps, then gathers them into one fire spirit. Boss."],
     crab: ["ʻŌhiki, the sand crab", "water", "Zigzags in and scurries aside from blows. A pack rings you and strikes as one; a loner burrows to ambush."],
     spitcrab: ["Bubble crab", "water", "Hangs back with its pack, spitting foam; slams its claw when crowded."],
     brute: ["Tiki brute", "tribal", "A carved giant with stone fists. Paws the ground, then charges to ram; darters shelter behind him."],
@@ -200,7 +207,17 @@
   let S = fresh();
   Gear.state = () => S;
   Gear.reset = () => { S = fresh(); Gear.changed(); };
-  Gear.load = (d) => { S = fresh(); if (d) { Object.assign(S.shards, d.shards || {}); S.armors = (d.armors || []).filter((k) => Gear.ARMOR[k]); S.worn = Gear.ARMOR[d.worn] ? d.worn : null; S.village = { built: (d.village && d.village.built) || [], rescued: (d.village && d.village.rescued) || [] }; Object.assign(S.shells, d.shells || {}); Object.assign(S.charms, d.charms || {}); S.items = d.items || {}; S.pick = d.pick || null; S.book = !!d.book; S.kills = d.kills || {}; S.pack = d.pack || []; S.stock = d.stock || []; S.beach = d.beach || null; S.beachDue = !!d.beachDue; S.clears = d.clears || {}; } Gear.changed(); };
+  // saves from before life replaced magma: their magma shards, talismans and cloth become life ones
+  const migrate = (d) => {
+    if (!d) return d;
+    if (d.shards && d.shards.magma) { d.shards.life = (d.shards.life || 0) + d.shards.magma; delete d.shards.magma; }
+    if (d.items && d.items.t_magma) { d.items.t_life = (d.items.t_life || 0) + d.items.t_magma; delete d.items.t_magma; }
+    if (d.armors) d.armors = d.armors.map((k) => (k === "cloth_magma" ? "cloth_life" : k)); if (d.worn === "cloth_magma") d.worn = "cloth_life";
+    if (d.pack) d.pack = d.pack.map((k) => (k === "t_magma" ? "t_life" : k)); if (d.pick === "t_magma") d.pick = "t_life";
+    if (d.stock) d.stock = d.stock.map((k) => k.replace("magma", "life"));
+    return d;
+  };
+  Gear.load = (d) => { d = migrate(d); S = fresh(); if (d) { Object.assign(S.shards, d.shards || {}); S.armors = (d.armors || []).filter((k) => Gear.ARMOR[k]); S.worn = Gear.ARMOR[d.worn] ? d.worn : null; S.village = { built: (d.village && d.village.built) || [], rescued: (d.village && d.village.rescued) || [] }; Object.assign(S.shells, d.shells || {}); Object.assign(S.charms, d.charms || {}); S.items = d.items || {}; S.pick = d.pick || null; S.book = !!d.book; S.kills = d.kills || {}; S.pack = d.pack || []; S.stock = d.stock || []; S.beach = d.beach || null; S.beachDue = !!d.beachDue; S.clears = d.clears || {}; } Gear.changed(); };
   Gear.snapshot = () => JSON.parse(JSON.stringify(S));
   Gear.onChange = null;
   Gear.changed = () => { Gear.onChange && Gear.onChange(); window.Menu && Menu.refresh && Menu.refresh(); };
@@ -226,7 +243,7 @@
     const a = Gear.worn() || {};
     const ch = S.charms;
     return { hp: (a.hp || 0) + ch.heart * 2, block: a.block || 0, speed: a.speed || 1, rollCd: a.rollCd || 1, kb: a.kb === undefined ? 1 : a.kb, crit: a.crit || 0, el: a.el || null, elMul: a.elMul || 1, dmgAll: (a.dmgAll || 0) + ch.whet * 0.08,
-      momMul: a.momMul || 1, startMom: a.startMom || 0, regen: a.regen || 0, lifesteal: a.lifesteal || 0, chain: a.chain || 0, waterWalk: !!a.waterWalk, immune: a.immune || [], fireSoak: !!a.fireSoak, hazardHalf: !!a.hazardHalf };
+      momMul: a.momMul || 1, startMom: a.startMom || 0, regen: a.regen || 0, lifesteal: a.lifesteal || 0, chain: a.chain || 0, waterWalk: !!a.waterWalk, immune: a.immune || [], fireSoak: !!a.fireSoak, hazardHalf: !!a.hazardHalf, healMul: a.healMul || 1, trail: !!a.trail };
   };
   // push the worn armour's numbers into the combat engine
   Gear.applyCombat = () => {

@@ -371,7 +371,7 @@
   function knock(t, peak) { for (const [f, q, v] of [[340, 14, 1.6], [760, 10, 0.9], [1500, 8, 0.4]]) noiseLayer(white, "bandpass", t, 0.14, f, f * 0.94, q, 0.001, peak * v); noiseLayer(white, "highpass", t, 0.02, 3000, 3000, 0.7, 0.001, peak * 0.6); }
   function squelch(t, peak) { noiseLayer(white, "bandpass", t, 0.18, 2800, 600, 2.2, 0.002, peak * 1.3); noiseLayer(brownB, "lowpass", t, 0.16, 700, 220, 1.5, 0.004, peak * 1.2); for (let k = 0; k < 4; k++) noiseLayer(white, "highpass", t + k * 0.02 + rnd(0, 0.02), 0.04, 4200, 4200, 0.7, 0.002, peak * 0.4); }
   function sizzle(t, dur, peak) { noiseLayer(white, "highpass", t, dur, 6000, 3500, 0.7, 0.005, peak); crackle(t, dur, 8, peak * 0.8); }
-  const ELEM = { heel: "fire", maul: "fire", tide: "water", glowtide: "water", storm: "storm", starfall: "sky", stone: "stone", koi: "stone", kakau: "drum" };
+  const ELEM = { lua: "plasma", heel: "fire", maul: "life", tide: "water", glowtide: "water", storm: "storm", starfall: "sky", stone: "stone", koi: "stone", kakau: "drum" };
   const elem = () => { const C = window.Combat; const w = C && C.weapons && C.weapons[C.cur]; return (w && ELEM[w.id]) || "steel"; };
 
   // Only so many sounds at once: the same sound twice within 40ms is one sound, and past ~26 voices
@@ -421,6 +421,26 @@
       case "glowSwing": whoosh(t, 0.38, 250, 1400, 0.6); gush(t, 0.65, 0.75); air(t + 0.05, 0.6, 0.3); break;
       case "glowBurst": gush(t, 1.3, 1.1); noiseLayer(brownB, "lowpass", t, 1.2, 100, 600, 0.7, 0.6, 1.4); bubbles(t + 0.2, 1.0, 50, 200, 700, 0.35); choir(t + 0.1, 1.4, [147, 220], 0.06);
                         splash(t + 1.0, 1.4); impact(t + 1.0, 1.3); crunch(t + 1.0, 1.0); thoom(t + 1.0, 0.8); break;
+      // ---- life (the Ola Maul): leaves, the creak and crack of roots, the forest answering
+      case "roots":     for (let k = 0; k < 6; k++) noiseLayer(brownB, "bandpass", t + k * rnd(0.02, 0.06), rnd(0.08, 0.16), rnd(260, 520), 180, 6, 0.002, 0.9); knock(t, 0.5); knock(t + 0.12, 0.35);
+                        noiseLayer(brownB, "lowpass", t, 0.9, 90, 220, 0.9, 0.04, 0.9); for (let k = 0; k < 10; k++) noiseLayer(white, "bandpass", t + 0.1 + k * rnd(0.03, 0.07), 0.06, rnd(3000, 5200), 2600, 2, 0.004, 0.18);
+                        oscLayer("sine", t + 0.05, 110, 70, 0.6, 0.05, 0.2); break;
+      case "hitLife":   for (let k = 0; k < 6; k++) noiseLayer(white, "bandpass", t + k * 0.025, 0.07, rnd(2800, 5000), 2400, 2, 0.003, 0.22); knock(t, 0.35); break;
+      case "lifeFinale": rush(t, 1.2, 0.8); noiseLayer(brownB, "lowpass", t + 0.2, 1.6, 60, 180, 0.9, 0.5, 1.2, 0, true); oscLayer("sine", t + 0.2, 70, 46, 1.4, 0.4, 0.35);
+                        for (let k = 0; k < 8; k++) { const tt = t + 0.4 + k * 0.08; for (let j = 0; j < 3; j++) noiseLayer(brownB, "bandpass", tt + j * 0.02, 0.1, rnd(250, 500), 180, 6, 0.002, 0.7); }
+                        for (let k = 0; k < 6; k++) { const f = rnd(2400, 3600); tone(t + 1.0 + k * 0.09, f, f * 1.25, 0.08, 0.05, rnd(-0.8, 0.8)); }   // the forest's birds startled into song
+                        impact(t + 1.1, 1.3); thoom(t + 1.1, 0.9); choir(t + 0.9, 1.2, [196, 247, 294], 0.05); break;
+      // ---- plasma (Koʻi-Lua): every element at once, and heavier than anything else you swing
+      case "plasmaSwing": whoosh(t, 0.42 * r, 120, 2600 * r, 1.5); oscLayer("sine", t, 95, 42, 0.4, 0.01, 0.55); arc(t + 0.02, 0.32, 0.4, 2200, 5200, true); air(t, 0.4, 0.35);
+                        oscLayer("sawtooth", t, 55, 110, 0.3, 0.02, 0.06); oscLayer("sawtooth", t, 55.8, 111, 0.3, 0.02, 0.06); break;
+      case "plasmaHit": impact(t, 1.3); crunch(t, 1.1); zapChirp(t, 0.12, 3200, 900, 0.6); harp(t + 0.01, HARP[10 + ((Math.random() * 3) | 0)], 0.22); thoom(t, 0.4); break;
+      case "plasmaSplit": noiseLayer(pinkB, "bandpass", t - 0.3, 0.35, 300, 4000, 1.2, 0.3, 0.7); impact(t, 1.8); crunch(t, 1.6); thoom(t, 1.1); thoom(t + 0.08, 0.8);
+                        arc(t, 0.8, 0.7, 900, 4200, true); crackle(t + 0.05, 0.7, 24, 0.6); noiseLayer(brownB, "lowpass", t, 1.6, 600, 40, 0.7, 0.02, 1.4, 0, true); break;
+      case "plasmaNova": for (let k = 0; k < 5; k++) { whoosh(t + k * 0.22, 0.34, 140, 3000, 1.1); arc(t + k * 0.22, 0.3, 0.35, 1800, 4800, true); }
+                        noiseLayer(pinkB, "bandpass", t + 0.3, 1.15, 120, 7000, 0.9, 1.1, 1.0, 0, true); oscLayer("sawtooth", t + 0.3, 40, 160, 1.15, 0.9, 0.12); oscLayer("sawtooth", t + 0.3, 40.6, 162, 1.15, 0.9, 0.12);
+                        choir(t + 0.4, 1.6, [110, 165, 220, 277], 0.07);
+                        impact(t + 1.45, 2.0); crunch(t + 1.45, 1.8); thoom(t + 1.45, 1.4); thoom(t + 1.53, 1.0); thunder(t + 1.45, 0.5); crackle(t + 1.5, 1.0, 30, 0.5);
+                        noiseLayer(brownB, "lowpass", t + 1.45, 2.4, 900, 30, 0.7, 0.01, 1.6, 0, true); for (const k of [0, 4, 7, 12]) harp(t + 1.5, HARP[Math.min(HARP.length - 1, k)], 0.3); break;
       case "hitWater":  splash(t, 0.8); bubbles(t + 0.03, 0.3, 16, 300, 1000, 0.3); break;
       // ---- celestial: a harp, played hard
       case "celSwing":  whoosh(t, 0.24, 450, 3200, 0.8); flurry(t + 0.02, 4 + ((Math.random() * 4) | 0), 4, 0.042, 0.34, Math.random() < 0.7 ? 1 : -1); thoom(t + 0.08, 0.22); break;
@@ -494,6 +514,8 @@
       else if (el === "sky") flurry(t0, 3 + ((Math.random() * 5) | 0), 3, 0.04, 0.28, 1);
       else if (el === "storm") arc(t0 + 0.03, dur, 0.55, 1500, 3200);
       else if (el === "stone") grind(t0 + dur * 0.4, 0.3, 0.4);
+      else if (el === "life") { for (let k = 0; k < 5; k++) noiseLayer(white, "bandpass", t0 + k * dur * 0.18, 0.08, rnd(3000, 5200), 2600, 2, 0.004, 0.16); noiseLayer(brownB, "bandpass", t0 + dur * 0.5, 0.12, 320, 220, 5, 0.01, 0.3); }
+      else if (el === "plasma") { arc(t0 + 0.02, dur, 0.3, 2400, 5200, true); oscLayer("sine", t0, 80, 50, dur + 0.1, 0.02, 0.3); }
     }
   };
 
@@ -564,9 +586,10 @@
       set(lapG.gain, 0.07, 1.2);
       return;
     }
-    set(droneG.gain, 0, 0.8); set(lapG.gain, 0, 0.8);
+    const seaLv = Amb.scene.startsWith("sea");
+    if (!seaLv) { set(droneG.gain, 0, 0.8); set(lapG.gain, 0, 0.8); }
     if (Amb.scene === "highlands") { oceanProx = 0; riverProx = 0; nearTrees = 0.6; proxT = t + 1e9; }
-    else if (Amb.scene === "sea") { oceanProx = 0.85; riverProx = 0; nearTrees = 0.35; proxT = t + 1e9; }
+    else if (seaLv) { seaAmbience(t, px, py); proxT = t + 1e9; }
     else if (proxT > t + 1e8) proxT = 0;
     const s = K.windStrength(t, px, py);
     const hi = Amb.scene === "highlands";     // up high the wind is stronger, lower and more hollow
@@ -581,6 +604,7 @@
     set(washG.gain, oceanProx * (ph < 0.33 ? 0.03 + 0.12 * reach : 0.02 + 0.05 * reach), 0.15);
     set(riverG.gain, riverProx * 0.16, 0.4);
     set(bugG.gain, hi ? 0.03 + 0.02 * Math.sin(t * 0.17) : 0.006 + 0.01 * (0.5 + 0.5 * Math.sin(t * 0.13)) * nearTrees, 1);
+    if (seaLv) seaEvents(Amb.scene);
     if (hi) {    // the jungle: cicadas in long swells, everything else calling over them
       const sw2 = Math.max(0, Math.sin(t * 0.085)) * Math.max(0, Math.sin(t * 0.21 + 2));
       set(cicG.gain, 0.012 + 0.07 * sw2, 1.2); set(cicF.frequency, 3900 + 900 * sw2, 1.5);
@@ -589,7 +613,7 @@
     // birds
     if (ac.currentTime > nextBird) {
       const r = Math.random(), v = 0.05 + Math.random() * 0.05, pan = Math.random() * 1.6 - 0.8, t0 = ac.currentTime + 0.02;
-      if (oceanProx > 0.35 && r < 0.3) CALLS.gull(t0, v, pan);
+      if (oceanProx > 0.35 && r < (Amb.scene === "sea_isles" ? 0.6 : Amb.scene === "sea_vents" ? 0.15 : 0.35)) { CALLS.gull(t0, v, pan); if (Amb.scene === "sea_isles" && Math.random() < 0.4) CALLS.gull(t0 + rnd(0.3, 0.8), v * 0.7, pan + 0.2); }
       else if (r < 0.45) CALLS.whistle(t0, v * nearTrees, pan);
       else if (r < 0.62) CALLS.trill(t0, v * nearTrees, pan);
       else if (r < 0.8) CALLS.dove(t0, v * 0.9, pan);
@@ -597,6 +621,69 @@
       nextBird = ac.currentTime + (hi ? 0.6 + Math.random() * 2.2 : 1.8 + Math.random() * 5);
     }
   };
+  // ---- the Archipelago (Zone 2). How much sea is round the hero, and how deep, is sampled from the level's
+  // own water; the surf, the breeze and the water at your legs follow it. Each land then has its own life.
+  let seaDeep = 0, seaNear = 0, seaWade = 0, seaT = 0;
+  function seaAmbience(t, px, py) {
+    if (t > seaT && window.Level && Level.cur) {
+      seaT = t + 0.3; let w = 0, dp = 0, tot = 0;
+      for (let dy = -240; dy <= 240; dy += 40) for (let dx = -300; dx <= 300; dx += 50) { const k = 1 / (1 + (dx * dx + dy * dy) / 26000), v = Level.waterAt(px + dx, py + dy); tot += k; if (v) w += k; if (v >= 12) dp += k; }
+      seaNear = Math.min(1, (w / tot) * 1.6); seaDeep = Math.min(1, (dp / tot) * 2); seaWade = Level.waterAt(px, py) ? 1 : 0;
+      oceanProx = Math.max(0.35, seaNear); riverProx = 0; nearTrees = Amb.scene === "sea_isles" ? 0.5 : 0.2;
+    }
+    const vents = Amb.scene === "sea_vents", reef = Amb.scene === "sea_reef";
+    // the water at your legs as you wade: a soft slosh that comes and goes
+    set(lapG.gain, seaWade * (0.06 + 0.03 * Math.sin(t * 1.7)), 0.3);
+    // open water far out: the low swell of the deep, and on the Thermal Cliffs the mountain's rumble
+    set(droneG.gain, 0.02 + seaDeep * 0.05 + (reef ? 0.025 : 0), 1.2);
+    set(rumbleG.gain, vents ? 0.07 + 0.06 * Math.max(0, Math.sin(t * 0.13)) : 0, 1.5);
+    const L = Level.cur;
+    // a feeding frenzy churns the water
+    if (L && L.school && L.school.active && ac.currentTime > (seaAmbience.churn || 0)) { seaAmbience.churn = ac.currentTime + rnd(0.25, 0.6); bus(); splash(ac.currentTime + 0.02, rnd(0.04, 0.09)); if (Math.random() < 0.3) bubbles(ac.currentTime + 0.02, 0.4, 8, 500, 1400, 0.04); }
+    // the Storm Ray's lagoon: static in the air, thunder rolling far off
+    const ray = L && L.enemies.find((e) => e.type === "giantray" && !e.dead);
+    if (ray && ac.currentTime > (seaAmbience.storm || 0)) { seaAmbience.storm = ac.currentTime + rnd(1.5, 4); bus(); if (Math.random() < 0.45) thunder(ac.currentTime + 0.05, 0.12, true); else crackle(ac.currentTime + 0.02, 1.2, 14, 0.05); }
+  }
+  function seaEvents(sc) {
+    const now = ac.currentTime; if (now < nextAtmo || Amb.muted) return;
+    bus(); const r = Math.random(), t0 = now + 0.02, pan = rnd(-0.9, 0.9);
+    if (sc === "sea_reef") {
+      // the reef is never quiet: snapping shrimp crackling under the water, fizzing bubbles, small chimes of
+      // water moving through coral, and something big singing far off
+      if (r < 0.45) crackle(t0, rnd(1.5, 3), 18 + ((Math.random() * 20) | 0), 0.035);
+      else if (r < 0.65) bubbles(t0, rnd(0.6, 1.4), 6 + ((Math.random() * 8) | 0), 700, 2200, 0.03);
+      else if (r < 0.8) { const f = rnd(1800, 2600); for (let k = 0; k < 3; k++) tone(t0 + k * rnd(0.12, 0.25), f * (1 + k * 0.12), f * (1 + k * 0.12), 0.25, 0.012, pan, "sine"); }
+      else if (r < 0.92) whale(t0, 0.035, pan);
+      else noiseLayer(brownB, "lowpass", t0, rnd(2, 3), 120, 220, 0.8, 0.8, 0.5, pan, true);   // a swell breaking on the outer reef
+      nextAtmo = now + 0.6 + Math.random() * 1.8;
+    } else if (sc === "sea_vents") {
+      // the cliffs: the ground rumbling, steam hissing from the vents, boiling water, wind moaning on the rock,
+      // a pueo calling from the heights, pebbles clattering down, the surf thudding into basalt
+      if (r < 0.22) noiseLayer(white, "highpass", t0, rnd(1.4, 2.6), 3200, 5600, 0.6, 0.5, 0.1, pan, true);
+      else if (r < 0.38) { for (let k = 0; k < 3 + ((Math.random() * 4) | 0); k++) { const f = rnd(90, 190), tt = t0 + k * rnd(0.06, 0.2); tone(tt, f, f * rnd(1.6, 2.4), rnd(0.06, 0.14), 0.05, pan); } }
+      else if (r < 0.52) { const f = rnd(240, 330); noiseLayer(pinkB, "bandpass", t0, rnd(2.5, 4), f, f * 1.3, 6, 1.2, 0.25, pan, true); }   // wind moaning on the cliff
+      else if (r < 0.64) { const f = rnd(300, 360); tone(t0, f, f * 0.94, 0.28, 0.035, pan, "sine", [4, 4]); tone(t0 + 0.42, f * 0.9, f * 0.84, 0.36, 0.03, pan, "sine", [4, 4]); }   // a pueo's low hoot
+      else if (r < 0.76) { for (let k = 0; k < 5 + ((Math.random() * 5) | 0); k++) noiseLayer(white, "bandpass", t0 + k * rnd(0.05, 0.14), 0.04, rnd(1500, 3200), 1200, 3, 0.002, 0.05, pan); }   // pebbles clattering down the cliff
+      else if (r < 0.9) { noiseLayer(brownB, "lowpass", t0, 1.6, 90, 200, 0.9, 0.05, 0.9, pan, true); noiseLayer(white, "bandpass", t0 + 0.08, 1.2, 900, 400, 0.7, 0.05, 0.12, pan, true); }   // surf against the cliff
+      else { noiseLayer(brownB, "lowpass", t0, 2.8, 50, 140, 0.9, 1.1, 0.8, 0, true); crackle(t0 + 0.6, 1.4, 8, 0.08); }   // the mountain shifts
+      nextAtmo = now + 0.9 + Math.random() * 2.4;
+    } else {
+      // the Outer Isles: palms rattling in the trade wind, terns, a big wave breaking out on the reef,
+      // and now and then whale song carried across the water
+      if (r < 0.3) { for (let k = 0; k < 6 + ((Math.random() * 6) | 0); k++) noiseLayer(white, "bandpass", t0 + k * rnd(0.03, 0.08), 0.07, rnd(2500, 4200), 2000, 2, 0.004, 0.02, pan); }   // palm fronds clattering
+      else if (r < 0.5) { const f = rnd(2600, 3200); for (let k = 0; k < 3 + ((Math.random() * 3) | 0); k++) tone(t0 + k * 0.11, f, f * 0.82, 0.07, 0.03, pan); }   // a tern's sharp call
+      else if (r < 0.72) { noiseLayer(brownB, "lowpass", t0, rnd(2.4, 3.4), 140, 260, 0.8, 0.6, 0.6, pan, true); noiseLayer(pinkB, "bandpass", t0 + 0.4, 2, 900, 600, 0.6, 0.6, 0.08, pan, true); }   // a breaker on the reef
+      else if (r < 0.84) whale(t0, 0.03, pan);
+      else bubbles(t0, 0.6, 5, 600, 1500, 0.02);
+      nextAtmo = now + 1.2 + Math.random() * 2.8;
+    }
+  }
+  // humpback song, far across the water: a slow moaning glide, sometimes answered
+  function whale(t, peak, pan) {
+    const f0 = rnd(160, 260), f1 = f0 * rnd(1.3, 1.9), d = rnd(1.4, 2.4);
+    tone(t, f0, f1, d, peak, pan, "sine", [3, 5]); tone(t + d * 0.9, f1 * 0.95, f0 * 0.8, d * 0.8, peak * 0.8, pan, "sine", [2, 4]);
+    if (Math.random() < 0.4) tone(t + d * 2.2, f0 * 0.7, f0 * 1.1, d * 0.7, peak * 0.5, -pan, "sine", [3, 3]);
+  }
   // ---- the highlands jungle: crickets, coquí frogs, a hooting bird, and the tribe's drums far off
   function jungleEvents() {
     const now = ac.currentTime; if (now < nextAtmo || Amb.muted) return;

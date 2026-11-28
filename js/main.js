@@ -214,7 +214,7 @@
       case "snap": if (Net.isGuest() && scene === "level" && Level.cur && Level.cur.name === m.lv) { Enemies.applySnap(Level.cur, m.en); Level.applySnap(Level.cur, m.lvl, time); for (const k of m.sfx || []) Ambience.sfx && Ambience.sfx(k); } break;
       case "scene": if (Net.isGuest()) { netGo = true; fade.dir = 0; Level.players = m.n || Net.count(); goTo(m.to); netGo = false; } break;
       case "hurt": hurtPlayer(m.d, m.x, m.y, m.s); break;
-      case "heal": player.hp = Math.min(player.maxHp, player.hp + m.n); break;
+      case "heal": player.hp = Math.min(player.maxHp, player.hp + m.n * Gear.stats().healMul); break;
       case "shard": gotShard(m.el); break;
       case "shell": gotShell(m.k); break;
       case "blast": if (Net.isHost()) { const q = mates.get(m.id !== undefined ? m.id : from); if (q) Combat.blast(q, m.x, m.y, m.r, m.o, true); } break;
@@ -284,7 +284,7 @@
     sfx: (k) => { Ambience.sfx && Ambience.sfx(k); if (window.Net && Net.isHost()) sfxQ.push(k); },
     shell: (k, q) => { if (q && q.isRemote) { Net.sendTo(q.slot, { t: "shell", k }); return; } gotShell(k); },
     shard: (el, q) => { if (q && q.isRemote) { Net.sendTo(q.slot, { t: "shard", el }); return; } gotShard(el); },
-    heal: (n, q) => { if (q && q.isRemote) { Net.sendTo(q.slot, { t: "heal", n }); return; } player.hp = Math.min(player.maxHp, player.hp + n); healT = time; },
+    heal: (n, q) => { if (q && q.isRemote) { Net.sendTo(q.slot, { t: "heal", n }); return; } player.hp = Math.min(player.maxHp, player.hp + n * Gear.stats().healMul); healT = time; },
     teleport: (q, x, y) => { if (q.isRemote) Net.sendTo(q.slot, { t: "tp", x, y }); },
     // a partner is hit on the host's screen: tell them (their own roll may still save them)
     hurtRemote: (q, d, sx, sy, src) => { if (q.dead || q.hitInv > 0) return false; Net.sendTo(q.slot, { t: "hurt", d, x: sx, y: sy, s: src }); if (q.rolling || q.inv) return false; q.hitInv = 0.9; return true; },
@@ -328,7 +328,7 @@
   function useHeal() {
     if (player.hp >= player.maxHp) return;
     const n = Gear.takeHeal(player.hp, player.maxHp); if (!n) return;
-    player.hp = Math.min(player.maxHp, player.hp + n); healT = time; Ambience.sfx && Ambience.sfx("berry");
+    player.hp = Math.min(player.maxHp, player.hp + n * Gear.stats().healMul); healT = time; Ambience.sfx && Ambience.sfx("berry");
     for (let k = 0; k < 14; k++) Combat.addPart({ x: player.x + (Math.random() - 0.5) * 14, y: player.y - Math.random() * 24, vx: 0, vy: -30, g: -10, life: 0.8, col: k % 2 ? "#ff8a8a" : "#ffffff", size: 1, kind: "ember", glow: true });
   }
   // a talisman: a one-use super attack: its element's weapon special, grander
@@ -829,6 +829,8 @@
       hintTimer = Math.min(hintTimer, 4);
       const gs = Gear.stats(), len = Math.hypot(ix, iy), sp = (run ? 140 : 90) * dt * gs.speed * (scene === "level" && !gs.waterWalk ? Level.slowAt(player.x, player.y) : 1);
       const dx = (ix / len) * sp, dy = (iy / len) * sp;
+      // the Kea (plasma) cloth: a trail of white light behind you, flecked with every element's colour
+      if (gs.trail && Combat.clock - (player.trailT || 0) > (run ? 0.05 : 0.08)) { player.trailT = Combat.clock; Combat.after.push({ x: player.x, y: player.y, dir: player.dir, t0: Combat.clock, ghost: true, col: "#ffffff", long: 1 }); Combat.addPart({ x: player.x + (Math.random() - 0.5) * 10, y: player.y - 4 - Math.random() * 20, vx: (Math.random() - 0.5) * 10, vy: -12, drag: 1, life: 0.6, col: ["#ffffff", "#f2b45e", "#7ad860", "#5ab8ff", "#c8b4ff", "#ff5a6a"][(Math.random() * 6) | 0], size: 1, kind: "spark", glow: true }); }
       if (!blocked(player.x + dx, player.y)) player.x += dx;
       else if (!blocked(player.x + dx, player.y - Math.abs(dx))) { player.x += dx; player.y -= Math.abs(dx); } // slide round corners
       else if (!blocked(player.x + dx, player.y + Math.abs(dx))) { player.x += dx; player.y += Math.abs(dx); }
@@ -1374,8 +1376,8 @@
     for (const a of Combat.after) {
       if (!a.ghost) continue;
       const age = Combat.clock - a.t0;
-      sctx.globalAlpha = Math.max(0, 0.5 * (1 - age / 0.3));
-      sctx.drawImage(tinted(heroFrames[a.dir][2][0], col), Math.round((a.x - cam.fx) * SCALE) - 12 * SCALE, Math.round((a.y - cam.fy) * SCALE) - 30 * SCALE, 24 * SCALE, 32 * SCALE);
+      sctx.globalAlpha = Math.max(0, (a.long ? 0.32 : 0.5) * (1 - age / (a.long ? 0.42 : 0.3)));
+      sctx.drawImage(tinted(heroFrames[a.dir][2][0], a.col || col), Math.round((a.x - cam.fx) * SCALE) - 12 * SCALE, Math.round((a.y - cam.fy) * SCALE) - 30 * SCALE, 24 * SCALE, 32 * SCALE);
     }
     sctx.globalAlpha = 1;
     if (frames !== heroSil) {
@@ -1476,10 +1478,11 @@
     // surge diamonds above the weapon in hand
     const k = ids.indexOf(w.id);
     if (w.ult && k >= 0) for (let q = 0; q < Combat.SURGE; q++) {
-      const full = q < (w.charge || 0), ready = (w.charge || 0) >= Combat.SURGE, dx = B.x + 2 + k * SLOT + SLOT / 2 - 11 + q * 7, dy = B.y - 9;
+      const full = q + 1 <= (w.charge || 0) + 1e-6, part = !full && q < (w.charge || 0), ready = (w.charge || 0) >= Combat.SURGE - 1e-6, dx = B.x + 2 + k * SLOT + SLOT / 2 - 11 + q * 7, dy = B.y - 9;
       const blink = ready && Math.floor(Combat.clock * 6) % 2;
       ctx.fillStyle = "#120c16"; ctx.fillRect(dx - 1, dy + 1, 7, 3); ctx.fillRect(dx + 1, dy - 1, 3, 7);
       ctx.fillStyle = full ? (blink ? "#ffffff" : w.col) : "#3a3040"; ctx.fillRect(dx, dy + 2, 5, 1); ctx.fillRect(dx + 2, dy, 1, 5); ctx.fillRect(dx + 1, dy + 1, 3, 3);
+      if (part) { const fr = (w.charge || 0) - q, h = Math.max(1, Math.round(fr * 5)); ctx.fillStyle = w.col; ctx.globalAlpha = 0.75; ctx.fillRect(dx + 2, dy + 5 - h, 1, h); if (h >= 2) ctx.fillRect(dx + 1, dy + Math.max(1, 5 - h), 3, Math.min(3, h - 1)); ctx.globalAlpha = 1; }
     }
   }
   const DIGITS = [[".o.", "oo.", ".o.", ".o.", "ooo"], ["oo.", "..o", ".o.", "o..", "ooo"], ["oo.", "..o", ".o.", "..o", "oo."], ["o.o", "o.o", "ooo", "..o", "..o"], ["ooo", "o..", "oo.", "..o", "oo."]];
