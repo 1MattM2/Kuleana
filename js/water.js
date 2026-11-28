@@ -69,6 +69,7 @@
     const ox = Math.floor(camX / G), oy = Math.floor(camY / G);
     for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) patch[gy * gw + gx] = K.fbm((ox + gx) * G / 260 + t * 0.012, (oy + gy) * G / 260, 3);
     const aX = t * 1.3, aY = t * 0.55, bX = -t * 0.9 + 13, bY = t * 0.75 + 7, sparkFrame = Math.floor(t * 2);
+    Water._swim.tick(camX, camY, vw, vh, t); const swim = Water._swim.raster(camX, camY, vw, vh, t), SM = Water._swim.mask;
     for (let y = 0; y < vh; y++) {
       const wy = camY + y, row = y * vw, gy = ((wy >> 2) - oy) * gw;
       for (let x = 0; x < vw; x++) {
@@ -87,24 +88,65 @@
           else if (brk > 0.5) c = mid[lv < 3 ? lv + 1 : 3];
         }
         if (lv >= 2 && K.hash2(wx >> 1, wy >> 1, sparkFrame) > 0.9975) c = SPARK;
+        if (swim) { const m = SM[row + x]; if (m === 1) c = Water._swim.shadowOf(c, 0.52); else if (m === 2) c = Water._swim.shadowOf(c, 0.8); }
         out[row + x] = c;
       }
     }
     ctx.putImageData(img, 0, 0);
     dst.drawImage(canvas, 0, 0);
-    // shadows under the surface: a school of fish wheeling, and a whale shark gliding by
-    dst.fillStyle = "rgba(4,22,44,0.42)";
-    for (let k = 0; k < 2; k++) {
-      const cx = ((k * 300 + t * 14) % (vw + 200)) - 100, cy = vh * (0.3 + k * 0.4) + Math.sin(t * 0.4 + k) * 20;
-      for (let f2 = 0; f2 < 14; f2++) { const a = t * 0.9 + f2 * 0.45 + k, r = 10 + (f2 % 5) * 4; dst.fillRect(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.6), 3, 1); }
-    }
-    const sx = ((t * 9) % (vw + 260)) - 130, sy = vh * 0.62 + Math.sin(t * 0.13) * 30;
-    dst.fillStyle = "rgba(4,20,40,0.3)";
-    for (let i = 0; i < 46; i++) { const u = i / 46, w = Math.sin(Math.min(1, u * 1.3) * Math.PI) * 7 + 1, sw = Math.sin(t * 1.4 - u * 4) * u * 4; dst.fillRect(Math.round(sx - i * 1.6), Math.round(sy + sw - w / 2), 2, Math.round(w)); }
-    for (const sg of [-1, 1]) dst.fillRect(Math.round(sx - 14), Math.round(sy + sg * 9), 6, 2);
-    dst.fillRect(Math.round(sx - 74 + Math.sin(t * 1.4) * 2), Math.round(sy - 6 + Math.sin(t * 1.4 - 4) * 4), 3, 12);
   };
 
+  // Passing under the title's open sea now and then: a few small sharks together, as dark silhouettes. Each swims along its own trail, its body bending in a wave that runs to
+  // the tail (the same shapes and motion as the cave's), and the water over it is darkened pixel by pixel.
+  const swimmers = []; let nextSwim = 2, lastT = null, smask = null;
+  const SHAPES = {
+    whale: { len: 104, speed: 16, wave: 4, freq: 2.2, body: (q) => (q < 0.07 ? 8.5 + q * 30 : q < 0.32 ? 10.6 - (q - 0.07) * 5 : Math.max(1.4, 9.4 * Math.pow(1 - (q - 0.32) / 0.66, 1.25))), P0: 0.2, PL: 0.15, PS: 12, pel: 6, tail: 11 },
+    lemon: { len: 44, speed: 32, wave: 3, freq: 4.5, body: (q) => (q < 0.1 ? 1.6 + q * 26 : q < 0.36 ? 4.2 : Math.max(0.8, 4.2 * Math.pow(1 - (q - 0.36) / 0.6, 1.3))), P0: 0.24, PL: 0.13, PS: 7, pel: 3, tail: 5.5 },
+  };
+  function swimTick(camX, camY, vw, vh, t) {
+    const dt = lastT === null ? 0 : Math.min(0.1, Math.max(0, t - lastT)); lastT = t;
+    nextSwim -= dt;
+    if (nextSwim <= 0 && swimmers.length < 4) {
+      const whale = false, dir = Math.random() < 0.5 ? 1 : -1;   // (small sharks only: no whale shark on the title)
+      const y0 = camY + vh * (0.2 + Math.random() * 0.6), x0 = dir > 0 ? camX - 140 : camX + vw + 140, a = dir > 0 ? (Math.random() - 0.5) * 0.4 : Math.PI + (Math.random() - 0.5) * 0.4;
+      const n = whale ? 1 : 2 + ((Math.random() * 2) | 0);
+      for (let k = 0; k < n; k++) swimmers.push({ kind: whale ? "whale" : "lemon", x: x0 - Math.cos(a) * k * 40 + (Math.random() - 0.5) * 20, y: y0 + (k - (n - 1) / 2) * 26 + (Math.random() - 0.5) * 10, a, a0: a, trail: [], ph: Math.random() * 6, life: 0 });
+      nextSwim = whale ? 14 + Math.random() * 10 : 9 + Math.random() * 9;
+    }
+    for (const c of swimmers) {
+      const S = SHAPES[c.kind]; c.life += dt;
+      c.a = c.a0 + Math.sin(t * 0.25 + c.ph) * 0.35;
+      const sp = S.speed * (0.85 + 0.15 * Math.sin(t * 0.7 + c.ph));
+      c.x += Math.cos(c.a) * sp * dt; c.y += Math.sin(c.a) * sp * dt;
+      const last = c.trail[0]; if (!last || Math.hypot(last[0] - c.x, last[1] - c.y) > 2) { c.trail.unshift([c.x, c.y]); if (c.trail.length > S.len) c.trail.length = S.len; }
+    }
+    for (let k = swimmers.length - 1; k >= 0; k--) { const c = swimmers[k]; if (c.life > 8 && (c.x < camX - 400 || c.x > camX + vw + 400)) swimmers.splice(k, 1); }
+  }
+  function swimRaster(camX, camY, vw, vh, t) {
+    if (!smask || smask.length !== vw * vh) smask = new Uint8Array(vw * vh); else smask.fill(0);
+    let any = false;
+    for (const c of swimmers) {
+      const S = SHAPES[c.kind], tr = c.trail; if (tr.length < 6) continue;
+      const n = 14, pts = [];
+      for (let k = 0; k <= n; k++) {
+        const q = k / n, idx = Math.min(tr.length - 1, Math.round(q * (S.len / 2))), p = tr[idx], p2 = tr[Math.max(0, idx - 1)];
+        let nx = -(p2[1] - p[1]), ny = p2[0] - p[0]; const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
+        const w = Math.sin(q * 5 - t * S.freq + c.ph) * q * q * S.wave; pts.push([p[0] + nx * w, p[1] + ny * w, q]);
+      }
+      const fins = (q) => { let f = 0; if (q > S.P0 && q < S.P0 + S.PL) f = Math.max(f, S.PS * (1 - (q - S.P0) / S.PL) * Math.min(1, (q - S.P0) / 0.035)); if (q > 0.58 && q < 0.66) f = Math.max(f, S.pel * (1 - (q - 0.58) / 0.08)); if (q > 0.9) f = Math.max(f, S.tail * Math.pow((q - 0.9) / 0.1, 0.8)); return f; };
+      let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const p of pts) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
+      const pad = c.kind === "whale" ? 30 : 14, bx0 = Math.max(0, Math.floor(x0 - pad - camX)), by0 = Math.max(0, Math.floor(y0 - pad - camY)), bx1 = Math.min(vw - 1, Math.ceil(x1 + pad - camX)), by1 = Math.min(vh - 1, Math.ceil(y1 + pad - camY));
+      for (let sy = by0; sy <= by1; sy++) for (let sx = bx0; sx <= bx1; sx++) {
+        const wx = sx + camX + 0.5, wy = sy + camY + 0.5; let best = 1e9, bs = 0, along = 0;
+        for (let k = 0; k < pts.length - 1; k++) { const ax = pts[k][0], ay = pts[k][1], dx = pts[k + 1][0] - ax, dy = pts[k + 1][1] - ay, ll = dx * dx + dy * dy || 1, raw = ((wx - ax) * dx + (wy - ay) * dy) / ll, tt = Math.max(0, Math.min(1, raw)), d = Math.hypot(ax + dx * tt - wx, ay + dy * tt - wy); if (d < best) { best = d; bs = pts[k][2] + (pts[k + 1][2] - pts[k][2]) * tt; along = k === 0 && raw < 0 ? raw : k === pts.length - 2 && raw > 1 ? raw - 1 : 0; } }
+        const capR = along < 0 ? S.body(0) : along > 0 ? 0.6 : 1e9, w = Math.min(capR, S.body(bs) + fins(bs)), i = sy * vw + sx;
+        if (best < w) { smask[i] = 1; any = true; } else if (best < w + 1.5 && smask[i] === 0) smask[i] = 2;
+      }
+    }
+    return any;
+  }
+  const shadowOf = (c, k) => { const r = c & 255, g = (c >>> 8) & 255, b = (c >>> 16) & 255; return (255 << 24) | (((b * k) | 0) << 16) | (((g * k) | 0) << 8) | ((r * k) | 0); };
+  Water._swim = { tick: swimTick, raster: swimRaster, shadowOf, get mask() { return smask; } };
   // `Wd` is the water map to draw: the island (World) by default, or a sea level's own (js/sea.js)
   Water.render = function (dst, camX, camY, vw, vh, t, Wd) {
     ensure(vw, vh);

@@ -25,7 +25,45 @@
   function loop(buf) { const s = ac.createBufferSource(); s.buffer = buf; s.loop = true; s.start(0, Math.random() * buf.duration); return s; }
   function gain(v) { const g = ac.createGain(); g.gain.value = v; return g; }
   function filt(type, f, q) { const b = ac.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q || 0.7; return b; }
-  const set = (p, v, tc) => p.setTargetAtTime(v, ac.currentTime, tc || 0.25);
+  // Ambience levels are steered every frame; scheduling an automation event on ~15 params 60 times a
+  // second floods the audio thread's event lists. Only schedule when the target really moves.
+  const set = (p, v, tc) => {
+    const now = ac.currentTime, last = p._tgt;
+    if (last !== undefined && Math.abs(v - last) <= Math.max(0.0015, Math.abs(last) * 0.03) && now - p._at < 0.5) return;
+    p._tgt = v; p._at = now; if (v > 0) p._on = now;
+    p.setTargetAtTime(v, now, tc || 0.25);
+  };
+  // A cheap algorithmic reverb (parallel feedback-delay combs behind two allpass diffusers), all of it
+  // computed on the audio thread itself. It replaces the long ConvolverNodes: Chrome renders the tail of a
+  // long convolution on a low-priority helper thread, and whenever the game stalled that thread starved and
+  // the sound broke up and dropped in and out.
+  function verb(decay, bright) {
+    const inp = ac.createGain(), out = ac.createGain(); out.gain.value = 0.42;
+    let head = inp;
+    for (const f of [700, 1900]) { const ap = ac.createBiquadFilter(); ap.type = "allpass"; ap.frequency.value = f; ap.Q.value = 0.6; head.connect(ap); head = ap; }
+    [0.0297, 0.0371, 0.0411, 0.0437, 0.0533, 0.0617].forEach((len, k) => {
+      const d = ac.createDelay(0.2), lp = ac.createBiquadFilter(), fb = ac.createGain();
+      d.delayTime.value = len * 1.4; lp.type = "lowpass"; lp.frequency.value = bright; lp.Q.value = -3;   // (dB: no resonant peak, or the loop rings)
+      fb.gain.value = Math.pow(10, (-3 * len * 1.4) / decay);
+      head.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d);
+      if (ac.createStereoPanner) { const pn = ac.createStereoPanner(); pn.pan.value = k % 2 ? 0.6 : -0.6; lp.connect(pn); pn.connect(out); } else lp.connect(out);
+    });
+    return { inp, out };
+  }
+  // Ambience layers that are silent for the scene are unplugged from the output entirely, so the audio
+  // thread stops computing them (a gain of 0 still costs the whole chain behind it); they plug back in the
+  // moment they're wanted.
+  const layers = [];
+  const layer = (g, outs) => { layers.push({ g, outs, on: true }); return g; };
+  let sleepT = 0;
+  function sleepLayers() {
+    const now = ac.currentTime; if (now < sleepT) return; sleepT = now + 0.25;
+    for (const L of layers) {
+      const p = L.g.gain, want = (p._tgt || 0) > 0;
+      if (want && !L.on) { for (const o of L.outs) L.g.connect(o); L.on = true; }
+      else if (!want && L.on && now - (p._on || 0) > 4) { L.g.disconnect(); L.on = false; }
+    }
+  }
 
   Amb.start = function () {
     if (Amb.started) return;
@@ -36,14 +74,14 @@
     const touch = window.TouchPad && TouchPad.enabled;
     try { ac = new AC({ latencyHint: touch ? "playback" : 0.08 }); } catch (e) { ac = new AC(); }
     Amb.started = true;
+    // every node a sound builds is counted (see the budget in Amb.sfx)
+    for (const m of ["createGain", "createBiquadFilter", "createBufferSource", "createOscillator", "createStereoPanner", "createWaveShaper", "createDelay"]) { const f = ac[m] && ac[m].bind(ac); if (f) ac[m] = (...a) => { Amb._made(); return f(...a); }; }
     master = gain(0);
     const lim = ac.createDynamicsCompressor(); lim.threshold.value = -1; lim.knee.value = 0; lim.ratio.value = 12; lim.attack.value = 0.001; lim.release.value = 0.3;
     master.connect(lim); lim.connect(ac.destination);
     set(master.gain, Amb.muted ? 0 : 0.7 * Amb.volume, 0.08);
     // small outdoor "space" for the birds
-    const conv = ac.createConvolver(), ir = ac.createBuffer(2, ac.sampleRate * 1.4, ac.sampleRate);
-    for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3); }
-    conv.buffer = ir; wet = gain(0.25); wet.connect(conv); conv.connect(master);
+    const amv = verb(1.5, 3200); wet = gain(0.25); wet.connect(amv.inp); amv.out.connect(master);
 
     const white = noiseBuffer("white", 3), pink = noiseBuffer("pink", 4), brown = noiseBuffer("brown", 5);
     // wind
@@ -79,6 +117,7 @@
     rumbleG = gain(0); const rbf = filt("lowpass", 85, 1.2); loop(brown).connect(rbf); rbf.connect(rumbleG); rumbleG.connect(master); rumbleG.connect(wet);
     humG = gain(0); for (const [f, v] of [[55, 0.5], [55.6, 0.4], [82.4, 0.25], [110.3, 0.12]]) { const o = ac.createOscillator(), og = gain(v); o.frequency.value = f; o.connect(og); og.connect(humG); o.start(); }
     const hf = filt("lowpass", 240, 0.7); humG.connect(hf); hf.connect(master); hf.connect(wet);
+    for (const [g, outs] of [[windG, [master]], [rustleG, [master]], [surfG, [master]], [washG, [master]], [riverG, [master]], [bugG, [master]], [droneG, [master, wet]], [lapG, [master, wet]], [cicG, [master]], [rumbleG, [master, wet]], [humG, [hf]]]) layer(g, outs);
     nextBird = ac.currentTime + 1.5;
   };
   Amb.setScene = function (sc) { Amb.scene = sc; if (wet) set(wet.gain, sc === "cave" || sc === "sanctum" ? 0.7 : 0.25, 0.8); };
@@ -150,11 +189,11 @@
     comp.threshold.value = -16; comp.knee.value = 8; comp.ratio.value = 5; comp.attack.value = 0.003; comp.release.value = 0.18;
     const makeup = ac.createGain(); makeup.gain.value = 1.1;
     sfxBus = ac.createGain(); sfxBus.connect(comp); comp.connect(makeup); makeup.connect(master);
-    const ir = (secs, decay) => { const b = ac.createBuffer(2, ac.sampleRate * secs, ac.sampleRate); for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); let lp = 0; for (let i = 0; i < d.length; i++) { lp = lp * 0.6 + (Math.random() * 2 - 1) * 0.4; d[i] = lp * Math.pow(1 - i / d.length, decay); } } return b; };
-    const rv = ac.createConvolver(); rv.buffer = ir(1.8, 3);
-    sfxWet = ac.createGain(); sfxWet.gain.value = 0.22; sfxBus.connect(sfxWet); sfxWet.connect(rv); rv.connect(comp);
-    const rv2 = ac.createConvolver(); rv2.buffer = ir(2.6, 1.8);   // (shorter tail: long convolution reverbs are heavy on the audio thread)
-    skySend = ac.createGain(); skySend.gain.value = 0.9; skySend.connect(rv2); rv2.connect(comp);
+    const ir0 = (secs, decay) => { const b = ac.createBuffer(2, ac.sampleRate * secs, ac.sampleRate); for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); let lp = 0; for (let i = 0; i < d.length; i++) { lp = lp * 0.6 + (Math.random() * 2 - 1) * 0.4; d[i] = lp * Math.pow(1 - i / d.length, decay); } } return b; };
+    void ir0;
+    // one shared room for the blows, and a longer, airier space for the sky (celestial) sends
+    const rv = verb(1.6, 3800); sfxWet = ac.createGain(); sfxWet.gain.value = 0.22; sfxBus.connect(sfxWet); sfxWet.connect(rv.inp); rv.out.connect(comp);
+    const rv2 = verb(2.6, 5200); skySend = ac.createGain(); skySend.gain.value = 0.9; skySend.connect(rv2.inp); rv2.out.connect(comp);
     const n = ac.sampleRate * 3;
     white = ac.createBuffer(1, n, ac.sampleRate); pinkB = ac.createBuffer(1, n, ac.sampleRate); brownB = ac.createBuffer(1, n, ac.sampleRate);
     const w = white.getChannelData(0), pk = pinkB.getChannelData(0), br = brownB.getChannelData(0);
@@ -232,6 +271,14 @@
     return arcB;
   }
   function arc(t, dur, peak, f0, f1, sky) { const s = src(arcBuf(), t, dur), f = filt2("highpass", t, f0 || 1200, f1 || f0 || 1200, dur, 0.7), g = amp(t, 0.003, dur, peak); s.connect(f); f.connect(g); out(g, rnd(-0.5, 0.5), sky); }
+  // electrocution: a fat tearing arc over a mains buzz, with hard snaps scattered through it and a hiss
+  // that dies away (the stingray's discharge, and the Stormcaller's blows)
+  function electrocute(t, len, peak) {
+    arc(t, len, 1.1 * peak, 700, 2200); arc(t + 0.02, len * 0.7, 0.7 * peak, 2600, 5200); buzz(t, len, 0.75 * peak);
+    zapChirp(t, 0.09, 3600, 300, 0.35 * peak);
+    for (let k = 0; k < 4; k++) noiseLayer(white, "highpass", t + Math.random() * len * 0.8, 0.012, 3500, 3500, 0.7, 0.001, 0.9 * peak);
+    noiseLayer(white, "highpass", t + len * 0.5, len, 6000, 4000, 0.7, 0.02, 0.18 * peak);
+  }
   // a distorted sawtooth sweeping down: the "zzap" of a bolt
   function zapChirp(t, dur, f0, f1, peak) {
     const o = ac.createOscillator(); o.type = "sawtooth"; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
@@ -374,23 +421,34 @@
   const ELEM = { lua: "plasma", heel: "fire", maul: "life", tide: "water", glowtide: "water", storm: "storm", starfall: "sky", stone: "stone", koi: "stone", kakau: "drum" };
   const elem = () => { const C = window.Combat; const w = C && C.weapons && C.weapons[C.cur]; return (w && ELEM[w.id]) || "steel"; };
 
-  // Only so many sounds at once: the same sound twice within 40ms is one sound, and past ~26 voices
-  // new ones are dropped (a crowd fight used to swamp the audio thread).
-  const lastKind = {}, voices = [];
+  // Only so much sound at once. What overloads the audio thread is not the number of sounds but the
+  // number of nodes they build (a hit is ~25, a boom ~60, a war cry ~70), so every sound is costed by
+  // the nodes it actually creates and the live total is held under a budget: over it, new sounds are
+  // dropped, except the ones that tell you something happened to you (hurt, hits, kills).
+  // The same sound twice within 30ms is one sound.
+  const lastKind = {}, live = [];
+  let made = 0, liveNodes = 0;
+  const BUDGET = 520, KEEP = { hurt: 1, hit: 1, crit: 1, boom: 1, heal: 1, pickup: 1 };
   const allow = (kind) => {
     const now = ac.currentTime;
     if (lastKind[kind] !== undefined && now - lastKind[kind] < 0.03) return false;
-    while (voices.length && voices[0] < now) voices.shift();
-    if (voices.length > 64) return false;
-    lastKind[kind] = now; voices.push(now + 0.3); voices.sort((a, b) => a - b);
-    return true;
+    while (live.length && live[0][0] < now) liveNodes -= live.shift()[1];
+    if (liveNodes > (KEEP[kind] ? BUDGET * 1.5 : BUDGET)) return false;
+    lastKind[kind] = now; return true;
   };
+  Amb.load = () => liveNodes;
+  Amb._made = () => { made++; };
   Amb.sfx = function (kind) {
     if (!ac || Amb.muted) return;
     if (ac.state === "suspended") ac.resume();
     if (!allow(kind)) return;
     bus();
-    const t = ac.currentTime + 0.01, r = rnd(0.92, 1.08), el = elem();
+    // scheduled a little ahead, so a sound built during a busy frame still starts whole (its attack not
+    // already in the past by the time the audio thread sees it)
+    const t = ac.currentTime + 0.025, r = rnd(0.92, 1.08), el = elem(), m0 = made;
+    try { play(kind, t, r, el); } finally { const n = made - m0; if (n) { live.push([ac.currentTime + 0.9, n]); liveNodes += n; live.sort((a, b) => a[0] - b[0]); } }
+  };
+  function play(kind, t, r, el) {
     switch (kind) {
       // ---- physical swings: air with weight. Elemental weapons carry their element through every swing.
       case "swing":     whoosh(t, 0.3 * r, 300, 2000 * r, 1.0); steel(t + 0.05, 1500 * r, 0.05, 0.22); elementSwing(t, 0.3); break;
@@ -415,7 +473,9 @@
       case "stormCast": noiseLayer(brownB, "lowpass", t, 2.6, 110, 520, 0.8, 1.0, 1.8, 0, true); noiseLayer(pinkB, "bandpass", t, 2.4, 300, 1200, 0.8, 1.0, 1.1);   // the storm drawing in
                         for (let k = 0; k < 5; k++) arc(t + 0.1 + k * 0.1, 0.12, 0.25 + k * 0.08, 2000, 3500);   // static building
                         thunder(t + 0.6, 1.05); break;
-      case "hitStorm":  blast(t, white, 0.05, 900, 2400, 0.6, "highpass"); arc(t, 0.2, 0.8, 1500, 3000); break;
+      case "hitStorm":  blast(t, white, 0.05, 900, 2400, 0.5, "highpass"); electrocute(t, 0.24, 0.8); break;
+      case "electrocute": electrocute(t, 0.42, 1); thoom(t, 0.25); break;
+      case "charge":    oscLayer("sawtooth", t, 90, 260, 0.8, 0.3, 0.05); arc(t + 0.3, 0.5, 0.25, 3000, 5000); break;
       // ---- water: gushing surges and bubbling foam
       case "water":     whoosh(t, 0.36, 250, 1500, 0.7); gush(t, 0.6, 0.85); splash(t + 0.12, 0.5); break;
       case "glowSwing": whoosh(t, 0.38, 250, 1400, 0.6); gush(t, 0.65, 0.75); air(t + 0.05, 0.6, 0.3); break;
@@ -472,10 +532,17 @@
       case "sealUp":    grind(t, 0.9, 1.0); ignite(t + 0.1, 0.6); thoom(t, 0.7); break;
       case "sealDown":  grind(t, 0.6, 0.7); noiseLayer(pinkB, "bandpass", t + 0.2, 1.0, 2400, 300, 0.9, 0.05, 0.6, 0, true); thoom(t, 0.4); break;
       case "warcry":    shout(t, 0.75, 118, 0.3, -0.4); shout(t + 0.04, 0.72, 134, 0.26, 0.4); shout(t + 0.08, 0.7, 152, 0.2, 0); pahu(t, 0.9); pahu(t + 0.28, 0.8); break;
+      // the tiki brute: a deep, creaking wooden bellow as it lowers its head, then the charge itself,
+      // heavy carved feet pounding faster and faster with the wood groaning under them
+      case "bruteRoar": shout(t, 0.9, 64, 0.34, -0.2); shout(t + 0.05, 0.85, 71, 0.3, 0.2); grind(t + 0.1, 0.7, 0.5); knock(t + 0.05, 0.35); knock(t + 0.4, 0.25); noiseLayer(brownB, "bandpass", t, 0.6, 160, 110, 1.5, 0.05, 0.8); break;
+      case "bruteCharge": { let tt = t; for (let k = 0; k < 7; k++) { oscLayer("sine", tt, 95, 38, 0.2, 0.002, 0.42 + k * 0.03); noiseLayer(brownB, "lowpass", tt, 0.12, 500, 140, 0.8, 0.002, 0.7); tt += Math.max(0.08, 0.18 - k * 0.017); } knock(t + 0.02, 0.35); knock(t + 0.5, 0.3); grind(t, 1.0, 0.45); noiseLayer(brownB, "lowpass", t, 1.1, 200, 80, 0.7, 0.15, 0.8); break; }
+      case "bruteHook": whoosh(t, 0.3, 120, 700, 1.4); thoom(t + 0.12, 0.35); knock(t + 0.14, 0.4); break;
+      case "bruteHeave": grind(t, 0.35, 0.7); knock(t, 0.5); shout(t + 0.05, 0.35, 82, 0.22, 0); whoosh(t + 0.3, 0.4, 150, 900, 1.2); break;
       case "stampede":  for (let k = 0; k < 14; k++) { impact(t + k * 0.05 + Math.random() * 0.03, 0.35); } noiseLayer(brownB, "lowpass", t, 0.9, 260, 90, 0.7, 0.1, 0.9); break;   // a herd thundering in
       case "geyser":    noiseLayer(brownB, "lowpass", t, 1.3, 300, 900, 0.8, 0.05, 1.0); noiseLayer(white, "bandpass", t + 0.05, 1.2, 1800, 3200, 0.8, 0.1, 0.5); bubbles(t, 0.9, 30, 200, 600, 0.3); break;
       case "zap":       arc(t, 0.3, 0.9, 1400, 3000); zapChirp(t, 0.16, 2400, 120, 0.25); break;
       case "screech":   oscLayer("sawtooth", t, 1400, 2200, 0.35, 0.02, 0.06); noiseLayer(white, "bandpass", t, 0.4, 3000, 4500, 3, 0.02, 0.35); break;
+      case "pop":       bubbles(t, 0.08, 3, 700, 1600, 0.35); noiseLayer(white, "bandpass", t, 0.03, 2400, 1800, 2, 0.001, 0.3); break;
       case "splash":    splash(t, 0.9); bubbles(t + 0.05, 0.3, 12, 300, 900, 0.3); break;
       case "clack":     knock(t, 0.7); noiseLayer(white, "bandpass", t, 0.04, 3500, 3500, 4, 0.001, 0.5); break;
       case "land":      impact(t, 0.6); noiseLayer(brownB, "lowpass", t, 0.3, 600, 150, 0.7, 0.005, 0.7); break;
@@ -553,6 +620,7 @@
   Amb.update = function (t, px, py) {
     if (!ac || !isFinite(px) || !isFinite(py)) return;
     if (ac.state === "suspended") ac.resume();
+    sleepLayers();
     // how much ocean / river / jungle is around the player (sampled a few times a second)
     if (t > proxT) {
       proxT = t + 0.3;

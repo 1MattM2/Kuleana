@@ -21,7 +21,7 @@
     const g = grid(20, 14); fill(g, 2, 3, 17, 10, "w"); fill(g, 18, 6, 19, 8, "w");
     D.dojo_duel = { title: "THE DUEL HALL", sub: "Hale Koa", bg: "abyss", cliff: 40, wallFace: 30, ivy: 0, indoor: 1, dojo: "duel", amb: "dojo", map: g.map((r) => r.join("")),
       spawn: { x: 18.4, y: 7.6 }, exits: [{ x0: 19.3, x1: 20, y0: 5, to: "dojo", side: "west" }], gates: [], enemies: [], arenas: [],
-      props: [{ k: "duelring", x: 10, y: 7.2 }, { k: "lectern", x: 10, y: 3.4, hall: "duel" }, { k: "brazier", x: 3, y: 3.6 }, { k: "brazier", x: 17, y: 3.6 }, { k: "brazier", x: 3, y: 10.4 }, { k: "brazier", x: 17, y: 10.4 }] };
+      props: [{ k: "duelring", x: 10, y: 7.2 }, { k: "kapabanner", x: 4.5, y: 3 }, { k: "kapabanner", x: 16.5, y: 3 }, { k: "lectern", x: 10, y: 3.4, hall: "duel" }, { k: "brazier", x: 3, y: 3.6 }, { k: "brazier", x: 17, y: 3.6 }, { k: "brazier", x: 3, y: 10.4 }, { k: "brazier", x: 17, y: 10.4 }] };
   }
   // the Arena Wing: a hallway east from the hall; the Creature Hall opens off it to the north, and the
   // Boss Hall stands at its end
@@ -31,6 +31,8 @@
     fill(g, 4, 3, 21, 12, "%"); fill(g, 11, 13, 14, 14, "w");     // the Creature Hall and its door
     fill(g, 27, 4, 44, 27, "%");               // the Boss Hall
     const props = [{ k: "lectern", x: 12.5, y: 3.4, hall: "beasts" }, { k: "lectern", x: 36, y: 4.4, hall: "bosses" }, { k: "brazier", x: 1.5, y: 15.4 }, { k: "brazier", x: 25, y: 15.4 }, { k: "brazier", x: 10.2, y: 13.4 }, { k: "brazier", x: 15.8, y: 13.4 }];
+    // kapa banners here and there along the walls: the hallway, and either side of each hall's lectern
+    for (const [bx, by] of [[4.5, 15], [9.5, 15], [19.5, 15], [7.5, 3], [17.5, 3], [31.5, 4], [40.5, 4]]) props.push({ k: "kapabanner", x: bx, y: by });
     for (const y of [5.6, 9.8]) { props.push({ k: "fountain", x: 4.7, y, face: 1, hall: "beasts" }); props.push({ k: "fountain", x: 21.3, y, face: -1, hall: "beasts" }); }
     for (const y of [8.2, 13.4, 18.6, 23.8]) { props.push({ k: "fountain", x: 27.7, y, face: 1, hall: "bosses" }); props.push({ k: "fountain", x: 44.3, y, face: -1, hall: "bosses" }); }
     D.dojo_wing = { title: "THE ARENA WING", sub: "Hale Koa", bg: "abyss", cliff: 40, wallFace: 30, ivy: 0, indoor: 1, dojo: "wing", amb: "dojo", map: g.map((r) => r.join("")),
@@ -65,6 +67,31 @@
       }
     };
     o.solids = [[x - 13, y - 6, x + 13, y + 4]];
+  };
+  // a kapa banner hung on the wall face, as in the main hall: cream bark cloth on a koa rod, rows of
+  // triangles (niho) in black and red, a dark line under each, a fringe that stirs now and then.
+  // p.y is the foot of the wall it hangs on.
+  let bannerArt = null;
+  function makeBanner() {
+    const w = 17, h = 24, [c, x] = K.canvas(w + 4, h + 6), put = (a, b, ww, hh, col) => { x.fillStyle = col; x.fillRect(a, b, ww, hh); };
+    put(0, 0, w + 4, 3, "#1e100a"); put(1, 1, w + 2, 1, "#8a5430");                           // the rod
+    put(1, 3, w + 2, h, "#1e100a"); put(2, 3, w, h - 1, "#e8d8b8"); put(2, 3, w, 1, "#c8b494");   // the cloth, shaded under the rod
+    for (let band = 0; band < 3; band++) {
+      const by = 5 + band * 7, col = band % 2 ? "#8a2a1a" : "#2a1a14";
+      for (let k = 0; k < 3; k++) { const tx = 3 + k * 5; put(tx + 2, by, 1, 1, col); put(tx + 1, by + 1, 3, 1, col); put(tx, by + 2, 5, 1, col); }
+      put(3, by + 4, w - 2, 1, "#2a1a14");
+    }
+    put(w + 1, 4, 1, h - 2, "#c8b494");                                                       // the shaded right edge
+    return (bannerArt = { c, w, h });
+  }
+  H.kapabanner = (p, L, o, x, y) => {
+    const FACE = L.def.wallFace || 30;
+    o.ground = true;
+    o.draw = (ctx, ox, oy, t) => {
+      const B = bannerArt || makeBanner(), X = Math.round(x - ox - (B.w + 4) / 2), Y = Math.round(y - oy - FACE + 2);
+      ctx.drawImage(B.c, X, Y);
+      for (let k = 0; k < B.w; k += 3) { const stir = Math.sin(t * 1.3 + k * 0.7 + x) > 0.85 ? 1 : 0; ctx.fillStyle = "#2a1a14"; ctx.fillRect(X + 2 + k + stir, Y + 3 + B.h, 2, 2); }
+    };
   };
   // the challenge lectern: a carved koa board on a stand, painted with the hall's emblem
   H.lectern = (p, L, o, x, y) => {
@@ -178,40 +205,76 @@
 
   // ---------------------------------------------------------------- duelists (the islanders, as fighters)
   const E = window.Enemies, ST = E.STATS, AI = E.AI, L0 = E.lib;
+  // Each challenger is a real fight: plenty of health, blows that cost hearts, poise (only a flurry of hits
+  // staggers them), a counter after every dodge or guard, a lunge to close the distance, and a second wind
+  // at half health (faster, quicker to strike).
   const DUEL = {
-    makani: { hp: 170, sp: 118, reach: 24, wind: 0.22, dmg: 1, hits: 3, gap: 0.16, dodge: 0.55, keep: 30, weapon: "pahoa" },
-    kamaka: { hp: 290, sp: 66, reach: 34, wind: 0.6, dmg: 2, hits: 1, gap: 0, dodge: 0.1, keep: 34, guard: 1, slam: 1, weapon: "newa" },
-    kahu: { hp: 220, sp: 92, reach: 50, wind: 0.42, dmg: 1, hits: 2, gap: 0.3, dodge: 0.3, keep: 52, spin: 1, weapon: "spear" },
+    makani: { hp: 560, sp: 132, reach: 24, wind: 0.17, dmg: 1, hits: 4, gap: 0.12, dodge: 0.7, keep: 30, lunge: 1, weapon: "pahoa" },
+    kamaka: { hp: 900, sp: 78, reach: 36, wind: 0.46, dmg: 3, hits: 2, gap: 0.22, dodge: 0.12, keep: 34, guard: 1, slam: 1, weapon: "newa" },
+    kahu: { hp: 720, sp: 104, reach: 52, wind: 0.32, dmg: 2, hits: 3, gap: 0.2, dodge: 0.4, keep: 54, spin: 1, lunge: 1, weapon: "spear" },
   };
-  ST.duelist = { hp: 200, r: 8, mat: "flesh", kb: 60, barY: 40, colors: ["#e8b878", "#a86a3a", "#f4e0c0"] };
-  E.SETUP.duelist = (e) => { e.who = "makani"; e.face = 1; e.cd = 1; e.blocks = function (ang) { return DUEL[this.who].guard && this.state === "guard" && Math.cos(ang - (this.face > 0 ? Math.PI : 0)) > 0.3; }; };
+  ST.duelist = { hp: 200, r: 8, mat: "flesh", kb: 30, noStun: true, barY: 40, colors: ["#e8b878", "#a86a3a", "#f4e0c0"] };
+  E.SETUP.duelist = (e) => {
+    e.who = "makani"; e.face = 1; e.cd = 1; e.poise = 0;
+    e.blocks = function (ang) { return DUEL[this.who].guard && this.state === "guard" && Math.cos(ang - (this.face > 0 ? Math.PI : 0)) > 0.3; };
+    // a blocked blow is answered at once
+    e.onBlock = function () { if (this.state === "guard" && this.st > 0.08) { this.state = "wind"; this.st = DUEL[this.who].wind * 0.45; this.n = 0; this.riposte = 1; } };
+    // poise: blows don't interrupt them; three in quick succession stagger them, briefly
+    const base = e.onHit;
+    e.onHit = function (dmg, ang) {
+      const s0 = this.state, st0 = this.st; base.call(this, dmg, ang);
+      if (this.state !== s0) { this.state = s0; this.st = st0; }
+      this.poise = (this.poise || 0) + 1; this.poiseT = 1.4;
+      if (this.poise >= 3 && !(this.poiseCd > 0)) { this.stun = 0.35; this.poise = 0; this.poiseCd = 2.2; if (this.state !== "roll") { this.state = "stalk"; this.st = 0; } this.cd = Math.min(this.cd, 0.25); }
+    };
+  };
   DW.makeDuelist = (L, who, x, y) => { const e = E.spawn("duelist", x, y, 0, L); const C = DUEL[who]; e.who = who; e.hp = e.max = Math.round(C.hp * (E.hpScale || 1)); e.alerted = true; e.enter = "leap"; e.introT = 0.9; L.enemies.push(e); return e; };
   AI.duelist = function (e, dt, t, P, L, api, d) {
-    const C = DUEL[e.who], toP = Math.atan2(P.y - e.y, P.x - e.x);
+    const C0 = DUEL[e.who], toP = Math.atan2(P.y - e.y, P.x - e.x);
+    // the second wind: below half health they fight faster
+    if (!e.second && e.hp < e.max / 2) { e.second = true; L.banner = { title: "SECOND WIND", sub: "Your challenger fights harder", t0: t }; L0.sfx(api, "warcry"); e.state = "stalk"; e.cd = 0; }
+    const C = e.second ? { ...C0, sp: C0.sp * 1.2, wind: C0.wind * 0.78, dodge: C0.dodge * 1.25, hits: C0.hits + 1 } : C0;
     e.cd -= dt; e.untouchable = e.state === "roll";
-    if (e.state !== "roll" && e.state !== "strike") e.face = Math.cos(toP) >= 0 ? 1 : -1;
+    e.poiseT = (e.poiseT || 0) - dt; if (e.poiseT <= 0) e.poise = 0; e.poiseCd = (e.poiseCd || 0) - dt;
+    if (e.state !== "roll" && e.state !== "strike" && e.state !== "lunge") e.face = Math.cos(toP) >= 0 ? 1 : -1;
     const mv = (a, sp) => { e.moving = L0.tryMove(e, Math.cos(a) * sp * dt, Math.sin(a) * sp * dt); };
+    const hitArc = (reach, dmg, cone) => { for (const q of E.alive || []) { const k = q.isRemote ? "r" + q.slot : "l"; if (e.hitSet[k]) continue; const dq = Math.hypot(q.x - e.x, q.y - e.y); if (dq < reach && Math.abs(L0.angDiff(Math.atan2(q.y - e.y, q.x - e.x), e.aim)) < cone && q._api.hurt(dmg, e.x, e.y, "duel")) e.hitSet[k] = 1; } };
     if (e.state === "idle" || e.state === "stalk" || e.state === "guard") {
       if (e.state === "idle") e.state = "stalk";
       // a hero swinging close: slip aside (or raise the guard)
-      if (P.attacking && d < 50 && Math.random() < dt * 6 * C.dodge && e.state !== "guard") { e.state = "roll"; e.st = 0; e.rollA = toP + Math.PI + (Math.random() < 0.5 ? 1 : -1) * 1.2; L0.sfx(api, "hop"); return; }
-      if (C.guard && P.attacking && d < 60) { e.state = "guard"; e.st = 0; }
-      if (e.state === "guard") { e.moving = false; if (e.st > 0.7) e.state = "stalk"; return; }
-      const want = d > C.keep + 14 ? toP : d < C.keep - 10 ? toP + Math.PI : toP + Math.PI / 2 * (Math.sin(t * 0.7 + e.ph) > 0 ? 1 : -1);
-      mv(want, d > C.keep + 14 ? C.sp : C.sp * 0.55);
+      if (P.attacking && d < 56 && Math.random() < dt * 7 * C.dodge && e.state !== "guard") { e.state = "roll"; e.st = 0; e.rollA = toP + Math.PI + (Math.random() < 0.5 ? 1 : -1) * 1.1; L0.sfx(api, "hop"); return; }
+      if (C.guard && P.attacking && d < 64) { if (e.state !== "guard") { e.state = "guard"; e.st = 0; } }
+      if (e.state === "guard") { e.moving = false; if (e.st > 0.6) { e.state = "stalk"; e.cd = Math.min(e.cd, 0.15); } return; }
+      const want = d > C.keep + 14 ? toP : d < C.keep - 10 ? toP + Math.PI : toP + Math.PI / 2 * (Math.sin(t * 0.9 + e.ph) > 0 ? 1 : -1);
+      mv(want, d > C.keep + 14 ? C.sp : C.sp * 0.6);
       if (e.cd <= 0 && d < C.reach + 16) { e.state = C.spin && Math.random() < 0.35 ? "windSpin" : C.slam && Math.random() < 0.4 ? "windSlam" : "wind"; e.st = 0; e.aim = toP; e.n = 0; L0.sfx(api, "warcry"); }
-    } else if (e.state === "roll") { mv(e.rollA, 210 * (1 - e.st / 0.32)); if (e.st > 0.32) { e.state = "stalk"; e.st = 0; e.cd = Math.min(e.cd, 0.3); } }
-    else if (e.state === "wind") { e.aim += L0.angDiff(toP, e.aim) * Math.min(1, dt * 6); if (e.st > C.wind) { e.state = "strike"; e.st = 0; e.hitSet = {}; e.n++; L0.sfx(api, "slash"); } }
+      else if (C.lunge && e.cd <= 0 && d > C.reach + 30 && d < C.reach + 120 && Math.random() < dt * 3) { e.state = "windLunge"; e.st = 0; e.aim = toP; L0.sfx(api, "inhale"); }
+    } else if (e.state === "roll") {
+      mv(e.rollA, 230 * (1 - e.st / 0.3));
+      // out of the roll straight into a counter
+      if (e.st > 0.3) { if (d < C.reach + 40) { e.state = "wind"; e.st = C.wind * 0.4; e.aim = toP; e.n = 0; } else { e.state = "stalk"; e.st = 0; e.cd = Math.min(e.cd, 0.2); } }
+    }
+    else if (e.state === "wind") { e.aim += L0.angDiff(toP, e.aim) * Math.min(1, dt * 7); if (e.st > C.wind) { e.state = "strike"; e.st = 0; e.hitSet = {}; e.n++; L0.sfx(api, "slash"); } }
     else if (e.state === "strike") {
-      mv(e.aim, 150 * Math.max(0, 1 - e.st / 0.14));
-      for (const q of E.alive || []) { const k = q.isRemote ? "r" + q.slot : "l"; if (e.hitSet[k]) continue; const dq = Math.hypot(q.x - e.x, q.y - e.y); if (dq < C.reach + 8 && Math.abs(L0.angDiff(Math.atan2(q.y - e.y, q.x - e.x), e.aim)) < 0.9 && q._api.hurt(C.dmg, e.x, e.y, "duel")) e.hitSet[k] = 1; }
-      if (e.st > 0.18) { if (e.n < C.hits) { e.state = "wind"; e.st = C.wind - C.gap; } else { e.state = "stalk"; e.st = 0; e.cd = 0.7 + Math.random() * 0.8; } }
-    } else if (e.state === "windSpin") { if (e.st > 0.6) { e.state = "spin"; e.st = 0; e.hitSet = {}; L0.sfx(api, "spearSweep"); } }
-    else if (e.state === "spin") { for (const q of E.alive || []) { const k = q.isRemote ? "r" + q.slot : "l"; if (!e.hitSet[k] && Math.hypot(q.x - e.x, q.y - e.y) < C.reach && q._api.hurt(1, e.x, e.y, "duel")) e.hitSet[k] = 1; } if (e.st > 0.35) { e.state = "stalk"; e.cd = 1 + Math.random(); } }
-    else if (e.state === "windSlam") { if (e.st > 0.7) { e.state = "slam"; e.st = 0; L.fx.push({ kind: "quake", x: e.x + Math.cos(e.aim) * 16, y: e.y + Math.sin(e.aim) * 12, t: 0, dur: 0.45, R: 50, dmg: 1 }); L0.sfx(api, "stone"); Combat.shake = Math.min(1, Combat.shake + 0.4); } }
-    else if (e.state === "slam") { if (e.st > 0.5) { e.state = "stalk"; e.cd = 1 + Math.random() * 0.6; } }
+      mv(e.aim, 170 * Math.max(0, 1 - e.st / 0.14));
+      hitArc(C.reach + 9, C.dmg + (e.riposte ? 1 : 0), 0.95);
+      if (e.st > 0.17) { e.riposte = 0; if (e.n < C.hits) { e.state = "wind"; e.st = C.wind - C.gap; } else { e.state = "stalk"; e.st = 0; e.cd = (0.45 + Math.random() * 0.55) * (e.second ? 0.7 : 1); } }
+    } else if (e.state === "windLunge") { e.aim += L0.angDiff(toP, e.aim) * Math.min(1, dt * 5); if (e.st > 0.34 * (e.second ? 0.8 : 1)) { e.state = "lunge"; e.st = 0; e.hitSet = {}; L0.sfx(api, "spearSweep"); } }
+    else if (e.state === "lunge") {
+      // a long dash with the blade out in front
+      mv(e.aim, 330 * Math.max(0.2, 1 - e.st / 0.3)); hitArc(C.reach + 6, C.dmg + 1, 0.7);
+      if (e.st > 0.3) { if (d < C.reach + 16) { e.state = "wind"; e.st = C.wind * 0.5; e.aim = toP; e.n = Math.max(0, C.hits - 2); } else { e.state = "stalk"; e.cd = 0.5; } }
+    } else if (e.state === "windSpin") { if (e.st > 0.5 * (e.second ? 0.8 : 1)) { e.state = "spin"; e.st = 0; e.hitSet = {}; e.spins = e.second ? 2 : 1; L0.sfx(api, "spearSweep"); } }
+    else if (e.state === "spin") {
+      mv(toP, 60);
+      for (const q of E.alive || []) { const k = q.isRemote ? "r" + q.slot : "l"; if (!e.hitSet[k] && Math.hypot(q.x - e.x, q.y - e.y) < C.reach + 4 && q._api.hurt(2, e.x, e.y, "duel")) e.hitSet[k] = 1; }
+      if (e.st > 0.35) { if (--e.spins > 0) { e.st = 0; e.hitSet = {}; L0.sfx(api, "spearSweep"); } else { e.state = "stalk"; e.cd = 0.6 + Math.random() * 0.6; } }
+    }
+    else if (e.state === "windSlam") { e.aim = toP; if (e.st > 0.6 * (e.second ? 0.8 : 1)) { e.state = "slam"; e.st = 0; L.fx.push({ kind: "quake", x: e.x + Math.cos(e.aim) * 16, y: e.y + Math.sin(e.aim) * 12, t: 0, dur: 0.5, R: 64, dmg: 2 }); e.after = e.second ? 1 : 0; L0.sfx(api, "stone"); Combat.shake = Math.min(1, Combat.shake + 0.45); } }
+    else if (e.state === "slam") { if (e.after && e.st > 0.3) { e.after = 0; L.fx.push({ kind: "quake", x: e.x, y: e.y, t: 0, dur: 0.6, R: 100, dmg: 2 }); L0.sfx(api, "stone"); Combat.shake = Math.min(1, Combat.shake + 0.4); } if (e.st > 0.55) { e.state = "stalk"; e.cd = 0.6 + Math.random() * 0.5; } }
+    else { e.state = "stalk"; e.st = 0; }
   };
-  E.NET.duelist = { ser: (q, o) => { o.wh = q.who; o.am2 = Math.round((q.aim || 0) * 100) / 100; }, app: (e, o) => { e.who = o.wh; e.aim = o.am2; } };
+  E.NET.duelist = { ser: (q, o) => { o.wh = q.who; o.am2 = Math.round((q.aim || 0) * 100) / 100; if (q.second) o.sw = 1; }, app: (e, o) => { e.who = o.wh; e.aim = o.am2; e.second = !!o.sw; } };
   E.DRAW.duelist = (e, ctx, ox, oy, t, g, introY, fl) => { if (DW.drawDuelist) DW.drawDuelist(ctx, e, e.x - ox, e.y - oy + introY, t, fl); };
   DW.DUEL = DUEL;
 })();

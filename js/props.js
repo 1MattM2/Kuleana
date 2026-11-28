@@ -383,9 +383,28 @@
     ["o.......o", ".oo...oo.", ".orrrrro.", "orRrrrRro", "o.o...o.o", "........."],
   ];
   const CRAB_PAL = { o: [120, 30, 20], r: [228, 92, 56], R: [24, 16, 16] };
-  function makeCrab() {
-    return CRAB.map((rows) => { const [c, ctx] = K.canvas(9, 6); K.pixmap(ctx, rows, CRAB_PAL, 0, 0, false, 9); return c; });
+  function makeCrab(pal) {
+    return CRAB.map((rows) => { const [c, ctx] = K.canvas(9, 6); K.pixmap(ctx, rows, pal || CRAB_PAL, 0, 0, false, 9); return c; });
   }
+  // a pale ghost crab, the colour of the sand it runs over
+  Props.ghostCrabFrames = () => Props._ghost || (Props._ghost = makeCrab({ o: [150, 120, 84], r: [236, 214, 170], R: [30, 22, 18] }));
+  // a little crab's life: still for a while, then a quick sideways scurry (a bit of a diagonal now and
+  // then), and a dash away from anyone who comes close. `ok(x, y)` says where it may run.
+  Props.crabStep = function (c, dt, hero, ok) {
+    c.timer -= dt; c.vy = c.vy || 0;
+    const near = hero && Math.hypot(hero.x - c.x, hero.y - c.y) < 44;
+    if (c.timer <= 0 || (near && !c.fleeing)) {
+      c.fleeing = !!near;
+      c.timer = near ? 0.5 : c.vx ? 0.6 + Math.random() * 1.8 : 0.25 + Math.random() * 0.7;
+      if (near) { c.vx = Math.sign(c.x - hero.x || 1) * 62; c.vy = Math.sign(c.y - hero.y || 1) * 14; }
+      else if (c.vx && Math.random() < 0.55) { c.vx = 0; c.vy = 0; }
+      else { c.vx = (Math.random() < 0.5 ? -1 : 1) * (26 + Math.random() * 22); c.vy = (Math.random() - 0.5) * 16; }
+    }
+    const nx = c.x + c.vx * dt, ny = c.y + c.vy * dt;
+    if (ok(nx, c.y)) c.x = nx; else c.vx = -c.vx;
+    if (ok(c.x, ny)) c.y = ny; else c.vy = -c.vy;
+    if (c.vx) c.frame += dt * 12;
+  };
   function makeButterfly(col) {
     const f = [];
     for (const rows of [["oo.oo", "oobooo".slice(0, 5), ".o.o."], [".o.o.", ".obo.", "....."]]) {
@@ -791,9 +810,9 @@
     Props.crabFrames = makeCrab();
     Props.butterflyFrames = [makeButterfly([250, 150, 40]), makeButterfly([90, 170, 250]), makeButterfly([250, 240, 240])];
     Props.critters = [];
-    for (let k = 0; k < 60 && Props.critters.length < 6; k++) {
+    for (let k = 0; k < 200 && Props.critters.length < 14; k++) {
       const x = r() * W, y = r() * H;
-      if (terr(x, y) === World.SAND && landDist(x, y) > 6 && landDist(x, y) < 50) Props.critters.push({ kind: "crab", x, y, vx: 0, timer: r() * 3, frame: 0 });
+      if (terr(x, y) === World.SAND && landDist(x, y) > 4 && landDist(x, y) < 60) Props.critters.push({ kind: "crab", x, y, vx: 0, vy: 0, timer: r() * 3, frame: 0, ghost: r() < 0.35 });
     }
     for (let k = 0; k < 9; k++) {
       let x = 0, y = 0;

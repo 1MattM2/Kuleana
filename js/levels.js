@@ -389,11 +389,40 @@
       const ty = y >> 5;
       for (let x = 0; x < W; x++) {
         const tx = x >> 5, t0 = tm.g[ty * tm.tw + tx];
-        if (!soft(t0) || straight[ty * tm.tw + tx]) { terr[y * W + x] = t0; continue; }
+        if (!soft(t0) || straight[ty * tm.tw + tx] || def.indoor) { terr[y * W + x] = t0; continue; }   // Hale Koa's halls are built square
         const j = (y >> 2) * gw + (x >> 2), px = x + ofx[j], py = y + ofy[j];
         const t1 = tm.at(Math.floor(px / T), Math.floor(py / T));
         terr[y * W + x] = soft(t1) ? t1 : t0;
       }
+    }
+    // At sea, the coast is rounded off: where the map's tiles step diagonally the shore came out in hard
+    // stair-steps, so the land/water outline is blurred and re-thresholded, and each pixel that changes
+    // side takes the ground (or water) nearest it. Carved things (stairs, bridges, walls) are left alone.
+    if (def.sea) {
+      const R = 9, land = new Float32Array(N);
+      for (let i = 0; i < N; i++) land[i] = isWet(terr[i]) ? 0 : 1;
+      const tmp = new Float32Array(N), sm = new Float32Array(N), n2 = 2 * R + 1;
+      for (let pass = 0; pass < 2; pass++) {
+        const src = pass ? sm : land;
+        for (let y = 0; y < H; y++) { let acc = 0; const row = y * W; for (let x = -R; x <= R; x++) acc += src[row + Math.min(W - 1, Math.max(0, x))]; for (let x = 0; x < W; x++) { tmp[row + x] = acc / n2; acc += src[row + Math.min(W - 1, x + R + 1)] - src[row + Math.max(0, x - R)]; } }
+        for (let x = 0; x < W; x++) { let acc = 0; for (let y = -R; y <= R; y++) acc += tmp[Math.min(H - 1, Math.max(0, y)) * W + x]; for (let y = 0; y < H; y++) { sm[y * W + x] = acc / n2; acc += tmp[Math.min(H - 1, y + R + 1) * W + x] - tmp[Math.max(0, y - R) * W + x]; } }
+      }
+      const fixed = (v) => v === WALL || v === STAIR || v === BH || v === BV || v === WOOD || v === PAVE || v === SUN || v === PATH;
+      const out = terr.slice();
+      for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+        const i = y * W + x, v = terr[i], isL = land[i] > 0.5, want = sm[i] > 0.5;
+        if (isL === want || fixed(v) || straight[(y >> 5) * tm.tw + (x >> 5)]) continue;
+        // the nearest pixel already of the wanted kind (and not a carved one) lends its ground
+        let got = -1;
+        for (let r2 = 1; r2 <= 14 && got < 0; r2++) for (let k = 0; k < 8 * r2 && got < 0; k++) {
+          const a = (k / (8 * r2)) * Math.PI * 2, xx = Math.round(x + Math.cos(a) * r2), yy = Math.round(y + Math.sin(a) * r2);
+          if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+          const w = terr[yy * W + xx]; if (fixed(w)) continue;
+          if (want ? !isWet(w) : isWet(w)) got = w;
+        }
+        if (got >= 0) out[i] = got;
+      }
+      terr.set(out);
     }
     // collision (8px cells)
     const CS = 8, CW = W / CS, CHh = H / CS, solid = new Uint8Array(CW * CHh);
@@ -430,6 +459,7 @@
     const OB = PAL.packed.obsidian, SO = PAL.packed.soil, GR = PAL.packed.grass, SA = PAL.packed.sand, GL = PAL.packed.glyph, ST = PAL.packed.stone, FE = PAL.packed.fern, HZ = PAL.packed.haze;
     const rock = A.px.tex_rock.data, grassT = A.px.tex_grass.data, sandT = A.px.tex_sand.data, glyph = A.px.tex_glyph.data;
     const pebT = A.px.tex_pebble && A.px.tex_pebble.data, pinkT = A.px.tex_pinkcoral && A.px.tex_pinkcoral.data;
+    const CORAL_R = [K.rgb(166, 120, 130), K.rgb(184, 136, 146), K.rgb(200, 154, 160), K.rgb(214, 170, 174), K.rgb(228, 190, 190)];
     // a 64px texture laid in big patches, each shifted and sometimes mirrored, so its repeat never shows
     const patch64 = (x, y, salt) => {
       const pcx = Math.floor((x + K.noise(x / 40, y / 40) * 46) / 150), pcy = Math.floor((y + K.noise(x / 40 + 70, y / 40) * 46) / 150);
@@ -677,11 +707,16 @@
         } else if (t === CORAL) {
           // pink coral rock: the reef raised into land. Darker and wet where the sea laps it, a sunlit crust
           // just above that, and here and there a living head of brighter coral
-          c = pinkT ? pinkT[patch64(x, y, 31)] : SA[3];
+          // a soft, weathered coral stone in muted dusty rose: broad gentle patches of tone, a few pores,
+          // no busy polyp pattern
+          void pinkT;
+          const cv = K.fbm(x / 52 + 3, y / 52, 3) * 0.75 + K.noise(x / 13 + 9, y / 13) * 0.25 + B(x, y) * 0.07;
+          c = CORAL_R[Math.max(0, Math.min(4, Math.floor((cv - 0.22) * 8.5)))];
+          if (K.hash2(x >> 1, y >> 1, 77) > 0.993) c = CORAL_R[0];
+          else if (K.hash2(x, y, 78) > 0.996) c = CORAL_R[4];
           let near = 9; for (let dd = 1; dd <= 4 && near === 9; dd++) for (const [dx, dy] of [[dd, 0], [-dd, 0], [0, dd], [0, -dd]]) if (isWet(T_(x + dx, y + dy))) { near = dd; break; }
-          if (near === 1) c = pk(70, 26, 44); else if (near === 2) c = shade(c, 0.66); else if (near === 3 && B(x, y) > -0.2) c = shade(c, 0.82);
-          else if (near === 4) c = shade(c, 1.1);
-          const lv2 = K.fbm(x / 80 + 5, y / 80, 2); if (lv2 > 0.64) c = shade(c, 1.08); else if (lv2 < 0.34) c = mixc(c, pk(150, 96, 120), 0.25);
+          if (near === 1) c = pk(126, 92, 98); else if (near === 2) c = shade(c, 0.8); else if (near === 3 && B(x, y) > -0.2) c = shade(c, 0.9);
+          else if (near === 4) c = shade(c, 1.05);
         } else if (t === BASALT) {
           c = basaltAt(x, y);
           if (def.sea && window.Sea) { let near = 9; for (const [dx, dy, d] of [[2, 0, 2], [-2, 0, 2], [0, 2, 2], [0, -2, 2], [4, 0, 4], [-4, 0, 4], [0, 4, 4], [0, -4, 4]]) if (d < near && isWet(T_(x + dx, y + dy))) near = d; if (near <= 2) c = shade(c, 0.7); else if (near <= 4 && B(x, y) > 0) c = shade(c, 0.85); }
@@ -1052,7 +1087,7 @@
   Level.update = function (dt, t, P0, api, others) {
     const L = Level.cur, heroes = [P0].concat(others || []);
     updateAir(L, dt, t);
-    if (L.def.sea && window.Sea) { Sea.update(L, dt, t, heroes, api); Sea.fish(L, dt, t); }
+    if (L.def.sea && window.Sea) { Sea.update(L, dt, t, heroes, api); Sea.fish(L, dt, t); Sea.crabs(L, dt, heroes); }
     if (L.def.dojo && window.DojoWing) { Level.time = t; DojoWing.update(L, dt); }
     for (const bd of L.birds) { bd.a += Math.sin(t * 0.3 + bd.ph) * 0.15 * dt; bd.x += Math.cos(bd.a) * bd.sp * dt; bd.y += Math.sin(bd.a) * bd.sp * dt * 0.6; if (bd.x < -200) bd.x += L.W + 400; if (bd.x > L.W + 200) bd.x -= L.W + 400; if (bd.y < -200) bd.y += L.H + 400; if (bd.y > L.H + 200) bd.y -= L.H + 400; }
     if (Level.netGuest) { for (const a of L.arenas) if (a.state === "active" && !a.sealT0) { a.sealT0 = 1; a.sealT = t; if (a.frenzy && window.Sea) Sea.frenzyStart(L, a); } else if (a.state !== "active") { if (a.sealT0 && a.frenzy && window.Sea) Sea.frenzyEnd(L); a.sealT0 = 0; } return; }
@@ -1076,6 +1111,7 @@
         if (a.survive) { a.endT = t + a.survive * (a.frenzy ? 1 : 1 + 0.12 * (heroes.length - 1)); a.herdT = t + 2; a.waveT = t + 0.5; a.t0 = t; }
         if (a.frenzy && window.Sea) { Sea.frenzyStart(L, a); L.banner = { title: a.title, sub: a.sub || "Survive the frenzy", t0: t }; }
       }
+      if (a.state === "active" && t > (a.herdCheck || 0)) { a.herdCheck = t + 1.5; herdIn(a, L, heroes); }
       if (a.state === "active" && a.survive) { survival(a, L, t, heroes, api); continue; }
       if (a.state === "active" && a.live.filter((e) => !e.dead).length === 0 && t > a.next) {
         a.wave++;
@@ -1083,7 +1119,7 @@
           finishArena(a, L, t, api);
           rewards(heroes, P0, L, t);
         } else {
-          a.live = coopRoster(withCover(a.waves[a.wave]), L).map((s) => { const e = Enemies.spawn(s.e, s.x * T, s.y * T, s.tribe || 0, L); e.enter = s.enter || "leap"; e.introT = 0.9; e.alerted = true; L.enemies.push(e); return e; });
+          a.live = coopRoster(withCover(a.waves[a.wave]), L).map((s) => { const [sx2, sy2] = arenaSpot(a, L, s.e, s.x, s.y, heroes), e = Enemies.spawn(s.e, sx2, sy2, s.tribe || 0, L); e.enter = s.enter || "leap"; e.introT = 0.9; e.alerted = true; L.enemies.push(e); return e; }).filter(Boolean);
           a.next = t + 1.2;
           if (a.wave > 0) api.sfx("warcry");
         }
@@ -1113,13 +1149,47 @@
   }
   // a stampede: herds of geckos thunder across the arena from every side while smaller waves press
   // in. Hold out until the dust settles.
+  // Where a wave's creature actually comes in: always inside the sealed arena, on ground that suits it
+  // (water for sea creatures, open air for fliers, dry footing for the rest, crabs kept out of the deeper
+  // water), and drawn in toward the heroes so a wave arrives together rather than strung out across it.
+  function arenaSpot(a, L, kind, x, y, heroes) {
+    const st = Enemies.STATS[kind] || {}, [x0, y0, x1, y1] = a.rect, X0 = x0 * T + 10, Y0 = y0 * T + 10, X1 = (x1 + 1) * T - 10, Y1 = (y1 + 1) * T - 10;
+    const ok = (px, py) => {
+      if (px < X0 || px > X1 || py < Y0 || py > Y1) return false;
+      if (L.seals && L.seals.some((s) => px > s[0] - 14 && px < s[2] + 14 && py > s[1] - 14 && py < s[3] + 14)) return false;
+      const w = Level.waterAt(px, py);
+      if (st.aquatic) return w >= 11 && Level.waterAt(px + 12, py) >= 11 && Level.waterAt(px - 12, py) >= 11;
+      if (st.fly) return !Level.flyBlocked(px, py);
+      if (Level.solidAt(px, py) || Level.solidAt(px - 8, py) || Level.solidAt(px + 8, py)) return false;
+      return !(w >= 12);
+    };
+    const live = heroes.filter((q) => !q.dead), hx = live.length ? live.reduce((s2, q) => s2 + q.x, 0) / live.length : (X0 + X1) / 2, hy = live.length ? live.reduce((s2, q) => s2 + q.y, 0) / live.length : (Y0 + Y1) / 2;
+    let px = Math.max(X0, Math.min(X1, x * T)), py = Math.max(Y0, Math.min(Y1, y * T));
+    // pulled in toward the heroes (but not on top of them)
+    const d = Math.hypot(px - hx, py - hy); if (d > 130) { const k = (d - 130) / d * 0.85; px += (hx - px) * k; py += (hy - py) * k; }
+    if (ok(px, py)) return [px, py];
+    for (let r = 12; r < 900; r += 12) for (let k = 0, n = Math.max(8, Math.round(r / 6)); k < n; k++) { const ang = (k / n) * Math.PI * 2, qx = px + Math.cos(ang) * r, qy = py + Math.sin(ang) * r * 0.8; if (ok(qx, qy) && Math.hypot(qx - hx, qy - hy) > 60) return [qx, qy]; }
+    return [px, py];
+  }
+  Level.arenaSpot = arenaSpot;
+  // an arena's creature that has somehow ended up outside it (or stuck) is brought back in
+  function herdIn(a, L, heroes) {
+    const [x0, y0, x1, y1] = a.rect;
+    for (const e of a.live) {
+      if (e.dead || e.introT > 0) continue;
+      const out = e.x < x0 * T - 8 || e.x > (x1 + 1) * T + 8 || e.y < y0 * T - 8 || e.y > (y1 + 1) * T + 8;
+      if (!out) { e.outT = 0; continue; }
+      e.outT = (e.outT || 0) + 1;
+      if (e.outT >= 2) { const [nx, ny] = arenaSpot(a, L, e.type, e.x / T, e.y / T, heroes); e.x = nx; e.y = ny; e.enter = "leap"; e.introT = 0.6; e.outT = 0; e.state = "idle"; }
+    }
+  }
   function survival(a, L, t, heroes, api) {
     const [x0, y0, x1, y1] = a.rect.map((v) => v * T), np = heroes.length;
     a.live = a.live.filter((e) => !e.dead);
     L.timer = Math.max(0, a.endT - t);
     if (a.frenzy && t < a.endT) { Sea.frenzyTick(a, L, t, heroes, api); return; }
     if (t < a.endT) {
-      if (t > a.waveT && a.live.length < 4 + np * 2) { const w = a.waves[(a.wave = (a.wave + 1) % a.waves.length)]; for (const s of coopRoster(w, L)) { const e = Enemies.spawn(s.e, s.x * T, s.y * T, s.tribe || 0, L); if (!e) continue; e.enter = s.enter || "leap"; e.introT = 0.9; e.alerted = true; L.enemies.push(e); a.live.push(e); } a.waveT = t + 7; }
+      if (t > a.waveT && a.live.length < 4 + np * 2) { const w = a.waves[(a.wave = (a.wave + 1) % a.waves.length)]; for (const s of coopRoster(w, L)) { const [sx2, sy2] = arenaSpot(a, L, s.e, s.x, s.y, heroes), e = Enemies.spawn(s.e, sx2, sy2, s.tribe || 0, L); if (!e) continue; e.enter = s.enter || "leap"; e.introT = 0.9; e.alerted = true; L.enemies.push(e); a.live.push(e); } a.waveT = t + 7; }
       if (t > a.herdT) {
         a.herdT = t + a.herd * (np >= 3 ? 0.8 : 1);
         // pick a side, aim across at the heroes, and send a staggered line of runners
@@ -1242,7 +1312,7 @@
     ctx.drawImage(L.ground, ox, oy, LW, LH, 0, 0, LW, LH);
     for (const pr of L.props) if (pr.ground && pr.draw) pr.draw(ctx, ox, oy, t);
     if (L.floods && window.DojoWing) DojoWing.drawFlood(ctx, L, ox, oy, LW, LH, t);
-    if (L.water) { Level.camHint = { x: ox + LW / 2, y: oy + LH / 2 }; Water.render(ctx, ox, oy, LW, LH, t, L.water); Sea.drawUnder(ctx, L, ox, oy, LW, LH, t); Sea.drawFish(ctx, L, ox, oy, LW, LH, t); }
+    if (L.water) { Level.camHint = { x: ox + LW / 2, y: oy + LH / 2 }; Water.render(ctx, ox, oy, LW, LH, t, L.water); Sea.drawUnder(ctx, L, ox, oy, LW, LH, t); Sea.drawFish(ctx, L, ox, oy, LW, LH, t); Sea.drawCrabs(ctx, L, ox, oy, LW, LH); }
     eachBridge(ox, oy, LW, LH, (v, X, Y, tx, ty) => { const tm = L.tm, a = v === BH ? tm.at(tx, ty - 1) !== v : tm.at(tx - 1, ty) !== v, b = v === BH ? tm.at(tx, ty + 1) !== v : tm.at(tx + 1, ty) !== v; ctx.drawImage(bridgeTile(v, (tx * 7 + ty * 3) % 3, a, b), X, Y); });
     for (const v of L.vines) if (v.x > ox - 10 && v.x < ox + LW + 10 && v.y > oy - 60 && v.y < oy + LH + 10) Ruins.drawVine(ctx, v.x - ox, v.y - oy, v.len, t, v.ph);
     for (const b of L.pickups) { const bob = b.vy === undefined ? Math.round(Math.sin(t * 3 + b.x) * 1.5) : 0; if (b.el) drawShard(ctx, b, b.x - ox, b.y - oy + bob, t); else if (b.shell) { ctx.drawImage(Gear.shellArt(b.shell), Math.round(b.x - 6 - ox), Math.round(b.y - 10 - oy + bob)); if (Math.sin(t * 3 + b.x) > 0.85) { ctx.fillStyle = "#ffffff"; ctx.fillRect(Math.round(b.x + 3 - ox), Math.round(b.y - 11 - oy + bob), 1, 1); } } else ctx.drawImage(Ruins.berry, Math.round(b.x - 4 - ox), Math.round(b.y - 6 - oy + bob)); }

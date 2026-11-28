@@ -24,9 +24,8 @@
   st.textContent = `
   #title{position:fixed;inset:0;z-index:20;overflow:hidden;background:transparent;font-family:'Josefin Sans',system-ui,sans-serif;color:#f6ead2;user-select:none;-webkit-user-select:none;transition:opacity .9s ease}
   #title.gone{opacity:0;pointer-events:none}
-  /* while the world is built: deep water, slowly breathing; it fades out to reveal the live sea */
-  #title .deep{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,#0f5a78 0%,#0a3f5e 45%,#062a44 100%);transition:opacity 1.6s ease}
-  #title .deep::after{content:"";position:absolute;inset:-20%;background:repeating-linear-gradient(115deg,#ffffff00 0 38px,#ffffff0a 38px 40px,#ffffff00 40px 90px);animation:swell 9s linear infinite}
+  /* while the world is built: plain black; it fades out to reveal the live sea */
+  #title .deep{position:absolute;inset:0;background:#000;transition:opacity 1.6s ease}
   @keyframes swell{from{transform:translateY(0)}to{transform:translateY(90px)}}
   #title.live .deep{opacity:0}
   #title .vig{position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(ellipse at 50% 42%,#02101e00 30%,#02101e99 100%),linear-gradient(#02101e66,#02101e00 35%,#02101e00 60%,#02101e88)}
@@ -134,7 +133,7 @@
     else if (it.k === "new") buildSlots("new");
     else if (it.k === "load") buildSlots("load");
     else if (it.k === "test") start(0, null, { test: true });
-    else if (it.k === "settings") window.Menu && Menu.toggle(true, "sound");
+    else if (it.k === "settings") window.Menu && Menu.toggle(true, "controls");
   }
   function back() { mode = "menu"; el.classList.remove("slotsOpen"); buildMenu(); }
   function paint() {
@@ -156,7 +155,9 @@
   Title.ready = () => { Title.isReady = true; Title.progress(1, "Ready"); setTimeout(() => { el.classList.add("ready"); buildMenu(); }, 250); };
 
   addEventListener("keydown", (e) => {
-    if (!Title.open || !Title.isReady || (window.Menu && Menu.open)) return;
+    if (!Title.open || !Title.isReady) return;
+    // the settings panel, opened from the title, takes the keys while it's up (Esc closes it)
+    if (window.Menu && Menu.open) { if (e.target && e.target.tagName === "INPUT") return; e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) Menu.key(e); return; }
     e.preventDefault(); e.stopImmediatePropagation();
     if (mode === "menu") {
       if (e.code === "ArrowDown" || e.code === "KeyS") { do sel = (sel + 1) % items.length; while (items[sel].off); paint(); }

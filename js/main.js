@@ -830,7 +830,7 @@
   Combat.onKill = (d) => {
     if (scene !== "level") return;
     const x = d.type === "vine" ? d.rx : d.x, y = d.type === "vine" ? d.ry : d.y;
-    if (d.type !== "runner" && Math.random() < (d.boss ? 1 : 0.3)) Level.dropBerry(x, y, time);
+    if (d.type !== "runner" && d.type !== "rayling" && Math.random() < (d.boss ? 1 : 0.3)) Level.dropBerry(x, y, time);
     // creatures of an element sometimes leave a shard of it
     const el = Gear.ELEMENT_OF[d.type]; if (el && Math.random() < Gear.dropChance()) Level.dropShard(x + 8, y, el, time);
     Gear.noteKill(d.type);
@@ -958,18 +958,8 @@
   // ------------------------------------------------------------------ critters
   function updateCritters(dt, t) {
     for (const c of Props.critters) {
-      if (c.kind === "crab") {
-        c.timer -= dt;
-        const near = Math.hypot(player.x - c.x, player.y - c.y) < 40;
-        if (c.timer <= 0 || near) {
-          c.timer = 1 + Math.random() * 3;
-          c.vx = Math.random() < 0.4 && !near ? 0 : (Math.random() < 0.5 ? -1 : 1) * (near ? 46 : 18);
-          if (near) c.vx = Math.sign(c.x - player.x || 1) * 46;
-        }
-        const nx = c.x + c.vx * dt;
-        if (World.terrAt(nx, c.y) === World.SAND) c.x = nx; else c.vx = -c.vx;
-        if (c.vx) c.frame += dt * 8;
-      } else {
+      if (c.kind === "crab") Props.crabStep(c, dt, player, (x, y) => World.terrAt(x, y) === World.SAND);
+      else {
         // smooth wandering: steer by slow noise, drift home if too far
         c.a += (K.noise(t * 0.6 + c.seed, c.seed) - 0.5) * 5 * dt;
         const pull = Math.atan2(c.hy - c.y, c.hx - c.x);
@@ -1201,7 +1191,8 @@
     const wi = Combat.indexOf(C.weapon), spr = Combat.weapons[wi] && Combat.weapons[wi].spr;
     // the weapon: raised back on the wind-up, swept on the strike, whirled on a spin, crossed on guard
     let a = -Math.PI / 2 + 0.5 * f;
-    if (e.state === "wind" || e.state === "windSlam" || e.state === "windSpin") a = (e.aim || 0) + Math.PI * 0.85 * f;
+    if (e.state === "wind" || e.state === "windSlam" || e.state === "windSpin" || e.state === "windLunge") a = (e.aim || 0) + Math.PI * 0.85 * f;
+    else if (e.state === "lunge") a = (e.aim || 0);
     else if (e.state === "strike" || e.state === "slam") a = (e.aim || 0) - 1 * f + Math.min(1, e.st / 0.12) * 2 * f;
     else if (e.state === "spin") a = t * 30;
     else if (e.state === "guard") a = f > 0 ? -0.2 : Math.PI + 0.2;
@@ -1212,7 +1203,9 @@
     ctx.drawImage(fl ? Combat.whiteOf(art) : art, -12, -31); ctx.restore();
     if (!back) drawW();
     if (e.state === "strike" || e.state === "spin") { ctx.strokeStyle = "rgba(255,248,220,0.85)"; ctx.lineWidth = 2; ctx.beginPath(); if (e.state === "spin") ctx.ellipse(X, Y - 10, C.reach, C.reach * 0.55, 0, 0, Math.PI * 2); else ctx.arc(X, Y - 10, C.reach * 0.9, (e.aim || 0) - 0.9, (e.aim || 0) + 0.9); ctx.stroke(); }
-    if (e.state === "wind" || e.state === "windSlam" || e.state === "windSpin") { ctx.fillStyle = "#ffe08a"; ctx.fillRect(X - 1, Y - 40, 3, 3); }
+    if (e.state === "wind" || e.state === "windSlam" || e.state === "windSpin" || e.state === "windLunge") { ctx.fillStyle = e.state === "windLunge" ? "#ff8a5a" : "#ffe08a"; ctx.fillRect(X - 1, Y - 40, 3, 3); }
+    if (e.state === "lunge") { ctx.fillStyle = "rgba(255,248,220,0.7)"; for (let k = 1; k < 6; k++) ctx.fillRect(Math.round(X - Math.cos(e.aim || 0) * k * 5), Math.round(Y - 10 - Math.sin(e.aim || 0) * k * 4), 2, 1); }
+    if (e.second && Math.random() < 0.3) Combat.addPart({ x: e.x + (Math.random() - 0.5) * 12, y: e.y - 4, vx: 0, vy: -30, life: 0.5, col: "#ffd27a", size: 1, kind: "ember", glow: true });
     if (e.state === "guard") { ctx.fillStyle = "#e8f0ff"; ctx.fillRect(X + f * 10, Y - 20, 1, 10); }
   };
   let duelKeeper = null;
@@ -1827,7 +1820,7 @@
       ctx = o.y < player.y ? actx : bctx;
       if (o.critter) {
         const c = o.critter;
-        if (c.kind === "crab") ctx.drawImage(Props.crabFrames[Math.floor(c.frame) % 2], Math.round(c.x - 4 - ox), Math.round(c.y - 5 - oy));
+        if (c.kind === "crab") ctx.drawImage((c.ghost ? Props.ghostCrabFrames() : Props.crabFrames)[Math.floor(c.frame) % 2], Math.round(c.x - 4 - ox), Math.round(c.y - 5 - oy));
         else ctx.drawImage(Props.butterflyFrames[c.col][Math.floor(t * 9 + c.sp) % 2], Math.round(c.x - 2 - ox), Math.round(c.y - c.z - oy - Math.abs(Math.sin(t * 3 + c.sp)) * 3));
       } else if (o.kind === "npc") { if (!o.vendor || Gear.rescued("vendor")) drawNPC(ctx, o, ox, oy, t); }
       else if (o.shell) { const img = Gear.shellArt(o.shell.k); ctx.drawImage(img, Math.round(o.shell.x - 6 - ox), Math.round(o.shell.y - 10 - oy)); if (Math.sin(t * 3 + o.shell.x) > 0.85) { ctx.fillStyle = "#ffffff"; ctx.fillRect(Math.round(o.shell.x + 3 - ox), Math.round(o.shell.y - 11 - oy), 1, 1); } }
@@ -2001,7 +1994,7 @@
   // ------------------------------------------------------------------ boot
   async function boot() {
     resize();
-    sctx.fillStyle = "#0c0a12"; sctx.fillRect(0, 0, screen.width, screen.height);
+    sctx.fillStyle = "#000"; sctx.fillRect(0, 0, screen.width, screen.height);
     // the title screen (js/title.js) shows progress while the world is built; each step yields so it can update
     const step = (f, line) => { window.Title && Title.progress(f, line); return new Promise((r) => setTimeout(r, 16)); };
     await step(0.08, "Gathering the art");

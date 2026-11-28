@@ -121,7 +121,7 @@ for y in range(55, 62):                               # the tiki camp's paved co
         if g[y][x] in ',:' and abs(x - 52) + abs(y - 58) * 1.3 < 7: g[y][x] = '%'
 border(g)
 avoid = [(17, 63, 3), (17, 57, 3), (52, 58, 5), (128, 15, 4), (118, 22, 9), (33, 34, 3)]
-p = props_on(g, [('palm', 6), ('hala', 4), ('naupaka', 5), ('tidepool', 2), ('driftwood', 2), ('boulder', 1), ('fern', 1)], 120, 11, avoid, 1.9)
+p = props_on(g, [('palm', 6), ('naupaka', 5), ('tidepool', 2), ('driftwood', 2), ('boulder', 1), ('fern', 1)], 120, 11, avoid, 1.9)
 p += props_on(g, UNDER, 150, 13, [], 1.6, cells='_', ring=0)
 p += props_on(g, [('coral', 1)], 40, 12, [], 2.2, cells='-', ring=0)
 p += [{'k': 'gate', 'x': 17, 'y': 56.2}, {'k': 'gate', 'x': 128, 'y': 13.6}, {'k': 'tiki', 'x': 13.5, 'y': 57.4}, {'k': 'tiki', 'x': 20.5, 'y': 57.4},
@@ -166,7 +166,7 @@ blob(g, 112, 25, 6, 4, ':', 'c', 1.2)
 for (x, y) in [(108, 22), (117, 29), (106, 29)]: blob(g, x, y, 1.6, 1.2, '_', 'c:')                 # tide pools in the island
 border(g)
 avoid = [(14, 80, 3), (14, 75, 3), (112, 26, 8), (113, 9, 3)]
-p = props_on(g, [('palm', 5), ('hala', 3), ('naupaka', 4), ('driftwood', 1)], 40, 21, avoid, 1.8, cells=':')
+p = props_on(g, [('palm', 5), ('naupaka', 4), ('driftwood', 1)], 40, 21, avoid, 1.8, cells=':')
 p += props_on(g, [('naupaka', 2), ('tidepool', 2)], 30, 26, avoid, 2.2, cells='c', ring=0)
 p += props_on(g, [('coralmix', 5), ('brain', 3), ('sponge', 3), ('seagrass', 3)], 230, 22, [], 1.4, cells='_', ring=0)
 p += props_on(g, [('coral', 1)], 110, 23, [], 1.6, cells='-', ring=0)
@@ -255,14 +255,14 @@ vents = [(38, 26), (44, 30), (50, 25), (56, 29), (61, 26), (47, 33), (54, 33),
          (128, 26), (100, 28)]
 for (x, y) in vents: g[y][x] = '_' if g[y][x] in ':b' else g[y][x]
 avoid = [(6, foot[6] + 2, 3), (208, 32, 22), (227, foot[227] + 1, 3)] + [(x, y, 2.5) for (x, y) in vents]
-p = props_on(g, [('palm', 3), ('hala', 4), ('naupaka', 5), ('tidepool', 4), ('driftwood', 2), ('boulder', 2)], 90, 31, avoid, 1.8, cells=':')
+p = props_on(g, [('palm', 3), ('naupaka', 5), ('tidepool', 4), ('driftwood', 2), ('boulder', 2)], 90, 31, avoid, 1.8, cells=':')
 p += props_on(g, [('naupaka', 3), ('boulder', 2), ('fern', 3), ('palm', 1)], 30, 34, [(70, 5, 2), (112, 5, 2)], 2, cells=',b')
 p += props_on(g, [('sponge', 3), ('seagrass', 4), ('coralmix', 1)], 120, 32, [(208, 32, 22)] + [(x, y, 2.5) for (x, y) in vents], 1.6, cells='_', ring=0)
 p += props_on(g, [('coral', 1)], 24, 33, [(208, 32, 22)] + [(x, y, 2.5) for (x, y) in vents], 2.2, cells='-', ring=0)
 p += [{'k': 'vent', 'x': x + 0.5, 'y': y + 0.5, 'vk': i % 3} for i, (x, y) in enumerate(vents)]
 p += [{'k': 'gate', 'x': 6, 'y': foot[6] + 1.3}, {'k': 'gate', 'x': 182, 'y': foot[182] + 1.3}, {'k': 'brazier', 'x': 179.6, 'y': foot[180] + 1.4}, {'k': 'brazier', 'x': 184.4, 'y': foot[184] + 1.4}]
 fy = lambda x, d=2: foot[x] + d
-OUT['vents'] = dict(map=[''.join(r) for r in g], props=p, spawn=dict(x=6, y=foot[6] + 3), fish=3, basalt=1, ventRest=4.5,
+OUT['vents'] = dict(map=[''.join(r) for r in g], props=p, spawn=dict(x=6, y=foot[6] + 3), fish=3, ventRest=4.5,   # (walls: the island's obsidian cliffs with the jungle on top, as in Zone 1)
   enemies=[
     E('crab', 14, fy(14), tribe=51), E('crab', 18, fy(18), tribe=51), E('spitcrab', 16, fy(16, 3), tribe=51),                # the first beach
     E('ray', 26, 34), E('tshark', 40, 34), E('tshark', 58, 34), E('spear', 48, fy(48), tribe=52), E('dart', 52, fy(52), tribe=52),

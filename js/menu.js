@@ -40,7 +40,7 @@
       <div class="mn-page" data-page="menu"><div class="mn-row"><button data-a="save">Save game</button><button data-a="quit">Quit to title</button></div><table class="mn-table">${MENU_KEYS.map(([a, k]) => `<tr><td>${a}</td><td>${k}</td></tr>`).join("")}</table></div>
     </div>`;
     const st = document.createElement("style");
-    st.textContent = `#menu{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(8,6,12,.55);z-index:6;font:16px 'Pixelify Sans',monospace;color:#fff6dc}
+    st.textContent = `#menu{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(8,6,12,.55);z-index:40;font:16px 'Pixelify Sans',monospace;color:#fff6dc}
       #menu .mn-box{width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;background:#140c16;border:3px solid #f2d070;box-shadow:0 0 0 3px #2a1a2e;padding:16px 18px}
       #menu .mn-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
       #menu .mn-title{color:#f2d070;font-size:24px;letter-spacing:3px}
@@ -87,7 +87,13 @@
     el.querySelector(".mn-code").addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter") Net.join(e.target.value); if (e.key === "Escape") M.toggle(false); });
     M.show(M.tab);
   };
+  // before a game is running (the title screen), only the tabs that make sense there are offered
+  const titleTabs = ["controls", "sound"];
+  const onTitle = () => !!(window.Title && Title.open);
+  const usable = (k) => !onTitle() || titleTabs.includes(k);
   M.show = function (tab) {
+    if (!usable(tab)) tab = titleTabs[0];
+    for (const b of M.el.querySelectorAll(".mn-tab")) b.style.display = usable(b.dataset.tab) ? "" : "none";
     M.tab = tab;
     for (const b of M.el.querySelectorAll(".mn-tab")) b.classList.toggle("on", b.dataset.tab === tab);
     for (const p of M.el.querySelectorAll(".mn-page")) p.classList.toggle("on", p.dataset.page === tab);
@@ -103,8 +109,8 @@
   M.key = function (e) {
     if (e.code === "Escape") { M.toggle(false); return true; }
     const i = TABS.findIndex(([k]) => k === M.tab);
-    if (e.code === "Tab" || e.code === "ArrowRight" || e.code === "ArrowLeft") { e.preventDefault(); const d = e.code === "ArrowLeft" || (e.code === "Tab" && e.shiftKey) ? -1 : 1; M.show(TABS[(i + d + TABS.length) % TABS.length][0]); return true; }
-    if (e.code === "KeyC") { M.show("coop"); return true; }
+    if (e.code === "Tab" || e.code === "ArrowRight" || e.code === "ArrowLeft") { e.preventDefault(); const d = e.code === "ArrowLeft" || (e.code === "Tab" && e.shiftKey) ? -1 : 1; let j = i; for (let n = 0; n < TABS.length; n++) { j = (j + d + TABS.length) % TABS.length; if (usable(TABS[j][0])) break; } M.show(TABS[j][0]); return true; }
+    if (e.code === "KeyC" && usable("coop")) { M.show("coop"); return true; }
     return true;   // nothing reaches the game while the menu is open
   };
   M.refresh = function () {

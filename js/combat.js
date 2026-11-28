@@ -34,7 +34,7 @@
   //   start ʻIhe, Pāhoa 48 | Z1 Newa 54; Kākau, Ahi Staff 64; Ola Maul, Ember Heel 67 | Z2 Leiomano 64;
   //   Tidecutter, Stormcaller 74 | Z3 Koa Blade 77; Glowtide 86 | Z4 Makau Kaula 90; Mako Fangs 99 |
   //   Z5 Pololū 102; Starfall 115 | Z6 Koʻi 115; Pele's Grip 128 | the end: Koʻi-Lua 168
-  const POW = { spear: 1.07, pahoa: 0.94, newa: 1.04, kakau: 1.73, firestaff: 1.36, maul: 1.18, heel: 1.34, leiomano: 1.05, tide: 1.68, storm: 2.0, koa: 1.54, glowtide: 2.32, chain: 2.2, fangs: 2.2, pololu: 2.08, starfall: 3.1, koi: 2.3, stone: 3.46, lua: 2.0 };
+  const POW = { spear: 1.07, pahoa: 0.94, newa: 1.04, kakau: 1.73, firestaff: 1.36, maul: 1.18, heel: 1.34, leiomano: 1.05, tide: 1.68, storm: 2.0, koa: 1.54, glowtide: 2.32, chain: 2.2, fangs: 2.2, pololu: 2.08, starfall: 3.1, koi: 2.3, stone: 3.46, lua: 1.4 };   // lua: Koʻi-Lua cut by 30% (was 2.0)
   // every element's colour, for plasma's prismatic fringes (plasma is all of them at once)
   const PRISM = ["#f2b45e", "#ff8a3a", "#7ad860", "#5ab8ff", "#a8c4ff", "#5af2e8", "#ff5a6a", "#c8b4ff", "#d8c49a"];
   const LEAF = ["#3e8a2a", "#5aa83a", "#8ad050", "#c8f080", "#2a6a1e"];

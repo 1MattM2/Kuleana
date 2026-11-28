@@ -177,7 +177,8 @@
 
   function tryMove(e, dx, dy) {
     if (!e.fly && !e.swim && Level.slowAt) { const k = Level.slowAt(e.x, e.y); dx *= k; dy *= k; }   // wading slows them too
-    const ok = (x, y) => (e.fly ? !Level.flyBlocked(x, y) : !Level.solidAt(x, y) && !Level.solidAt(x - e.r * 0.6, y) && !Level.solidAt(x + e.r * 0.6, y));
+    const deep = (x, y) => e.dryOnly && Level.waterAt && Level.waterAt(x, y) >= 12;   // (medium water and deeper)
+    const ok = (x, y) => (e.fly ? !Level.flyBlocked(x, y) : !Level.solidAt(x, y) && !Level.solidAt(x - e.r * 0.6, y) && !Level.solidAt(x + e.r * 0.6, y) && (!deep(x, y) || deep(e.x, e.y)));   // (one already out there can still walk back)
     let moved = false;
     if (ok(e.x + dx, e.y)) { e.x += dx; moved = true; }
     if (ok(e.x, e.y + dy)) { e.y += dy; moved = true; }
@@ -218,9 +219,10 @@
     for (const s of L.shots) {
       s.t += dt;
       if (s.kind === "mote") { s.a += s.turn * dt; if (s.home && s.t > 0.6) { const Q = alive.reduce((b, q) => (!b || Math.hypot(q.x - s.x, q.y - s.y) < Math.hypot(b.x - s.x, b.y - s.y) ? q : b), null) || P; s.a += angDiff(Math.atan2(Q.y - 10 - s.y, Q.x - s.x), s.a) * Math.min(1, dt * 1.4); } s.vx = Math.cos(s.a) * s.sp; s.vy = Math.sin(s.a) * s.sp; }
+      if (E.SHOT_TICK[s.kind] && E.SHOT_TICK[s.kind](s, L, dt, api)) { s.dead = true; continue; }
       if (s.kind === "gourd") { s.h += s.vh * dt; s.vh -= 300 * dt; if (s.h <= 0) { s.dead = true; L.fx.push({ kind: "spores", x: s.x, y: s.y, t: 0, dur: 3.2, R: 24, hitT: {} }); sfx(api, "spores"); continue; } }
       s.x += s.vx * dt; s.y += s.vy * dt;
-      if (s.t > (s.life || 1.8) || (s.kind !== "gourd" && Level.flyBlocked(s.x, s.y))) { s.dead = true; continue; }
+      if (s.t > (s.life || 1.8) || (s.kind !== "gourd" && Level.flyBlocked(s.x, s.y))) { s.dead = true; if (E.SHOT_END[s.kind]) E.SHOT_END[s.kind](s, L, api); continue; }
       if (s.kind !== "gourd") for (const q of alive) if (Math.hypot(s.x - q.x, s.y - 10 - q.y) < (s.kind === "mote" ? 7 : s.r || 8)) { if (q._api.hurt(s.dmg || 1, s.x - s.vx * 0.05, s.y - s.vy * 0.05, s.kind)) { s.dead = true; break; } }
     }
     L.shots = L.shots.filter((s) => !s.dead);
@@ -255,7 +257,7 @@
       if (q.type === "wisp") { o.va = r2(q.va); if (q.state === "trace" && q.arc) o.arc = q.arc.map((p) => [r1(p.x), r1(p.y)]); }
       return o;
     });
-    const sh = L.shots.map((q) => ({ kind: q.kind, x: r1(q.x), y: r1(q.y), vx: r1(q.vx), vy: r1(q.vy), h: q.h !== undefined ? r1(q.h) : undefined, vh: q.vh !== undefined ? r1(q.vh) : undefined, t: r2(q.t) }));
+    const sh = L.shots.map((q) => ({ kind: q.kind, x: r1(q.x), y: r1(q.y), vx: r1(q.vx), vy: r1(q.vy), h: q.h !== undefined ? r1(q.h) : undefined, vh: q.vh !== undefined ? r1(q.vh) : undefined, t: r2(q.t), sz: q.sz, pop: q.pop }));
     const fx = L.fx.map((r) => (r.kind === "beam" ? { kind: "beam", a: r.a.id, b: r.b.id, t: r2(r.t), dur: r.dur } : { kind: r.kind, x: r1(r.x), y: r1(r.y), t: r2(r.t), dur: r.dur, R: r.R, x2: r.x2 !== undefined ? r1(r.x2) : undefined, y2: r.y2 !== undefined ? r1(r.y2) : undefined, dmg: r.dmg }));
     return { e, sh, fx };
   };
@@ -849,7 +851,7 @@
 
   // ------------------------------------------------------------------ extension points (js/enemies2.js)
   E.STATS = STATS; E.AI = AI;
-  E.SETUP = {}; E.DRAW = {}; E.NET = {}; E.ON_DEATH = {}; E.FX = {}; E.SHOT_DRAW = {};
+  E.SETUP = {}; E.DRAW = {}; E.NET = {}; E.ON_DEATH = {}; E.FX = {}; E.SHOT_DRAW = {}; E.SHOT_TICK = {}; E.SHOT_END = {};
   E.lib = { Surface, begin, mark, flush, tryMove, hitPlayer, telegraph, tinted, flipped, glow, rnd, dist, angDiff, bez, winding, TAU, css, R, P8, WHITE, sfx, landed,
     tiki: () => TIKI, assets: () => A, drawGecko, drawWisp, drawTiki };
 })();

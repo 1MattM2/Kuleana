@@ -129,16 +129,7 @@
     for (let k = 0; k < 2; k++) { const x0 = 8 + k * 14; for (let s = 0; s < 6; s++) P.set(x0 + s, 4 - s * 0.7, GL[3]); }
     return P.done(true);
   }
-  // coral heads, seen through the water: branching, brain, fan and table corals in reef colours
-  const CORAL_COLS = { branch: [[236, 120, 120], [250, 168, 150], [190, 80, 96]], brain: [[200, 200, 110], [228, 224, 150], [150, 150, 80]], fan: [[170, 110, 210], [206, 150, 236], [120, 70, 160]], table: [[90, 196, 180], [150, 226, 206], [50, 140, 140]] };
-  function makeCoral(kind, seed) {
-    const r = K.rng(seed), P = painter(30, 24), C = CORAL_COLS[kind].map((c) => PAL.pk(c));
-    if (kind === "branch") { const twig = (x, y, a, l, dep) => { for (let s = 0; s < l; s++) { x += Math.cos(a); y += Math.sin(a); P.set(x, y, s > l - 2 ? C[1] : C[0]); P.set(x + 1, y, C[2]); } if (dep < 3) { twig(x, y, a - 0.5 - r() * 0.3, l * 0.7, dep + 1); twig(x, y, a + 0.5 + r() * 0.3, l * 0.7, dep + 1); } }; twig(15, 22, -Math.PI / 2, 7, 0); }
-    else if (kind === "brain") P.disc(15, 13, 9, (xx, yy) => (Math.sin(xx * 1.3 + Math.sin(yy * 0.9) * 2) > 0.3 ? C[2] : xx + yy < -4 ? C[1] : C[0]));
-    else if (kind === "fan") { for (let k = 0; k < 9; k++) { const a = -Math.PI / 2 + (k - 4) * 0.22; for (let s = 0; s < 14; s++) P.set(15 + Math.cos(a) * s, 22 + Math.sin(a) * s, s % 3 === 0 ? C[1] : C[0]); } for (let y = 9; y < 20; y += 3) for (let x = 5; x < 26; x++) if (Math.hypot(x - 15, y - 22) < 14) P.set(x, y, C[2]); }
-    else { for (let y = 0; y < 5; y++) for (let x = 2; x < 28; x++) if (Math.abs(x - 15) < 13 - y * 0.5) P.set(x, 12 + y, y === 0 ? C[1] : y < 3 ? C[0] : C[2]); for (let y = 17; y < 23; y++) { P.set(14, y, C[2]); P.set(15, y, C[0]); } }
-    return P.done(false);
-  }
+
 
   const cache = {};
   const art = (key, fn) => cache[key] || (cache[key] = fn());
@@ -157,10 +148,11 @@
   H.seastack = (p, L, o, x, y) => { const seed = ((p.x * 7 + p.y * 3) | 0) % 4, img = art("ss" + seed, () => makeSeastack(seed)); o.draw = (ctx, ox, oy, t) => { ctx.drawImage(img, Math.round(x - 20 - ox), Math.round(y - 54 - oy)); for (let k = 0; k < 3; k++) { const a = t * 1.2 + k * 2.1, rr = 13 + ((t * 6 + k * 4) % 8); ctx.fillStyle = `rgba(230,250,250,${0.5 - ((t * 6 + k * 4) % 8) / 16})`; ctx.fillRect(Math.round(x + Math.cos(a) * rr - ox), Math.round(y + Math.sin(a) * rr * 0.4 - oy), 2, 1); } }; o.solids = [[x - 11, y - 8, x + 11, y + 2]]; };
   H.driftwood = (p, L, o, x, y) => { const seed = ((p.x * 3 + p.y * 5) | 0) % 3, img = art("dw" + seed, () => makeDriftwood(seed + 4)); o.draw = (ctx, ox, oy) => ctx.drawImage(img, Math.round(x - 17 - ox), Math.round(y - 7 - oy)); o.solids = [[x - 14, y - 3, x + 14, y + 1]]; };
   // corals live under the water layer's surface: drawn by drawUnder, not y-sorted with things above water
-  H.coral = (p, L, o, x, y) => { const kinds = ["branch", "brain", "fan", "table"], kind = p.c || kinds[((p.x * 7 + p.y * 13) | 0) % 4], seed = ((p.x * 3 + p.y * 17) | 0) % 5; (L.under || (L.under = [])).push({ kind: "coral", x, y, img: art("co" + kind + seed, () => makeCoral(kind, seed + 1)), ph: (x + y) % 6 }); o.draw = () => {}; };
   // the concept's reef flora, living in the shallows: seagrass meadows that sway in the swell, coral
   // clusters, tube sponges and brain coral, all seen through the water
   const FLORA = { seagrass: ["f_seagrass", "f_grass1"], coralmix: ["f_coralmix"], sponge: ["f_sponges", "f_sponge"], brain: ["f_brain"] };
+  // (the old hand-drawn coral heads are gone: a "coral" spot now grows one of the concept's corals)
+  FLORA.coral = ["f_coralmix", "f_sponges", "f_brain", "f_sponge", "f_coralmix"];
   for (const k of Object.keys(FLORA)) H[k] = (p, L, o, x, y) => {
     const names = FLORA[k], name = names[((p.x * 7 + p.y * 3) | 0) % names.length], im = A().img[name]; if (!im) { o.draw = () => {}; return; }
     const sway = k === "seagrass" ? art("fb" + name, () => Props.bendFrames(im, 2, 7)) : null;
@@ -173,7 +165,6 @@
     const v = { x, y, vk, state: "idle", st: Math.random() * 3, next: 3 + Math.random() * 5, hit: {}, mats: art("mats" + vk, () => makeMats(vk)), bub: [] };
     (L.vents || (L.vents = [])).push(v); (L.under || (L.under = [])).push({ kind: "vent", v, x, y });
     o.draw = (ctx, ox, oy, t, g) => drawVent(v, ctx, ox, oy, t, g);
-    o.solids = [[x - 7, y - 5, x + 7, y + 2]];
   };
 
   // ---------------------------------------------------------------- thermal vents
@@ -199,124 +190,207 @@
   }
   function drawVent(v, ctx, ox, oy, t, g) {
     const x = Math.round(v.x - ox), y = Math.round(v.y - oy), OB = R().obsidian, FI = R().fire, heat = v.state === "erupt" ? 1 : v.state === "warn" ? 0.6 + 0.4 * Math.sin(t * 30) : 0.35 + 0.15 * Math.sin(t * 2 + v.x);
-    // the chimney: a squat cone of basalt with a glowing mouth
-    for (let yy = -9; yy <= 2; yy++) { const hw = 3 + (yy + 9) * 0.55; for (let xx = -Math.round(hw); xx <= Math.round(hw); xx++) { const d = xx / hw; ctx.fillStyle = PAL.css(yy === -9 ? OB[1] : d < -0.4 ? OB[4] : d < 0.3 ? OB[3] : OB[2]); ctx.fillRect(x + xx, y + yy, 1, 1); } }
-    ctx.fillStyle = PAL.css(FI[heat > 0.7 ? 4 : 3]); ctx.fillRect(x - 2, y - 10, 5, 2); ctx.fillStyle = PAL.css(FI[2]); ctx.fillRect(x - 1, y - 8, 3, 3);
-    const VK = VENT_KINDS[v.vk || 0];
-    if (g) { Level.glowAt(g, x, y - 9, 26 + heat * 30, VK.glow, 0.35 + heat * 0.45); Level.glowAt(g, x, y, 50, VK.glow, 0.18); }
+    // the vent itself is only its mouth in the sea floor: a hot glowing slit in the mats, the water over it
+    // churning; the steam and the geyser come straight up out of it
+    void OB;
+    const VK = VENT_KINDS[v.vk || 0], M = VK.mouth;
+    ctx.fillStyle = `rgba(${M[0]},${M[1]},${M[2]},${0.55 + heat * 0.4})`; ctx.beginPath(); ctx.ellipse(x + 0.5, y - 0.5, 4 + heat * 2, 1.6 + heat, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = PAL.css(FI[heat > 0.7 ? 4 : 3]); ctx.fillRect(x - 1, y - 1, 3, 1);
+    for (let k = 0; k < 5; k++) { const a = t * 3 + k * 1.3, rr = 3 + ((t * 7 + k * 2) % 5); ctx.fillStyle = "rgba(240,252,255,0.7)"; ctx.fillRect(Math.round(x + Math.cos(a) * rr), Math.round(y - 0.5 + Math.sin(a) * rr * 0.4), 1, 1); }
+    if (g) { Level.glowAt(g, x, y - 2, 24 + heat * 30, VK.glow, 0.32 + heat * 0.45); Level.glowAt(g, x, y, 50, VK.glow, 0.18); }
     // steam curling up and drifting with the wind
     for (let k = 0; k < 9; k++) {
-      const u = ((t * 0.42 + k / 9 + v.x * 0.01) % 1), sx = x + Math.sin(u * 5 + k) * 4 + u * 14 * (K.W ? K.W.x : 0.3), sy = y - 12 - u * 56, r2 = 2 + u * 7, a = (1 - u) * (0.4 + heat * 0.3);
+      const u = ((t * 0.42 + k / 9 + v.x * 0.01) % 1), sx = x + Math.sin(u * 5 + k) * 4 + u * 14 * (K.W ? K.W.x : 0.3), sy = y - 3 - u * 56, r2 = 2 + u * 7, a = (1 - u) * (0.4 + heat * 0.3);
       ctx.fillStyle = `rgba(236,240,244,${a.toFixed(2)})`; ctx.fillRect(Math.round(sx - r2), Math.round(sy - r2 * 0.6), Math.round(r2 * 2), Math.round(r2 * 1.2));
     }
     // the geyser: a white column of boiling water with spray falling from its crown
     if (v.state === "erupt") {
       const u = Math.min(1, v.st / 0.25), h = 44 * u * (1 - Math.max(0, v.st - 0.9) / 0.3);
-      for (let yy = 0; yy < h; yy++) { const w = 3 + (yy / h) * 3 + Math.sin(yy * 0.6 + t * 30) * 1.2; ctx.fillStyle = yy > h - 4 ? "#ffffff" : yy % 3 === 0 ? "#cfeef4" : "#f4fcff"; ctx.fillRect(Math.round(x - w), y - 10 - yy, Math.round(w * 2), 1); }
-      for (let k = 0; k < 14; k++) { const a = k * 0.45 + t * 3, rr = (t * 60 + k * 9) % 26; ctx.fillStyle = "#e8f8fc"; ctx.fillRect(Math.round(x + Math.cos(a) * rr), Math.round(y - 10 - h + rr * 1.2 + Math.sin(a) * 2), 1, 2); }
-      if (g) Level.glowAt(g, x, y - 20, 60, "255,240,220", 0.35);
+      for (let yy = 0; yy < h; yy++) { const w = 3 + (yy / h) * 3 + Math.sin(yy * 0.6 + t * 30) * 1.2; ctx.fillStyle = yy > h - 4 ? "#ffffff" : yy % 3 === 0 ? "#cfeef4" : "#f4fcff"; ctx.fillRect(Math.round(x - w), y - 1 - yy, Math.round(w * 2), 1); }
+      for (let k = 0; k < 14; k++) { const a = k * 0.45 + t * 3, rr = (t * 60 + k * 9) % 26; ctx.fillStyle = "#e8f8fc"; ctx.fillRect(Math.round(x + Math.cos(a) * rr), Math.round(y - 1 - h + rr * 1.2 + Math.sin(a) * 2), 1, 2); }
+      if (g) Level.glowAt(g, x, y - 12, 60, "255,240,220", 0.35);
     } else if (v.state === "warn") {
       ctx.strokeStyle = `rgba(255,220,140,${0.5 + 0.4 * Math.sin(t * 24)})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(x + 0.5, y + 0.5, 22, 13, 0, 0, Math.PI * 2); ctx.stroke();
     }
   }
+  // Everything beneath the surface (reef flora, coral, the vents' mineral mats, the fish) is painted into its
+  // own layer, which is then seen THROUGH the water: it wavers a pixel with the refraction, and the very
+  // same animated water surface (shimmer, swell lines, sparkles) is laid over it, so one ripple runs
+  // across the sea and everything in it.
+  let UC = null, ux = null, uw = 0, uh = 0;
+  function underLayer(LW, LH) { if (!UC || uw !== LW || uh !== LH) { [UC, ux] = K.canvas(LW, LH); uw = LW; uh = LH; } ux.globalCompositeOperation = "source-over"; ux.globalAlpha = 1; ux.clearRect(0, 0, LW, LH); return ux; }
+  // the Coral Atolls' shallows and reef flats are thick with coral: more is grown in round the placed
+  // pieces, from a fixed seed (the same on every machine), clear of the shore and of each other
+  function growReef(L) {
+    L.reefGrown = true;
+    if (!(L.def.sea && L.def.level === 2)) return;
+    const r = K.rng(L.name.length * 131 + 7), U = L.under || (L.under = []), have = U.map((u) => [u.x, u.y]), names = ["f_coralmix", "f_sponges", "f_brain", "f_sponge", "f_coralmix", "f_seagrass", "f_grass1"];
+    const n = Math.round((L.W * L.H) / (32 * 32) * 0.11);
+    for (let k = 0, made = 0; k < n * 6 && made < n; k++) {
+      const x = 16 + r() * (L.W - 32), y = 16 + r() * (L.H - 32), w = Level.waterAt(x, y);
+      if (w !== 11 && w !== 12) continue;
+      if (!(Level.waterAt(x + 14, y) && Level.waterAt(x - 14, y) && Level.waterAt(x, y + 10) && Level.waterAt(x, y - 16))) continue;
+      if (have.some(([hx, hy]) => Math.abs(hx - x) < 22 && Math.abs(hy - y) < 18)) continue;
+      const name = names[(r() * names.length) | 0], im = A().img[name]; if (!im) continue;
+      const sway = name === "f_seagrass" || name === "f_grass1" ? art("fb" + name, () => Props.bendFrames(im, 2, 7)) : null;
+      U.push({ kind: "flora", x, y, img: im, sway, ph: r() * 6, flip: r() < 0.5 }); have.push([x, y]); made++;
+    }
+  }
   Sea.drawUnder = function (ctx, L, ox, oy, LW, LH, t) {
-    if (!L.under) return;
-    for (const u of L.under) {
+    if (!L.reefGrown) growReef(L);
+    const u2 = underLayer(LW, LH);
+    for (const u of L.under || []) {
       if (u.x < ox - 60 || u.x > ox + LW + 60 || u.y < oy - 50 || u.y > oy + LH + 50) continue;
       if (u.kind === "flora") {
-        // through the water: dimmed and cooled, the grass leaning with the swell, light rippling over it
         const im = u.sway ? u.sway.frames[Math.max(0, Math.min(u.sway.frames.length - 1, Math.round((Math.sin(t * 1.3 + u.ph) * 0.5 + 0.5) * (u.sway.frames.length - 1))))] : u.img, w = im.width, h = im.height;
-        ctx.globalAlpha = 0.9;
-        if (u.flip) { ctx.save(); ctx.translate(Math.round(u.x - ox), 0); ctx.scale(-1, 1); ctx.drawImage(im, Math.round(-w / 2), Math.round(u.y - h + 2 - oy)); ctx.restore(); }
-        else ctx.drawImage(im, Math.round(u.x - w / 2 - ox), Math.round(u.y - h + 2 - oy));
-        ctx.globalAlpha = 1;
-        if (((t * 2 + u.ph) | 0) % 5 === 0) { ctx.fillStyle = "rgba(220,250,250,0.35)"; ctx.fillRect(Math.round(u.x - w / 2 - ox + ((t * 9) % w)), Math.round(u.y - h * 0.6 - oy), 3, 1); }
-      } else if (u.kind === "coral") {
-        // seen through moving water: a little transparent, swaying, with light rippling over it
-        ctx.globalAlpha = 0.74; ctx.drawImage(u.img, Math.round(u.x - 15 - ox + Math.sin(t * 0.9 + u.ph) * 0.6), Math.round(u.y - 20 - oy)); ctx.globalAlpha = 1;
-        if (((t * 3 + u.ph) | 0) % 4 === 0) { ctx.fillStyle = "rgba(220,250,250,0.35)"; ctx.fillRect(Math.round(u.x - 8 - ox + ((t * 7) % 16)), Math.round(u.y - 12 - oy), 3, 1); }
-      } else {
-        const v = u.v, heat = v.state === "erupt" ? 1 : v.state === "warn" ? 0.8 : 0.5;
-        ctx.globalAlpha = 0.55 + heat * 0.3; ctx.drawImage(v.mats, Math.round(v.x - 34 - ox), Math.round(v.y - 21 - oy)); ctx.globalAlpha = 1;
-        // bubbles rising through the water and bursting at the surface
-        for (let k = 0; k < (v.state === "idle" ? 5 : 14); k++) {
-          const ph = ((t * (0.8 + (k % 3) * 0.3) + k * 0.37) % 1), a = k * 2.4, rr = 3 + (k % 5) * 3;
-          ctx.fillStyle = ph > 0.85 ? "rgba(255,255,255,0.9)" : "rgba(210,246,250,0.7)";
-          ctx.fillRect(Math.round(v.x + Math.cos(a) * rr * (1 - ph) - ox), Math.round(v.y + Math.sin(a) * rr * 0.5 - ph * 6 - oy), ph > 0.85 ? 2 : 1, 1);
-        }
+        if (u.flip) { u2.save(); u2.translate(Math.round(u.x - ox), 0); u2.scale(-1, 1); u2.drawImage(im, Math.round(-w / 2), Math.round(u.y - h + 2 - oy)); u2.restore(); }
+        else u2.drawImage(im, Math.round(u.x - w / 2 - ox), Math.round(u.y - h + 2 - oy));
+      } else { const v = u.v, heat = v.state === "erupt" ? 1 : v.state === "warn" ? 0.8 : 0.5; u2.globalAlpha = 0.6 + heat * 0.4; u2.drawImage(v.mats, Math.round(v.x - 34 - ox), Math.round(v.y - 21 - oy)); u2.globalAlpha = 1; }
+    }
+    drawFishInto(u2, L, ox, oy, LW, LH, t);
+    // the water over it all: its own surface, at the same pixels, tinting what lies beneath
+    const surf = Water.surface && Water.surface();
+    if (surf) { u2.globalCompositeOperation = "source-atop"; u2.globalAlpha = 0.4; u2.drawImage(surf, 0, 0); u2.globalAlpha = 1; u2.globalCompositeOperation = "source-over"; }
+    // refraction: the layer drawn in bands of rows, each nudged a pixel with a slow wave
+    const B2 = 3;
+    for (let y = 0; y < LH; y += B2) { const dx = Math.round(Math.sin(t * 1.7 + (oy + y) * 0.16) * 0.9 + Math.sin(t * 0.9 + (oy + y) * 0.05) * 0.4); ctx.drawImage(UC, 0, y, LW, B2, dx, y, LW, B2); }
+    // bubbles from the vents rise up through it and burst at the surface (above the water)
+    for (const u of L.under || []) {
+      if (u.kind !== "vent" || u.x < ox - 60 || u.x > ox + LW + 60 || u.y < oy - 50 || u.y > oy + LH + 50) continue;
+      const v = u.v;
+      for (let k = 0; k < (v.state === "idle" ? 5 : 14); k++) {
+        const ph = ((t * (0.8 + (k % 3) * 0.3) + k * 0.37) % 1), a = k * 2.4, rr = 3 + (k % 5) * 3;
+        ctx.fillStyle = ph > 0.85 ? "rgba(255,255,255,0.9)" : "rgba(210,246,250,0.7)";
+        ctx.fillRect(Math.round(v.x + Math.cos(a) * rr * (1 - ph) - ox), Math.round(v.y + Math.sin(a) * rr * 0.5 - ph * 6 - oy), ph > 0.85 ? 2 : 1, 1);
       }
     }
   };
   // ---------------------------------------------------------------- fish
-  // schools of small fish pass through the open water now and then: dark silhouettes under the surface,
-  // turning together. Each fish follows the school's heading with its own offset and a little wobble.
-  // Everything here is decoration, run on every machine from a shared seed and the clock.
-  function school(x, y, a, n, sp, spread) { const r = Math.random; return { x, y, a, sp, life: 0, fish: Array.from({ length: n }, () => ({ u: (r() - 0.5) * spread * 1.6, v: (r() - 0.5) * spread, ph: r() * 6, s: 0.7 + r() * 0.6 })) }; }
+  // Little shoals pass through the open water now and then: four to seven fish, each its own animal,
+  // that swim together (they keep close to the one in front, match its heading and give each other room)
+  // so the shoal stretches, bunches and turns fish by fish rather than as one stiff shape. In a frenzy, a
+  // great bait ball of them mills round, scattering from the sharks that hunt it. All decoration: every
+  // machine runs its own.
   const wet2 = (L, x, y) => { const v = Level.tileAt(x, y); return v === 12 || v === 13 || v === 11; };
+  const open2 = (L, x, y) => { const v = Level.tileAt(x, y); return v === 12 || v === 13; };
+  function shoal(x, y, a, n, sp) { const r = Math.random; return { x, y, a, sp, life: 0, fish: Array.from({ length: n }, (_, k) => ({ x: x - Math.cos(a) * k * 7 + (r() - 0.5) * 8, y: y - Math.sin(a) * k * 7 + (r() - 0.5) * 8, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, ph: r() * 6, s: 0.8 + r() * 0.5 })) }; }
+  // one fish's step: follow a point, keep with its neighbours, avoid crowding, cap its speed
+  function swimFish(f, i, list, gx, gy, sp, dt, wC, flee) {
+    let ax = (gx - f.x) * wC, ay = (gy - f.y) * wC, mx = 0, my = 0, n = 0;
+    for (let k = Math.max(0, i - 3); k < Math.min(list.length, i + 4); k++) { if (k === i) continue; const o = list[k], dx = f.x - o.x, dy = f.y - o.y, d2 = dx * dx + dy * dy; if (d2 < 49 && d2 > 0.01) { ax += (dx / d2) * 60; ay += (dy / d2) * 60; } mx += o.vx; my += o.vy; n++; }
+    if (n) { ax += (mx / n - f.vx) * 0.9; ay += (my / n - f.vy) * 0.9; }
+    if (flee) { const dx = f.x - flee.x, dy = f.y - flee.y, d = Math.hypot(dx, dy); if (d < flee.r) { ax += (dx / (d || 1)) * 900 * (1 - d / flee.r); ay += (dy / (d || 1)) * 900 * (1 - d / flee.r); } }
+    f.vx += ax * dt; f.vy += ay * dt;
+    const v = Math.hypot(f.vx, f.vy), cap = sp * (flee && Math.hypot(f.x - flee.x, f.y - flee.y) < flee.r ? 3.2 : 1.35);
+    if (v > cap) { f.vx *= cap / v; f.vy *= cap / v; }
+    f.x += f.vx * dt; f.y += f.vy * dt;
+  }
   Sea.fish = function (L, dt, t) {
     const F = L.fishS || (L.fishS = { list: [], next: 2 });
     F.next -= dt;
     if (F.next <= 0 && F.list.length < (L.def.fish || 3)) {
-      F.next = 6 + Math.random() * 8;
-      // enter from a random point of open water near the camera, heading across it
+      F.next = 5 + Math.random() * 7;
       const cam = Level.camHint || { x: L.W / 2, y: L.H / 2 };
-      for (let k = 0; k < 30; k++) { const a = Math.random() * Math.PI * 2, x = cam.x + Math.cos(a) * 300, y = cam.y + Math.sin(a) * 200; if (Level.tileAt(x, y) !== 13 && Level.tileAt(x, y) !== 12) continue; F.list.push(school(x, y, a + Math.PI + (Math.random() - 0.5) * 0.8, 14 + ((Math.random() * 18) | 0), 22 + Math.random() * 14, 22)); break; }
+      for (let k = 0; k < 30; k++) {
+        const a = Math.random() * Math.PI * 2, x = cam.x + Math.cos(a) * 300, y = cam.y + Math.sin(a) * 200; if (!open2(L, x, y)) continue;
+        const head = a + Math.PI + (Math.random() - 0.5) * 0.8, sp = 24 + Math.random() * 14;
+        F.list.push(shoal(x, y, head, 4 + ((Math.random() * 4) | 0), sp));
+        // sometimes a second little shoal close behind the first
+        if (Math.random() < 0.4) F.list.push(shoal(x - Math.cos(head) * 40 + (Math.random() - 0.5) * 30, y - Math.sin(head) * 40 + (Math.random() - 0.5) * 30, head + (Math.random() - 0.5) * 0.4, 3 + ((Math.random() * 3) | 0), sp));
+        break;
+      }
     }
     for (const s of F.list) {
       s.life += dt;
-      // turn away from the shallows and the shore, and drift on
-      const ahead = (d) => wet2(L, s.x + Math.cos(s.a) * d, s.y + Math.sin(s.a) * d) && Level.tileAt(s.x + Math.cos(s.a) * d, s.y + Math.sin(s.a) * d) !== 11;
-      if (!ahead(40)) s.a += dt * 2.2; else s.a += Math.sin(t * 0.4 + s.fish.length) * dt * 0.2;
+      // the lead point wanders on, turning away from the shallows and the shore
+      const ahead = (d) => open2(L, s.x + Math.cos(s.a) * d, s.y + Math.sin(s.a) * d);
+      if (!ahead(44)) s.a += dt * 2.4; else s.a += (Math.sin(t * 0.37 + s.fish.length * 1.7) * 0.25 + Math.sin(t * 1.3 + s.x * 0.01) * 0.12) * dt;
       s.x += Math.cos(s.a) * s.sp * dt; s.y += Math.sin(s.a) * s.sp * dt;
+      // each fish chases the one ahead of it (the first chases the lead point)
+      s.fish.forEach((f, i) => { const g = i === 0 ? s : s.fish[i - 1]; swimFish(f, i, s.fish, g.x + Math.sin(t + f.ph) * 3, g.y + Math.cos(t * 1.2 + f.ph) * 3, s.sp, dt, i === 0 ? 2.2 : 3.2, null); });
     }
-    F.list = F.list.filter((s) => s.life < 40 && s.x > -100 && s.y > -100 && s.x < L.W + 100 && s.y < L.H + 100);
-    // the frenzy's great school: it mills about its centre, and bolts away from a lunging shark
+    F.list = F.list.filter((s) => s.life < 45 && s.x > -150 && s.y > -150 && s.x < L.W + 150 && s.y < L.H + 150);
+    // the frenzy's bait ball: every fish circles the ball's drifting heart, and scatters from any shark
+    // that comes in close, the ball closing up again behind it; a lunge through it takes a few
     const B = L.school;
     if (B && B.active) {
       B.t += dt;
-      const tx = B.cx + Math.cos(B.t * 0.35) * B.rx * 0.5, ty = B.cy + Math.sin(B.t * 0.5) * B.ry * 0.4;
-      B.x += (tx - B.x) * Math.min(1, dt * 0.8); B.y += (ty - B.y) * Math.min(1, dt * 0.8);
-      if (B.scare && t - B.scare.t < 0.8) { const a = Math.atan2(B.y - B.scare.y, B.x - B.scare.x); B.x += Math.cos(a) * 70 * dt; B.y += Math.sin(a) * 70 * dt; }
+      const tx = B.cx + Math.cos(B.t * 0.3) * B.rx * 0.45, ty = B.cy + Math.sin(B.t * 0.42) * B.ry * 0.4;
+      B.x += (tx - B.x) * Math.min(1, dt * 0.7); B.y += (ty - B.y) * Math.min(1, dt * 0.7);
+      const sharks = (L.enemies || []).filter((e) => !e.dead && (e.type === "shark" || e.type === "bigshark") && Math.hypot(e.x - B.x, e.y - B.y) < 140);
+      B.fish.forEach((f, i) => {
+        const ang = Math.atan2(f.y - B.y, f.x - B.x) + (f.ph > 3 ? 0.9 : -0.9), rr = 18 + (i % 9) * 3.2;
+        let flee = null; for (const e of sharks) { const d = Math.hypot(f.x - e.x, f.y - e.y); if (d < 46 && (!flee || d < flee.d)) flee = { x: e.x, y: e.y, r: e.state === "lunge" ? 54 : 40, d }; }
+        swimFish(f, i, B.fish, B.x + Math.cos(ang) * rr, B.y + Math.sin(ang) * rr * 0.72, 46, dt, 2.6, flee);
+        if (!open2(L, f.x, f.y)) { f.x += (B.x - f.x) * 0.1; f.y += (B.y - f.y) * 0.1; }
+      });
+      for (const e of sharks) if (e.state === "lunge") for (const f of B.fish) if (!f.eaten && Math.hypot(f.x - e.x, f.y - e.y) < 9) { f.eaten = 1; for (let k = 0; k < 3; k++) Combat.addPart({ x: f.x, y: f.y, vx: (Math.random() - 0.5) * 40, vy: -20 - Math.random() * 30, g: 120, life: 0.4, col: "#e8f8fc", size: 1, kind: "drop" }); }
+      B.fish = B.fish.filter((f) => !f.eaten);
     }
   };
-  function drawSchool(ctx, s, ox, oy, t, L, alpha, mill) {
-    const ca = Math.cos(s.a), sa = Math.sin(s.a);
-    for (const f of s.fish) {
-      let x, y, a;
-      if (mill) { const ang = t * (0.6 + f.s * 0.3) * (f.ph > 3 ? 1 : -1) + f.ph * 7, rr = 14 + Math.abs(f.u) * 1.6 + Math.sin(t + f.ph) * 6; x = s.x + Math.cos(ang) * rr; y = s.y + Math.sin(ang) * rr * 0.7; a = ang + (f.ph > 3 ? Math.PI / 2 : -Math.PI / 2); if (s.scare && t - s.scare.t < 0.8) { const k = 1 - (t - s.scare.t) / 0.8, sa2 = Math.atan2(y - s.scare.y, x - s.scare.x); x += Math.cos(sa2) * 30 * k; y += Math.sin(sa2) * 30 * k; a = sa2; } }
-      else { const wob = Math.sin(t * 2 + f.ph) * 2; x = s.x + ca * f.u - sa * (f.v + wob); y = s.y + sa * f.u + ca * (f.v + wob); a = s.a + Math.sin(t * 3 + f.ph) * 0.2; }
-      if (!wet2(L, x, y)) continue;
-      const X = Math.round(x - ox), Y = Math.round(y - oy), fx = Math.cos(a), fy = Math.sin(a), len = 3 + f.s * 1.4;
-      ctx.fillStyle = `rgba(6,26,40,${alpha})`;
-      for (let k = -len; k <= len * 0.6; k++) ctx.fillRect(Math.round(X + fx * k), Math.round(Y + fy * k), 1, 1);
-      ctx.fillRect(Math.round(X - fx * (len - 1) - fy), Math.round(Y - fy * (len - 1) + fx), 1, 1); ctx.fillRect(Math.round(X - fx * (len - 1) + fy), Math.round(Y - fy * (len - 1) - fx), 1, 1);
-      if (((t * 4 + f.ph * 3) | 0) % 9 === 0) { ctx.fillStyle = `rgba(200,240,250,${alpha})`; ctx.fillRect(Math.round(X + fx), Math.round(Y + fy), 1, 1); }
-    }
+  // a fish from above: a tapered body pointed along its heading, a beating tail, a glint now and then
+  function drawFishOne(c, f, ox, oy, t, alpha, len) {
+    const a = Math.atan2(f.vy, f.vx), ca = Math.cos(a), sa = Math.sin(a), X = f.x - ox, Y = f.y - oy, beat = Math.sin(t * 14 + f.ph * 3);
+    c.fillStyle = `rgba(6,26,40,${alpha})`;
+    for (let k = -len; k <= len * 0.7; k += 0.7) { const w = k > -len * 0.4 && k < len * 0.3 ? 1 : 0; c.fillRect(Math.round(X + ca * k - sa * w * 0.5), Math.round(Y + sa * k + ca * w * 0.5), 1 + w, 1); }
+    const tx = X - ca * (len + 1), ty = Y - sa * (len + 1);
+    for (const sg of [-1, 1]) c.fillRect(Math.round(tx - sa * sg * (1.2 + beat * 0.6) - ca), Math.round(ty + ca * sg * (1.2 + beat * 0.6) - sa), 1, 1);
+    if (((t * 3 + f.ph * 5) | 0) % 11 === 0) { c.fillStyle = `rgba(220,245,255,${alpha})`; c.fillRect(Math.round(X + ca * 2), Math.round(Y + sa * 2), 1, 1); }
   }
-  Sea.drawFish = function (ctx, L, ox, oy, LW, LH, t) {
-    for (const s of (L.fishS && L.fishS.list) || []) { if (s.x < ox - 80 || s.x > ox + LW + 80 || s.y < oy - 80 || s.y > oy + LH + 80) continue; drawSchool(ctx, s, ox, oy, t, L, 0.34 * Math.min(1, s.life / 2, (40 - s.life) / 3), false); }
-    const B = L.school; if (B && B.active) drawSchool(ctx, B, ox, oy, t, L, 0.42, true);
+  function drawFishInto(c, L, ox, oy, LW, LH, t) {
+    for (const s of (L.fishS && L.fishS.list) || []) {
+      if (s.x < ox - 120 || s.x > ox + LW + 120 || s.y < oy - 120 || s.y > oy + LH + 120) continue;
+      const a = 0.55 * Math.min(1, s.life / 2, (45 - s.life) / 3);
+      for (const f of s.fish) if (wet2(L, f.x, f.y)) drawFishOne(c, f, ox, oy, t, a, 3 + f.s * 1.6);
+    }
+    const B = L.school; if (B && B.active) for (const f of B.fish) if (wet2(L, f.x, f.y)) drawFishOne(c, f, ox, oy, t, 0.6, 2.4 + f.s);
+  }
+  Sea.drawFish = function () {};   // the fish are drawn into the under-water layer (Sea.drawUnder)
+  // a feeding frenzy (Level 1's open water): the great bait ball arrives, and the sharks follow it in
+  Sea.frenzyStart = function (L, a) {
+    const [x0, y0, x1, y1] = a.rect.map((v) => v * 32), cx = (x0 + x1 + 32) / 2, cy = (y0 + y1 + 32) / 2, r = Math.random;
+    L.school = { x: cx, y: cy, active: true, cx, cy, rx: (x1 - x0) / 2, ry: (y1 - y0) / 2, t: 0, fish: Array.from({ length: 150 }, (_, k) => { const a2 = r() * Math.PI * 2, d = 6 + r() * 34; return { x: cx + Math.cos(a2) * d, y: cy + Math.sin(a2) * d * 0.7, vx: 0, vy: 0, ph: r() * 6, s: 0.6 + r() * 0.6 }; }) };
   };
-  // a feeding frenzy (Level 1's open water): the great school arrives, and the sharks follow it in
-  Sea.frenzyStart = function (L, a) { const [x0, y0, x1, y1] = a.rect.map((v) => v * 32); const cx = (x0 + x1 + 32) / 2, cy = (y0 + y1 + 32) / 2; L.school = school(cx, cy, 0, 130, 0, 30); Object.assign(L.school, { active: true, cx, cy, rx: (x1 - x0) / 2, ry: (y1 - y0) / 2, t: 0 }); };
   Sea.frenzyEnd = function (L) { if (L.school) L.school.active = false; };
   Sea.frenzyTick = function (a, L, t, heroes, api) {
     const [x0, y0, x1, y1] = a.rect.map((v) => v * 32), np = heroes.length, el = t - a.t0;
     a.live = a.live.filter((e) => !e.dead);
     const n = (k) => a.live.filter((e) => e.type === k).length;
-    const want = { shark: 2 + np + (el > 24 ? 1 : 0), bigshark: el < 12 ? 0 : el < 30 ? 1 : 1 + (np > 1 ? 1 : 0) };
+    // more and more of them, and the big ones early
+    const want = { shark: 3 + np + (el > 12 ? 1 : 0) + (el > 26 ? 2 : 0), bigshark: el < 6 ? 0 : el < 20 ? 1 + (np > 1 ? 1 : 0) : 2 + (np > 1 ? 1 : 0) + (el > 34 ? 1 : 0) };
     if (t > (a.spawnT || 0)) {
-      a.spawnT = t + 1.6;
+      a.spawnT = t + 1.1;
       for (const k of ["bigshark", "shark"]) if (n(k) < want[k]) {
         // in from the edge of the frenzy, out in the deeper water, away from the heroes
         for (let tries = 0; tries < 40; tries++) {
           const side = (Math.random() * 4) | 0, u = Math.random(), x = side < 2 ? (side ? x1 + 16 : x0 + 16) : x0 + (x1 - x0) * u, y = side >= 2 ? (side === 2 ? y0 + 16 : y1 + 16) : y0 + (y1 - y0) * u;
           const w = Level.tileAt(x, y); if (w !== 12 && w !== 13) continue; if (heroes.some((q) => Math.hypot(q.x - x, q.y - y) < 120)) continue;
-          const e = Enemies.spawn(k, x, y, 0, L); if (!e) break; e.alerted = true; e.enter = "scurry"; e.introT = 0.9; L.enemies.push(e); a.live.push(e); break;
+          const e = Enemies.spawn(k, x, y, 0, L); if (!e) break; e.alerted = true; e.enter = "scurry"; e.introT = 0.9; e.frenzy = 1; L.enemies.push(e); a.live.push(e); break;
         }
         break;
       }
     }
+  };
+  // little crabs (not foes) about the beaches and the atolls' coral, scurrying from anyone who comes near
+  function seaCrabs(L) {
+    const r = K.rng(L.name.length * 71 + 3), list = (L.crabs = []), T_ = Level.T_;
+    const okAt = (x, y) => { const v = Level.tileAt(x, y); return (v === T_.SAND || v === T_.CORAL) && !Level.solidAt(x, y); };
+    const want = Math.round((L.W * L.H) / (32 * 32) / 260) + 10;
+    for (let k = 0; k < want * 40 && list.length < want; k++) {
+      const x = 16 + r() * (L.W - 32), y = 16 + r() * (L.H - 32);
+      if (!okAt(x, y)) continue;
+      // near the water's edge
+      let wet = false; for (let a = 0; a < 8 && !wet; a++) { const d = 40 + r() * 60; if (Level.waterAt(x + Math.cos(a) * d, y + Math.sin(a) * d)) wet = true; }
+      if (wet) list.push({ kind: "crab", x, y, vx: 0, vy: 0, timer: r() * 3, frame: 0, ghost: Level.tileAt(x, y) === T_.SAND && r() < 0.5 });
+    }
+    L.crabOk = okAt;
+  }
+  Sea.crabs = function (L, dt, heroes) {
+    if (!L.crabs) seaCrabs(L);
+    for (const c of L.crabs) { const h = (heroes || []).reduce((b, q) => (!b || Math.hypot(q.x - c.x, q.y - c.y) < Math.hypot(b.x - c.x, b.y - c.y) ? q : b), null); Props.crabStep(c, dt, h, L.crabOk); }
+  };
+  Sea.drawCrabs = function (ctx, L, ox, oy, LW, LH) {
+    for (const c of L.crabs || []) { if (c.x < ox - 10 || c.x > ox + LW + 10 || c.y < oy - 10 || c.y > oy + LH + 10) continue; ctx.drawImage((c.ghost ? Props.ghostCrabFrames() : Props.crabFrames)[Math.floor(c.frame) % 2], Math.round(c.x - 4 - ox), Math.round(c.y - 5 - oy)); }
   };
   // vents breathe, rumble (a ring of light: get clear) and erupt; the host runs them
   Sea.update = function (L, dt, t, heroes, api) {

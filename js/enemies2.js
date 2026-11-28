@@ -260,7 +260,17 @@
     e.heads.push(h); return h;
   }
   function layoutHeads(e) { const n = e.heads.length; e.heads.forEach((h, k) => { h.phi = -Math.PI / 2 + (k - (n - 1) / 2) * (n > 3 ? 0.5 : 0.62); h.ax = Math.cos(h.phi) * 7; h.ay = Math.sin(h.phi) * 3 - 30; }); }
-  E.SETUP.hydra = (e) => { e.heads = []; for (let k = 0; k < 3; k++) addHead(e, k, 3); e.S = Surface(300, 240); e.grown = 3; };
+  E.SETUP.hydra = (e) => {
+    e.heads = []; for (let k = 0; k < 3; k++) addHead(e, k, 3); e.S = Surface(300, 240); e.grown = 3;
+    // struck, it flinches: heads that were coiling to strike (or just swaying) snap back for a moment, so
+    // a hero pressing the attack gets a window instead of a bite in the face. Each head can only be
+    // made to flinch so often.
+    const base = e.onHit;
+    e.onHit = function (dmg, ang) {
+      base.call(this, dmg, ang);
+      for (const h of this.heads) if ((h.state === "sway" || h.state === "wind" || h.state === "windSpit" || h.state === "windSweep") && !(h.flinchCd > 0)) { h.state = "recoil"; h.st = 0; h.flinchCd = 1.8; }
+    };
+  };
   AI.hydra = function (e, dt, t, P, L, api, d) {
     if (!e.announced && e.alerted) { e.announced = true; L.banner = { title: e.name, t0: t }; sfx(api, "vineBurst"); }
     // wounds grow heads: a fourth at two-thirds health, a fifth at one-third
@@ -273,38 +283,42 @@
     if (e.state === "windSurge") { e.moving = false; if (e.st > 0.45) { e.state = "surge"; e.st = 0; e.surgeA = toB; e.hitSet = {}; sfx(api, "vineBurst"); } }
     else if (e.state === "surge") {
       e.moving = tryMove(e, Math.cos(e.surgeA) * 170 * dt, Math.sin(e.surgeA) * 140 * dt);
-      hitAny(e, e.x, e.y - 10, 30, 2, e.hitSet, "hydra");
+      hitAny(e, e.x, e.y - 10, 26, 2, e.hitSet, "hydra");
       if (Math.random() < 0.5) Combat.addPart({ x: e.x + rnd(-20, 20), y: e.y, vx: rnd(-30, 30), vy: rnd(-50, -20), g: 200, life: 0.5, col: css(R().soil[3]), size: 2, kind: "debris" });
       if (e.st > 0.5 || !e.moving) { e.state = "idle"; e.st = 0; e.surgeT = rnd(3.5, 5.5) * (angry ? 0.7 : 1); Combat.shake = Math.min(1, Combat.shake + 0.35); }
     } else {
       if (e.alerted && e.surgeT <= 0 && d < 170) { e.state = "windSurge"; e.st = 0; sfx(api, "vineRustle"); }
       if (d > 56) { e.moving = tryMove(e, Math.cos(toB) * 38 * dt, Math.sin(toB) * 30 * dt); } else e.moving = false;
     }
-    const striking = e.heads.filter((h) => h.state !== "sway").length, dmg = e.hp < e.max / 3 ? 2 : 1;
+    const striking = e.heads.filter((h) => h.state !== "sway" && h.state !== "recoil").length, dmg = e.hp < e.max / 3 ? 2 : 1;
     for (const h of e.heads) {
-      h.st += dt; h.grow = Math.min(1, h.grow + dt * 1.5);
+      h.st += dt; h.grow = Math.min(1, h.grow + dt * 1.5); h.flinchCd = (h.flinchCd || 0) - dt;
       const ax = e.x + h.ax, ay = e.y + h.ay, Q = nearest(h.x, h.y) || P, toQ = Math.atan2(Q.y - 10 - h.y, Q.x - h.x), dQ = Math.hypot(Q.x - ax, Q.y - ay);
       let tx = ax + Math.cos(h.phi) * 22 * h.grow + Math.sin(t * 1.6 + h.ph) * 5, ty = ay - 22 * h.grow + Math.sin(t * 2.1 + h.ph) * 4, k = 6;
       if (h.state === "sway") {
         tx += Math.cos(toQ) * 6; ty += Math.sin(toQ) * 4;
-        if (e.alerted && h.st > h.next && striking < e.heads.length - 1) {
+        if (e.alerted && h.st > h.next && striking < (angry ? 2 : 1)) {
           h.st = 0; h.aim = toQ; h.hitSet = {}; h.bites = Math.random() < (angry ? 0.6 : 0.4) ? 2 : 1;
           const r = Math.random();
           if (dQ < 80 && r < 0.35) { h.state = "windSweep"; h.sweepDir = Math.random() < 0.5 ? -1 : 1; }
           else if (dQ < 140 && r < 0.8) { h.state = "wind"; h.reach = Math.min(125, dQ + 24); } else { h.state = "windSpit"; }
           sfx(api, "vineHiss");
         }
+      } else if (h.state === "recoil") {
+        // reared back from the blow, hissing
+        tx = ax - Math.cos(toQ) * 10; ty = ay - 36 + Math.sin(t * 30) * 1; k = 14;
+        if (h.st > 0.5) { h.state = "sway"; h.st = 0; h.next = rnd(0.7, 1.2); }
       } else if (h.state === "wind" || h.state === "windSpit" || h.state === "windSweep") {
         h.aim += angDiff(toQ, h.aim) * Math.min(1, dt * 4); tx = ax - Math.cos(h.aim) * 10; ty = ay - 30; k = 12;
-        if (h.state === "windSweep" && h.st > 0.4) { h.state = "sweep"; h.st = 0; h.sweepA = h.aim - h.sweepDir * 1.4; h.hitSet = {}; sfx(api, "vineLash"); }
-        else if (h.state !== "windSweep" && h.st > (h.state === "wind" ? (h.second ? 0.18 : 0.42) : 0.38)) {
+        if (h.state === "windSweep" && h.st > 0.62) { h.state = "sweep"; h.st = 0; h.sweepA = h.aim - h.sweepDir * 1.4; h.hitSet = {}; sfx(api, "vineLash"); }
+        else if (h.state !== "windSweep" && h.st > (h.state === "wind" ? (h.second ? 0.34 : 0.62) : 0.52)) {
           if (h.state === "wind") { h.state = "lash"; sfx(api, "vineLash"); }
           else { h.state = "spit"; for (const o of [-0.5, -0.25, 0, 0.25, 0.5]) L.shots.push({ kind: "seed", x: h.x, y: h.y, vx: Math.cos(h.aim + o) * 200, vy: Math.sin(h.aim + o) * 200, t: 0, life: 1.6 }); sfx(api, "vineSpit"); }
           h.st = 0;
         }
       } else if (h.state === "lash" || h.state === "hold") {
         tx = ax + Math.cos(h.aim) * h.reach; ty = ay - 4 + Math.sin(h.aim) * h.reach * 0.85; k = 28;
-        hitAny(e, h.x, h.y, 13, dmg, h.hitSet, "hydra");
+        hitAny(e, h.x, h.y, 11, dmg, h.hitSet, "hydra");
         if (h.state === "lash" && h.st > 0.15) { h.state = "hold"; h.st = 0; }
         if (h.state === "hold" && h.st > 0.22) {
           // a second bite, snapped straight back in
@@ -312,11 +326,11 @@
         }
       } else if (h.state === "sweep") {
         // the head scythes sideways around the mound
-        h.sweepA += h.sweepDir * dt * 7; tx = ax + Math.cos(h.sweepA) * 64; ty = ay + Math.sin(h.sweepA) * 46; k = 30;
-        hitAny(e, h.x, h.y, 14, dmg, h.hitSet, "hydra");
+        h.sweepA += h.sweepDir * dt * 6; tx = ax + Math.cos(h.sweepA) * 58; ty = ay + Math.sin(h.sweepA) * 42; k = 30;
+        hitAny(e, h.x, h.y, 12, dmg, h.hitSet, "hydra");
         if (h.st > 0.42) { h.state = "recover"; h.st = 0; }
       } else if (h.state === "spit" && h.st > 0.3) { h.state = "recover"; h.st = 0; }
-      if (h.state === "recover" && h.st > 0.35) { h.state = "sway"; h.st = 0; h.next = rnd(0.5, 1.3) * (angry ? 0.65 : 1); }
+      if (h.state === "recover" && h.st > 0.6) { h.state = "sway"; h.st = 0; h.next = rnd(1.0, 1.9) * (angry ? 0.75 : 1); }
       const f = Math.min(1, dt * k); h.x += (tx - h.x) * f; h.y += (ty - h.y) * f;
     }
   };

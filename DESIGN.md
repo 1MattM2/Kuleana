@@ -52,7 +52,7 @@ step with the creatures' health (`hpMul`: Zone 1 1.0, Zone 2 1.25 to 1.55, and o
 | Zone 4 | Makau Kaula 90; Mako Fangs 99 | |
 | Zone 5 | Pololū 102; Starfall 115 | |
 | Zone 6 | Koʻi 115; Pele's Grip 128 | |
-| The end | Koʻi-Lua 168 (its super, the Twin Suns, about 780 to one target) | |
+| The end | Koʻi-Lua 118 (cut by 30% from 168; its super, the Twin Suns, about 550 to one target) | |
 
 The chain sickle and Stormcaller are set a little under the line: their strength is reach and crowds, which
 one dummy undersells.
@@ -127,6 +127,22 @@ grows as you clear levels. There are 2 shards and 1 talisman to begin with, then
 - **Co-op:** each extra hero adds about half as many creatures again, spread out, with +25% health (two heroes)
   or +40% (three); with three, an arena gains one more wave; bosses get a full health bar per hero. Tested with
   three connected heroes on the new levels (the frenzy and the Storm Ray stay in step on every screen).
+
+## Bosses and challengers
+Health per hero, at one hero:
+
+| Boss | Health | Notes |
+|---|---|---|
+| Lau-Poʻo, the hydra (Zone 1) | 640 | Its heads flinch back when struck; one strikes at a time (two once enraged) |
+| Kahu-Ahi, the hive (Zone 1) | 900 | |
+| Pāpaʻi-Loa, the spider crab (Zone 2, L2) | 1450 | Stab volleys, a returning claw sweep when enraged, foam bubbles that burst 3 then 2 |
+| Kai-Uila, the Storm Ray (Zone 2, L3) | 2400 | Rings, called bolts, chain lightning, a dive and eruption, sweeps; it splits into a school that shares its health exactly (each ray carries an even share) |
+
+- **Arenas:** a wave's creatures always come in inside the sealed arena, on ground that suits them, drawn in
+  toward the heroes; any that end up outside are brought back in (`Level.arenaSpot`).
+- **Duel Hall challengers:** Makani 560, Kamaka 900, Kahu Lā 720 health; poise (three quick hits stagger them),
+  counters after a dodge or a guard, a lunge, and a second wind at half health.
+- **Koʻi-Lua** was cut by 30% (`POW.lua` 1.4).
 
 ## Hale Koa (the dojo)
 The hut grows in phases. The materials that pay for each phase are still to be designed.
