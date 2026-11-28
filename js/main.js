@@ -1126,7 +1126,13 @@
     } return; }
     const pt = L.def.portal;
     if (pt) { const px = pt.x * T, py = pt.y * T; if (Math.abs(player.x - px) < 18 && player.y < py + 12 && player.y > py - 30) { if (L.portalOpen) { Ambience.sfx && Ambience.sfx("portal"); goTo(Level.dest || pt.to); return; } else { prompt = { x: px, y: py - 70 }; if (pressedE) dialog = { name: "Sun Gate", lines: ["The great sun disc is cold and still.", "Perhaps its keeper can wake it."], i: 0, start: performance.now() }; } } }
-    for (const gte of L.def.gates || []) { const gx = gte.x * T, gy = gte.y * T; if (Math.hypot(player.x - gx, player.y - gy) < 26) { prompt = { x: gx, y: gy - 60 }; if (pressedE) { Ambience.sfx && Ambience.sfx("portal"); goTo(gte.to); } } }
+    for (const gte of L.def.gates || []) {
+      const gx = gte.x * T, gy = gte.y * T; if (Math.hypot(player.x - gx, player.y - gy) >= 26) continue;
+      // a gate that only opens once the land's guardian has fallen
+      const shut = gte.needs === "final" && !(L.arenas || []).some((a) => a.final && a.state === "done");
+      if (shut) { if (!L.gateWarnT || time - L.gateWarnT > 4) { L.gateWarnT = time; L.banner = { title: "THE WAY IS SEALED", sub: "Kai-Uila still rules these waters", t0: time }; } continue; }
+      prompt = { x: gx, y: gy - 60 }; if (pressedE) { Ambience.sfx && Ambience.sfx("portal"); goTo(gte.to); }
+    }
     const sh = L.def.shrine;
     if (sh && !L.shrineTaken) { const sx = sh.x * T, sy = sh.y * T; if (Math.hypot(player.x - sx, player.y - sy) < 30) { prompt = { x: sx, y: sy - 52 }; if (pressedE) {
       if (window.Net && Net.isGuest()) Net.send({ t: "act", k: "shrine" });

@@ -687,7 +687,16 @@
             if (T_(x, y - 1) !== WALL) c = ROCK_HI; else if (T_(x, y - 2) !== WALL) c = mixc(rc, ROCK_HI, 0.5);
             // moss and grass creep over the top and hang over the lip of the face
             const m = K.fbm(x / 30 + 70, y / 30, 3), lip = d - FACE;
-            if (lip > 0 && lip < 4 && K.noise(x * 0.25, 13) > 0.45) c = lip === 1 ? FE[2] : (x + y) & 1 ? FE[3] : GR[1];
+            if (def.wallGreen) {
+              // (the Thermal Cliffs) jungle on the clifftops: the island's grass, darker under the canopy, fern
+              // clumps, and a fringe of fronds spilling over the edge of the drop
+              c = shade(grassT[patchIdx(x, y, GRASS)], 0.8);
+              if (m > 0.62) c = shade(c, 0.86); else if (m < 0.36) c = shade(c, 1.06);
+              const fc = K.noise(x / 9 + 40, y / 9);
+              if (fc > 0.66 && B(x, y) + 0.5 < (fc - 0.66) * 9) c = fc > 0.72 ? (K.hash2(x, y, 3) > 0.8 ? FE[5] : FE[4]) : FE[3];
+              if (lip > 0 && lip < 7 && K.noise(x * 0.22, 13) > 0.36 - lip * 0.04) c = lip <= 2 ? FE[2] : (x + y) & 1 ? FE[3] : FE[4];
+            }
+            else if (lip > 0 && lip < 4 && K.noise(x * 0.25, 13) > 0.45) c = lip === 1 ? FE[2] : (x + y) & 1 ? FE[3] : GR[1];
             else if (m > 0.6 && B(x, y) + 0.5 < (m - 0.6) * 7) c = m > 0.67 ? (K.hash2(x, y, 3) > 0.85 ? FE[4] : FE[3]) : FE[2];
             if (T_(x - 1, y) !== WALL || T_(x + 1, y) !== WALL) c = ROCK_LINE;
           }

@@ -169,25 +169,28 @@
         return;
       }
       const tt = r.t - WARN, rise = Math.min(1, tt / 0.12), fade = Math.max(0, Math.min(1, 1 - (tt - 0.55) / (r.dur - WARN - 0.55))), H2 = 46 * rise;
-      // the scalded patch of water at its foot
-      ctx.fillStyle = `rgba(255,150,70,${0.35 * fade})`; ctx.beginPath(); ctx.ellipse(x, y, r.R * 1.1, r.R * 0.62, 0, 0, TAU); ctx.fill();
+      // (drawn with fixed colours under one alpha, two rows at a time: cheap enough for a dozen at once)
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = "rgba(255,150,70,0.35)"; ctx.fillRect(x - r.R, y - 4, r.R * 2, 8);
       // the column: a churning sheath, wider as it climbs, a hot core while it's at full force
-      for (let yy = 0; yy < H2; yy++) {
-        const f = yy / 46, w = 3 + f * 7 + Math.sin(yy * 0.55 - t * 28 + seed) * 1.6 + Math.sin(yy * 0.21 + t * 11) * 1.2, a = 0.9 * fade * (1 - f * 0.35);
-        ctx.fillStyle = `rgba(236,232,226,${a})`; ctx.fillRect(Math.round(x - w), y - yy, Math.round(w * 2), 1);
-        ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.fillRect(Math.round(x - w * 0.55 + Math.sin(yy * 0.4 - t * 20)), y - yy, Math.max(1, Math.round(w * 0.7)), 1);
-        if (tt < 0.5 && f < 0.75) { ctx.fillStyle = `rgba(255,${190 + f * 60 | 0},${120 + f * 100 | 0},${(1 - tt / 0.5) * 0.9})`; ctx.fillRect(Math.round(x - 1 - w * 0.15), y - yy, Math.max(2, Math.round(w * 0.3)), 1); }
+      for (let yy = 0; yy < H2; yy += 2) {
+        const f = yy / 46, w = 3 + f * 7 + Math.sin(yy * 0.55 - t * 28 + seed) * 1.6 + Math.sin(yy * 0.21 + t * 11) * 1.2;
+        ctx.fillStyle = "#ece8e2"; ctx.fillRect(Math.round(x - w), y - yy - 2, Math.round(w * 2), 2);
+        ctx.fillStyle = "#ffffff"; ctx.fillRect(Math.round(x - w * 0.55 + Math.sin(yy * 0.4 - t * 20)), y - yy - 2, Math.max(1, Math.round(w * 0.7)), 2);
+        if (tt < 0.5 && f < 0.75) { ctx.fillStyle = f < 0.4 ? "#ffbe78" : "#ffd8a8"; ctx.fillRect(Math.round(x - 1 - w * 0.15), y - yy - 2, Math.max(2, Math.round(w * 0.3)), 2); }
       }
       // billows rolling off the crown and drifting away
-      for (let k = 0; k < 7; k++) {
-        const ph = (tt * 1.6 + k / 7) % 1, a = k * 1.7 + seed, bx = x + Math.cos(a) * (4 + ph * 16) + ph * 10, by = y - H2 + 4 - ph * 16, br = 3 + ph * 7;
-        ctx.fillStyle = `rgba(240,236,232,${(1 - ph) * 0.75 * fade})`; ctx.beginPath(); ctx.arc(Math.round(bx), Math.round(by), br, 0, TAU); ctx.fill();
-        ctx.fillStyle = `rgba(255,255,255,${(1 - ph) * 0.6 * fade})`; ctx.beginPath(); ctx.arc(Math.round(bx - br * 0.3), Math.round(by - br * 0.3), br * 0.45, 0, TAU); ctx.fill();
+      for (let k = 0; k < 5; k++) {
+        const ph = (tt * 1.6 + k / 5) % 1, a = k * 1.7 + seed, bx = Math.round(x + Math.cos(a) * (4 + ph * 16) + ph * 10), by = Math.round(y - H2 + 4 - ph * 16), br = Math.round(3 + ph * 6);
+        ctx.globalAlpha = fade * (1 - ph) * 0.75; ctx.fillStyle = "#f0ece8"; ctx.fillRect(bx - br, by - br + 1, br * 2, br * 2 - 2); ctx.fillRect(bx - br + 1, by - br, br * 2 - 2, br * 2);
+        ctx.fillStyle = "#ffffff"; ctx.fillRect(bx - br + 1, by - br + 1, br, br - 1);
       }
+      ctx.globalAlpha = fade;
       // scalding droplets thrown out and falling back
-      for (let k = 0; k < 12; k++) { const ph = (tt * 1.3 + k * 0.083) % 1, a = k * 0.52 + seed, vx = Math.cos(a) * 22, h = H2 * 0.8 * (4 * ph * (1 - ph)); ctx.fillStyle = k % 3 ? `rgba(255,214,170,${fade})` : `rgba(255,140,60,${fade})`; ctx.fillRect(Math.round(x + vx * ph), Math.round(y + Math.sin(a) * 6 * ph - h), 1, 2); }
+      for (let k = 0; k < 8; k++) { const ph = (tt * 1.3 + k * 0.125) % 1, a = k * 0.78 + seed, h = H2 * 0.8 * (4 * ph * (1 - ph)); ctx.fillStyle = k % 3 ? "#ffd6aa" : "#ff8c3c"; ctx.fillRect(Math.round(x + Math.cos(a) * 22 * ph), Math.round(y + Math.sin(a) * 6 * ph - h), 1, 2); }
       // the spray ring where it breaks the surface
-      if (tt < 0.3) for (let k = 0; k < 16; k++) { const a = (k / 16) * TAU, rr = r.R * (0.6 + tt * 3); ctx.fillStyle = "rgba(255,246,236,0.9)"; ctx.fillRect(Math.round(x + Math.cos(a) * rr), Math.round(y + Math.sin(a) * rr * 0.6), 2, 1); }
+      if (tt < 0.3) { ctx.fillStyle = "#fff6ec"; for (let k = 0; k < 12; k++) { const a = (k / 12) * TAU, rr = r.R * (0.6 + tt * 3); ctx.fillRect(Math.round(x + Math.cos(a) * rr), Math.round(y + Math.sin(a) * rr * 0.6), 2, 1); } }
+      ctx.globalAlpha = 1;
     },
   };
   E.FX.mark = {   // where something is about to come down
@@ -352,20 +355,28 @@
 
   // ================================================================== Tiki brute (the concept's carved giant)
   ST.brute = { hp: 260, r: 14, mat: "wood", kb: 10, noStun: true, big: 10, barY: 66, colors: [css(R().koa[4]), css(R().koa[2]), css(R().palm[3])] };
-  E.SETUP.brute = (e) => { e.hitSet = {}; e.cd = rnd(1, 2); };
+  E.SETUP.brute = (e) => {
+    e.hitSet = {}; e.cd = rnd(1, 2);
+    // like the spearmen, he guards: stone fists raised before him turn blows from the front
+    e.blocks = function (ang) { return this.state === "guard" && Math.cos(ang - (this.face > 0 ? Math.PI : 0)) > 0.3; };
+    e.onBlock = function () { if (this.state === "guard" && this.st > 0.12) { this.state = Math.random() < 0.5 ? "windSlam" : "windHook"; this.st = 0.2; this.aim = this.aim || 0; } };
+  };
   AI.brute = function (e, dt, t, P, L, api, d) {
     const toP = Math.atan2(P.y - e.y, P.x - e.x);
     e.cd -= dt; e.moving = false; e.armor = 1;
     if (!e.alerted) return;
     if (e.state !== "charge" && e.state !== "skid" && e.state !== "hook") e.face = Math.cos(e.state === "windCharge" ? e.aim : toP) >= 0 ? 1 : -1;
+    if (e.state === "guard") { e.moving = false; if (e.st > 0.75) { e.state = "walk"; e.st = 0; e.cd = Math.min(e.cd, 0.2); } return; }
     if (e.state === "idle" || e.state === "walk") {
       e.state = "walk";
+      // a hero swinging at him up close: up go the fists
+      if (P.attacking && d < 60 && Math.random() < dt * 4) { e.state = "guard"; e.st = 0; e.moving = false; return; }
       if (d > 40) e.moving = tryMove(e, Math.cos(toP) * 34 * dt, Math.sin(toP) * 34 * dt);
       if (e.cd <= 0) {
         // close: the double-fist slam or a swinging hook; middle distance: a stepping hook or a heaved
         // chunk of ground; far off (and in sight): the charge
         const see = Level.sight(e.x, e.y - 20, P.x, P.y - 10), r = Math.random();
-        if (d < 50) { if (r < 0.55) { e.state = "windSlam"; sfx(api, "warcry"); } else { e.state = "windHook"; e.aim = toP; sfx(api, "inhale"); } e.st = 0; }
+        if (d < 50) { if (r < 0.55) { e.state = "windSlam"; sfx(api, "warcry"); } else { e.state = "windHook"; e.aim = toP; sfx(api, "inhale"); } e.st = 0.2; e.close = 1; }
         else if (d < 105) { e.state = "windHook"; e.st = 0; e.aim = toP; sfx(api, "inhale"); }
         else if (d < 175 && see && r < 0.7) { e.state = "windToss"; e.st = 0; e.aim = toP; sfx(api, "bruteHeave"); }
         else if (d < 260 && see) { e.state = "windCharge"; e.st = 0; e.aim = toP; sfx(api, "bruteRoar"); }
@@ -395,7 +406,7 @@
       tryMove(e, Math.cos(e.aim) * 150 * (1 - u) * dt, Math.sin(e.aim) * 150 * (1 - u) * dt);
       for (const q of E.alive || []) { const k = keyOf(q); if (e.hitSet[k]) continue; const dq = Math.hypot(q.x - e.x, q.y - e.y); if (dq < 50 && Math.abs(angDiff(Math.atan2(q.y - e.y, q.x - e.x), e.aim)) < 1.1 && q._api.hurt(2, e.x, e.y, "fists")) { e.hitSet[k] = 1; Combat.shake = Math.min(1, Combat.shake + 0.3); } }
       // sometimes the other fist follows straight after
-      if (e.st > 0.32) { if (e.hooks < 2 && Math.random() < 0.45 && d < 90) { e.state = "windHook"; e.st = 0.28; } else { e.hooks = 0; e.state = "walk"; e.st = 0; e.cd = rnd(1.1, 1.8); } }
+      if (e.st > 0.3) { if (e.hooks < 2 && Math.random() < 0.55 && d < 90) { e.state = "windHook"; e.st = 0.3; } else { e.hooks = 0; e.state = "walk"; e.st = 0; e.cd = d < 60 ? rnd(0.45, 0.8) : rnd(1.1, 1.8); } }
     } else if (e.state === "windToss") {
       // tears a slab out of the ground and lifts it overhead, tracking you
       e.aim = toP;
@@ -408,7 +419,7 @@
       }
     } else if (e.state === "toss") { if (e.st > 0.45) { e.state = "walk"; e.st = 0; e.cd = rnd(1.2, 2); } }
     else if (e.state === "windSlam") { if (e.st > 0.65) { e.state = "slam"; e.st = 0; e.hitSet = {}; hitAny(e, e.x, e.y - 6, 30, 2, e.hitSet, "fists"); L.fx.push({ kind: "quake", x: e.x, y: e.y + 2, t: 0, dur: 0.5, R: 62, dmg: 1 }); sfx(api, "stone"); Combat.shake = Math.min(1, Combat.shake + 0.5); } }
-    else if (e.state === "slam") { if (e.st > 0.6) { e.state = "walk"; e.st = 0; e.cd = rnd(1.4, 2.2); } }
+    else if (e.state === "slam") { if (e.st > 0.5) { e.state = "walk"; e.st = 0; e.cd = d < 60 ? rnd(0.5, 0.9) : rnd(1.4, 2.2); } }
     else if (e.state === "stagger") { e.armor = 1.6; if (e.st > 1.4) { e.state = "walk"; e.st = 0; e.cd = 0.8; } }
   };
   // The brute's sprite is split once into body and arms (each arm a cut-out swung from its shoulder), so
@@ -430,8 +441,8 @@
     e.walkPh = (e.walkPh || 0) + (e.moving ? (charge ? 0.32 : 0.13) : 0);
     const step = e.moving ? Math.sin(e.walkPh) : 0, bob = e.moving ? Math.round(Math.abs(step) * (charge ? 3 : 1.5)) : 0;
     // the arms: [angle, lift] each; a positive angle swings an arm out and up from its shoulder
-    const sw = e.moving ? step * (charge ? 0.55 : 0.32) : Math.sin(t * 1.4 + e.ph) * 0.04;
-    let aL = sw, aR = -sw, lL = -step * 2, lR = step * 2, sx = 1, sy = 1, lean = 0;
+    const sw = e.moving ? step * (charge ? 0.2 : 0.18) : Math.sin(t * 1.4 + e.ph) * 0.03;
+    let aL = sw, aR = -sw, lL = -step * (charge ? 1 : 1.2), lR = step * (charge ? 1 : 1.2), sx = 1, sy = 1, lean = 0;
     if (e.state === "windSlam") { const u = Math.min(1, e.st / 0.65); aL = aR = 2.5 * u; lL = lR = -3 * u; sy = 1 + u * 0.05; }
     else if (e.state === "slam") { const u = Math.max(0, 1 - e.st / 0.2); aL = aR = 2.5 * u - 0.15; lL = lR = 2 * (1 - u); sx = 1 + u * 0.1; sy = 1 - u * 0.1; }
     else if (e.state === "windCharge") { const u = Math.min(1, e.st / 0.4); aL = aR = -0.5 * u; lL = lR = 2 * u; sx = 1.04; sy = 0.95; lean = 0.08 * u; }
@@ -441,6 +452,7 @@
     else if (e.state === "windToss") { const u = Math.min(1, e.st / 0.3); aL = aR = 2.8 * u; lL = lR = -4 * u; }
     else if (e.state === "toss") { const u = Math.max(0, 1 - e.st / 0.2); aL = aR = 2.8 * u; }
     else if (e.state === "stagger") { aL = Math.sin(t * 9) * 0.3; aR = -aL; }
+    else if (e.state === "guard") { aL = aR = -0.85; lL = lR = -5; sy = 0.97; }          // fists crossed up before his face
     ctx.fillStyle = "rgba(10,12,16,0.38)"; ctx.beginPath(); ctx.ellipse(x, y, 20, 5, 0, 0, TAU); ctx.fill();
     const tint = (c) => (fl ? tinted(c) : c);
     ctx.save(); ctx.translate(x, y - bob); ctx.transform(f * sx, 0, (charge || e.state === "windCharge" ? lean : 0) * f, sy, 0, 0); ctx.translate(-B.W / 2, -B.H + 2);
@@ -506,6 +518,8 @@
     if (school && (d < 130 || e.hp < e.max)) { e.fixated = true; school = null; e.alerted = true; if (!OUT[e.state] && e.state !== "line") { e.state = "stalk"; e.st = 0; e.orb = Math.random() < 0.5 ? 1 : -1; e.next = rnd(0.6, 1.4); } sfx(api, "splash"); }
     // somehow on dry land (a spawn, a shove): flop back to the water
     if (!OUT[e.state] && e.state !== "windBeach" && !SHARK_WATER.includes(wetAt(e.x, e.y))) { e.state = "flop"; e.st = 0; e.home = nearestWater(e); }
+    // and a shark flopping about on land that finds water under it again slips back under at once
+    if ((e.state === "landfight" || e.state === "landbite" || e.state === "stranded") && e.st > 0.2 && SHARK_WATER.includes(wetAt(e.x, e.y)) && SHARK_WATER.includes(wetAt(e.x + Math.cos(e.va) * 8, e.y + Math.sin(e.va) * 8))) { e.state = "stalk"; e.st = 0; e.z = 0; e.next = rnd(1.4, 2.4); sfx(api, "splash"); for (let k = 0; k < 10; k++) Combat.addPart({ x: e.x, y: e.y - 2, vx: rnd(-50, 50), vy: rnd(-80, -30), g: 260, life: 0.5, col: k % 2 ? "#e8f8fc" : "#9ad8e8", size: 1, kind: "drop" }); }
     if (school && (e.state === "idle" || e.state === "cruise" || e.state === "stalk")) {
       // circling the bait ball, then a rush straight through it
       e.state = "cruise"; e.orbA = (e.orbA ?? Math.atan2(e.y - school.y, e.x - school.x)) + dt * 0.7 * (e.ph > 3 ? 1 : -1);
@@ -518,7 +532,7 @@
       // a slow circle round you, fin up, closing in; if you're on land, it patrols the water's edge nearest you
       if (!wetP) { if (!e.shore || t - (e.shoreT || 0) > 1) { e.shoreT = t; e.shore = nearestWater(P); } steer(e, { x: e.shore.x + Math.cos(t * 0.8 + e.ph) * 18, y: e.shore.y + Math.sin(t * 0.8 + e.ph) * 12 }, SHARK_WATER, dt, C.stalk, 2); }
       else { const a0 = Math.atan2(e.y - P.y, e.x - P.x) + e.orb * 0.6, R0 = 72 * C.sc; steer(e, { x: P.x + Math.cos(a0) * R0, y: P.y + Math.sin(a0) * R0 * 0.8 }, SHARK_WATER, dt, C.stalk, 1.6); }
-      if (thermal) { e.scaldCd = (e.scaldCd ?? 4) - dt; if (e.scaldCd <= 0 && d < 190 && wetP) { e.state = "scald"; e.st = 0; e.scaldCd = rnd(4.5, 6.5); e.aim = Math.atan2(P.y - e.y, P.x - e.x); sfx(api, "inhale"); } }
+      if (thermal) { e.scaldCd = (e.scaldCd ?? 4) - dt; if (e.scaldCd <= 0 && (wetP ? d < 190 : d < 150)) { e.state = "scald"; e.st = 0; e.scaldCd = rnd(4.5, 6.5); e.aim = Math.atan2(P.y - e.y, P.x - e.x); sfx(api, "inhale"); } }
       if (e.st > e.next && e.state === "stalk") {
         const info = lineInfo(e.x, e.y, P.x, P.y, SHARK_WATER);
         if (wetP && info.land === 0 && d < 150) { e.state = "line"; e.st = 0; e.aim = Math.atan2(P.y - e.y, P.x - e.x); e.prey = 0; }
@@ -591,10 +605,10 @@
       if (e.st < 0.55 && Math.random() < 0.7) Combat.addPart({ x: e.x + rnd(-14, 14), y: e.y + rnd(-6, 6), vx: rnd(-10, 10), vy: rnd(-40, -20), g: -5, life: 0.6, col: Math.random() < 0.5 ? "#fff0e0" : "#ffb070", size: 1, kind: "ember", glow: true });
       if (!e.scalded && e.st > 0.55) {
         e.scalded = true;
-        for (const da of [-0.38, 0, 0.38]) for (let k = 1; k <= 7; k++) { const a = e.aim + da, x2 = e.x + Math.cos(a) * k * 21, y2 = e.y + Math.sin(a) * k * 16; if (wetAt(x2, y2)) L.fx.push({ kind: "scald", x: x2, y: y2, t: -k * 0.09 - Math.abs(da) * 0.15, dur: 1.5, R: 14, dmg: 2 }); }
+        for (const da of [-0.38, 0, 0.38]) for (let k = 1; k <= 6; k++) { const a = e.aim + da, x2 = e.x + Math.cos(a) * k * 21, y2 = e.y + Math.sin(a) * k * 16; if (!Level.solidAt(x2, y2)) L.fx.push({ kind: "scald", x: x2, y: y2, t: -k * 0.09 - Math.abs(da) * 0.15, dur: 1.5, R: 14, dmg: 2 }); }
         const lead = 0.6, cx = P.x + (P.vx || 0) * lead, cy = P.y + (P.vy || 0) * lead;
-        for (let k = 0; k < 6; k++) { const a = (k / 6) * TAU + Math.random(), x2 = cx + Math.cos(a) * 30, y2 = cy + Math.sin(a) * 22; if (wetAt(x2, y2)) L.fx.push({ kind: "scald", x: x2, y: y2, t: -0.85, dur: 1.5, R: 14, dmg: 2 }); }
-        if (wetAt(cx, cy)) L.fx.push({ kind: "scald", x: cx, y: cy, t: -1.05, dur: 1.5, R: 15, dmg: 2 });
+        for (let k = 0; k < 6; k++) { const a = (k / 6) * TAU + Math.random(), x2 = cx + Math.cos(a) * 30, y2 = cy + Math.sin(a) * 22; if (!Level.solidAt(x2, y2)) L.fx.push({ kind: "scald", x: x2, y: y2, t: -0.85, dur: 1.5, R: 14, dmg: 2 }); }
+        if (!Level.solidAt(cx, cy)) L.fx.push({ kind: "scald", x: cx, y: cy, t: -1.05, dur: 1.5, R: 15, dmg: 2 });
         sfx(api, "geyser");
       }
       if (e.st > 1.5) { e.scalded = false; e.state = "stalk"; e.st = 0; e.next = rnd(1.2, 2); }
@@ -621,10 +635,22 @@
     begin(S);
     const SIL = thermal ? PAL.pk([60, 22, 20]) : big ? PAL.pk([10, 30, 34]) : PAL.pk([8, 34, 52]), EDGE = thermal ? PAL.pk([200, 90, 40]) : PAL.pk([20, 60, 84]);
     const TOP = thermal ? [[150, 92, 80], [190, 120, 96], [110, 60, 52]] : big ? [[96, 120, 110], [130, 156, 140], [64, 84, 76]] : [[104, 132, 152], [140, 168, 186], [70, 96, 116]], BELLY = [226, 232, 234];
-    for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
+    // a shark under the water is re-rasterised every other frame (half of them each frame); in between, last
+    // frame's silhouette is drawn where it now is. Its shape barely changes in a 60th of a second.
+    const frame = Math.floor(t * 60), redraw = out || fl || !e.S.p || (frame + e.id) % 2 === 0 || e.lastFrame === undefined;
+    if (!redraw && e.lastHas) { ctx.globalAlpha = e.state === "line" ? 0.68 : 0.5; ctx.drawImage(S.c, Math.round(e.x - cx - ox), Math.round(e.y - cy - oy - (e.z || 0))); ctx.globalAlpha = 1; drawSharkExtras(e, ctx, ox, oy, t, g, out, full, thermal, big, sc, pts); return; }
+    e.lastFrame = frame;
+    // only the box round the body is scanned (the whole surface was most of the frame with a dozen sharks)
+    let bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9; for (const q of pts) { if (q[0] < bx0) bx0 = q[0]; if (q[0] > bx1) bx1 = q[0]; if (q[1] < by0) by0 = q[1]; if (q[1] > by1) by1 = q[1]; }
+    const pad = 12 * sc + 2, sx0 = Math.max(0, Math.floor(bx0 - pad - e.x + cx)), sx1 = Math.min(W - 1, Math.ceil(bx1 + pad - e.x + cx)), sy0 = Math.max(0, Math.floor(by0 - pad - e.y + cy)), sy1 = Math.min(W - 1, Math.ceil(by1 + pad - e.y + cy));
+    const nseg = pts.length - 1, SX = new Float32Array(nseg * 6);
+    for (let k = 0; k < nseg; k++) { const ax = pts[k][0], ay = pts[k][1], dx = pts[k + 1][0] - ax, dy = pts[k + 1][1] - ay; SX[k * 6] = ax; SX[k * 6 + 1] = ay; SX[k * 6 + 2] = dx; SX[k * 6 + 3] = dy; SX[k * 6 + 4] = 1 / (dx * dx + dy * dy || 1); SX[k * 6 + 5] = pts[k][2]; }
+    for (let y = sy0; y <= sy1; y++) for (let x = sx0; x <= sx1; x++) {
       const wx = e.x + x + 0.5 - cx, wy = e.y + y + 0.5 - cy;
       let best = 1e9, bs = 0, side = 0;
-      for (let k = 0; k < pts.length - 1; k++) { const ax = pts[k][0], ay = pts[k][1], dx = pts[k + 1][0] - ax, dy = pts[k + 1][1] - ay, ll = dx * dx + dy * dy || 1, tt = Math.max(0, Math.min(1, ((wx - ax) * dx + (wy - ay) * dy) / ll)), dd = Math.hypot(ax + dx * tt - wx, ay + dy * tt - wy); if (dd < best) { best = dd; bs = pts[k][2] + (pts[k + 1][2] - pts[k][2]) * tt; side = (wx - ax) * -dy + (wy - ay) * dx; } }
+      for (let k = 0, o = 0; k < nseg; k++, o += 6) { const ax = SX[o], ay = SX[o + 1], dx = SX[o + 2], dy = SX[o + 3]; let tt = ((wx - ax) * dx + (wy - ay) * dy) * SX[o + 4]; tt = tt < 0 ? 0 : tt > 1 ? 1 : tt; const ex = ax + dx * tt - wx, ey = ay + dy * tt - wy, dd = ex * ex + ey * ey; if (dd < best) { best = dd; bs = SX[o + 5] + 0.1 * tt; side = (wx - ax) * -dy + (wy - ay) * dx; } }
+      if (best > 400 * sc * sc) continue;
+      best = Math.sqrt(best);
       const w = (sharkBody(bs) + sharkFins(bs)) * sc;
       if (!(best <= w)) continue;
       const i = y * W + x;
@@ -639,10 +665,13 @@
         S.d[i] = fl ? L0.WHITE : c; mark(S, x, y);
       } else { S.d[i] = best > w - 1 ? EDGE : SIL; mark(S, x, y); }
     }
-    const has = flush(S, out);
+    const has = flush(S, out); e.lastHas = has;
     const z = e.z || 0;
     if (full) { ctx.fillStyle = "rgba(10,12,16,0.3)"; ctx.beginPath(); ctx.ellipse(Math.round(e.x - ox), Math.round(e.y - oy), 14 * sc, 4 * sc, 0, 0, TAU); ctx.fill(); }
     if (has) { ctx.globalAlpha = out ? 1 : e.state === "line" ? 0.68 : 0.5; ctx.drawImage(S.c, Math.round(e.x - cx - ox), Math.round(e.y - cy - oy - z)); ctx.globalAlpha = 1; }
+    drawSharkExtras(e, ctx, ox, oy, t, g, out, full, thermal, big, sc, pts);
+  }
+  function drawSharkExtras(e, ctx, ox, oy, t, g, out, full, thermal, big, sc, pts) {
     // the fin cutting the surface, and its wake
     if (!out && (e.state === "stalk" || e.state === "line" || e.state === "windLeap" || e.state === "windBeach" || e.state === "scald")) {
       const fx = pts[3][0] - ox, fy = pts[3][1] - oy, hgt = Math.round((e.state === "stalk" ? 4 : 6) * sc);

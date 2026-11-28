@@ -51,8 +51,18 @@
 
   // asymmetric wave cycle: quick rush up the beach, slow drain back. Returns reach 0..1.
   let rushing = false;
+  // the large slow noise the tide and the swells both follow, sampled once a frame on an 8px grid (it is
+  // smooth at this scale; looking it up per pixel was a large share of the frame)
+  let NZ = null, nzW = 0, nzX = 0, nzY = 0;
+  function noiseGrid(camX, camY, vw, vh) {
+    const gx0 = Math.floor(camX / 8) - 1, gy0 = Math.floor(camY / 8) - 1, gw = Math.ceil(vw / 8) + 3, gh = Math.ceil(vh / 8) + 3;
+    if (!NZ || NZ.length < gw * gh) NZ = new Float32Array(gw * gh);
+    nzW = gw; nzX = gx0; nzY = gy0;
+    for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) NZ[j * gw + i] = K.noise((gx0 + i) * 8 * 0.012, (gy0 + j) * 8 * 0.012);
+  }
+  const nzAt = (wx, wy) => { const fx = wx / 8 - nzX, fy = wy / 8 - nzY, i = fx | 0, j = fy | 0, u = fx - i, v = fy - j, o = j * nzW + i; return (NZ[o] * (1 - u) + NZ[o + 1] * u) * (1 - v) + (NZ[o + nzW] * (1 - u) + NZ[o + nzW + 1] * u) * v; };
   function tideAt(t, wx, wy) {
-    let ph = t * 0.12 + wx * 0.0032 + wy * 0.0024 + K.noise(wx * 0.012, wy * 0.012) * 0.35;
+    let ph = t * 0.12 + wx * 0.0032 + wy * 0.0024 + (NZ ? nzAt(wx, wy) : K.noise(wx * 0.012, wy * 0.012)) * 0.35;
     ph -= Math.floor(ph);
     rushing = ph < 0.33;
     return rushing ? Math.sin((ph / 0.33) * Math.PI * 0.5) : Math.cos(((ph - 0.33) / 0.67) * Math.PI * 0.5);
@@ -149,7 +159,7 @@
   Water._swim = { tick: swimTick, raster: swimRaster, shadowOf, get mask() { return smask; } };
   // `Wd` is the water map to draw: the island (World) by default, or a sea level's own (js/sea.js)
   Water.render = function (dst, camX, camY, vw, vh, t, Wd) {
-    ensure(vw, vh);
+    ensure(vw, vh); noiseGrid(camX, camY, vw, vh);
     Wd = Wd || World;
     const W = Wd.W, H = Wd.H, terr = Wd.terr, wd = Wd.waterDist, ld = Wd.landDist, ocean = Wd.oceanMask, nearO = Wd.nearOcean;
     const aX = t * 1.3, aY = t * 0.55, bX = -t * 0.9 + 13, bY = t * 0.75 + 7;
@@ -201,7 +211,7 @@
             if (d > 8 && d < 84) {
               // the island's swells follow the shore; out among the atolls the depth barely changes, so
               // there they run as long thin lines across the water instead
-              const ph = Wd.sea ? (wx * 0.45 + wy) * 0.021 + d * 0.012 + t * 0.1 + K.noise(wx * 0.012, wy * 0.012) * 0.8 : d * 0.034 + t * 0.1 + K.noise(wx * 0.012, wy * 0.012) * 0.7;
+              const nz = nzAt(wx, wy), ph = Wd.sea ? (wx * 0.45 + wy) * 0.021 + d * 0.012 + t * 0.1 + nz * 0.8 : d * 0.034 + t * 0.1 + nz * 0.7;
               const f = ph - Math.floor(ph);
               if (f < (Wd.sea ? 0.08 : 0.15)) {
                 const brk = Wd.sea ? K.noise(wx * 0.07 + t * 0.05, wy * 0.07) : K.noise(wx * 0.02 + t * 0.03, wy * 0.02);
