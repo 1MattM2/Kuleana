@@ -1111,6 +1111,23 @@
       const sxp = sg < 0 ? left + (B.LX + B.PX - 7) * s : left + (B.RX - B.PX + 7 + 1) * s, syp = top + B.PY * s;
       ctx.save(); ctx.translate(Math.round(sxp), Math.round(syp)); ctx.scale(sg < 0 ? 1 : -1, 1); ctx.drawImage(wf, Math.round(-R2), Math.round(-R2), Math.round(R2 * 2), Math.round(R2 * 2)); ctx.restore();
     }
+    // its feet: feathered legs and dark curved talons, tucked up under the tail while cruising, swinging a
+    // little with each beat, and thrown forward, open, as it dives on you
+    {
+      const dive = e.state === "swoop", reach = dive ? 5 : 2 + (pose.lift < 0 ? 1 : 0), cxF = left + 12.6 * s, fy = top + Math.round(25 * s);
+      const C2 = (c) => (fl ? "#ffffff" : c);
+      for (const sg of [-1, 1]) {
+        const fx = Math.round(cxF + sg * 2.6 * s), ly = fy + reach;
+        ctx.fillStyle = C2("#2a1c18"); ctx.fillRect(fx - 2, fy - 1, 4, reach + 2);                     // outline of the leg
+        ctx.fillStyle = C2("#e6d2a8"); ctx.fillRect(fx - 1, fy - 1, 2, reach + 1);                     // feathered leg
+        ctx.fillStyle = C2("#c8b080"); ctx.fillRect(fx - 1, fy - 1 + reach, 2, 1);
+        // three talons fanned forward (wider open in a dive), one back
+        const open = dive ? 2 : 1;
+        ctx.fillStyle = C2("#1e1418");
+        ctx.fillRect(fx - 1 - open, ly + 1, 1, 2); ctx.fillRect(fx, ly + 1, 1, 2 + (dive ? 1 : 0)); ctx.fillRect(fx + open, ly + 1, 1, 2);
+        ctx.fillStyle = C2("#8a8078"); ctx.fillRect(fx - 1 - open, ly + 1, 1, 1); ctx.fillRect(fx + open, ly + 1, 1, 1);
+      }
+    }
     // the body (no folded wings on it in flight)
     ctx.drawImage(fl ? tinted(B.body) : B.body, left, top, Math.round(B.W * s), Math.round(B.H * s));
     ctx.restore();
