@@ -1033,7 +1033,30 @@
   function owlBase() {
     if (OWLB) return OWLB;
     const S2 = img("e_owl"), W = S2.width, H = S2.height, [, sx] = K.canvas(W, H); sx.drawImage(S2, 0, 0);
-    return (OWLB = { d0: new Uint32Array(sx.getImageData(0, 0, W, H).data.buffer), W, H, PX: 6, PY: 9, R2: 32 });
+    const d0 = new Uint32Array(sx.getImageData(0, 0, W, H).data.buffer);
+    // the body for flight: the perched sprite with its folded wings taken off (columns 0-7 and 18+ below the
+    // head), so the only wings you see are the flapping ones; its new flanks get the sprite's dark outline
+    const [bc, bx] = K.canvas(W, H), bim = bx.createImageData(W, H), bd = new Uint32Array(bim.data.buffer), INK = PAL.pk([34, 22, 24]);
+    // the head as it is; below it a rounded body (broad at the chest, tapering to the tail) filled from the
+    // sprite's own chest and flank pixels, shaded darker toward the sides, with a sel-out edge
+    const shadeP = (v, k) => (255 << 24) | (Math.min(255, ((v >>> 16) & 255) * k) << 16) | (Math.min(255, ((v >>> 8) & 255) * k) << 8) | Math.min(255, (v & 255) * k);
+    const CX = 12.6, inBody = (x, y) => { if (y < 9) return false; const v = (y - 15.5) / 11.5, hw = 6.4 * Math.sqrt(Math.max(0, 1 - v * v)) + (y < 13 ? 0.6 : 0); return Math.abs(x + 0.5 - CX) <= hw; };
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const v = d0[y * W + x];
+      if (y < 9) { if (v >>> 24) bd[y * W + x] = v; continue; }
+      if (!inBody(x, y)) continue;
+      const wingCol = x <= 7 || x >= 18;
+      let c = !wingCol && (v >>> 24) ? v : d0[y * W + (x <= 7 ? 9 : 16)];
+      if (!(c >>> 24)) c = d0[y * W + 12];
+      if (!(c >>> 24)) continue;
+      const side = Math.abs(x + 0.5 - CX) / 6.4;
+      bd[y * W + x] = side > 0.7 ? shadeP(c, 0.78) : c;
+    }
+    const sel = new Uint32Array(bd);
+    for (let y = 9; y < H; y++) for (let x = 0; x < W; x++) { if (!(bd[y * W + x] >>> 24)) continue; const edge = x === 0 || x === W - 1 || y === H - 1 || !(bd[y * W + x - 1] >>> 24) || !(bd[y * W + x + 1] >>> 24) || !(bd[(y + 1) * W + x] >>> 24); if (edge) sel[y * W + x] = INK; }
+    bd.set(sel);
+    bx.putImageData(bim, 0, 0);
+    return (OWLB = { d0, W, H, PX: 6, PY: 9, R2: 32, body: bc, LX: 7, RX: 18 });
   }
   function owlWing(ang, spread, curl) {
     const qa = Math.round(ang * 12) / 12, qs = Math.round(spread * 8) / 8, qc = Math.round(curl * 6) / 6, key = qa + "|" + qs + "|" + qc;
@@ -1055,7 +1078,7 @@
     if (u < 0.42) { const k = u / 0.42, e2 = k * k * (3 - 2 * k); return { ang: 2.25 - e2 * 1.6, spread: 1.0 + Math.sin(k * Math.PI) * 0.3, curl: 0.1, lift: -Math.sin(k * Math.PI) * 2.5 }; }
     const k = (u - 0.42) / 0.58, e2 = k * k * (3 - 2 * k); return { ang: 0.65 + e2 * 1.6, spread: 0.92 + Math.sin(k * Math.PI) * 0.08, curl: 0.9 - Math.abs(k - 0.5) * 0.8, lift: Math.sin(k * Math.PI) * 1.2 };
   }
-  L0.owlTest = (ctx, x, y, ang, spread, curl) => { const B = owlBase(), s = 1.25, R2 = B.R2 * s, top = y - Math.round(B.H * s), left = x - Math.round((B.W * s) / 2); for (const sg of [-1, 1]) { const wf = owlWing(ang, spread, curl), sxp = sg < 0 ? left + B.PX * s : left + (B.W - B.PX) * s, syp = top + B.PY * s; ctx.save(); ctx.translate(Math.round(sxp), Math.round(syp)); ctx.scale(sg < 0 ? 1 : -1, 1); ctx.drawImage(wf, Math.round(-R2), Math.round(-R2), Math.round(R2 * 2), Math.round(R2 * 2)); ctx.restore(); } ctx.drawImage(img("e_owl"), left, top, Math.round(B.W * s), Math.round(B.H * s)); };
+  L0.owlTest = (ctx, x, y, ang, spread, curl) => { const B = owlBase(), s = 1.25, R2 = B.R2 * s, top = y - Math.round(B.H * s), left = x - Math.round((B.W * s) / 2); for (const sg of [-1, 1]) { const wf = owlWing(ang, spread, curl), sxp = sg < 0 ? left + (B.LX + B.PX - 7) * s : left + (B.RX - B.PX + 7 + 1) * s, syp = top + B.PY * s; ctx.save(); ctx.translate(Math.round(sxp), Math.round(syp)); ctx.scale(sg < 0 ? 1 : -1, 1); ctx.drawImage(wf, Math.round(-R2), Math.round(-R2), Math.round(R2 * 2), Math.round(R2 * 2)); ctx.restore(); } ctx.drawImage(B.body, left, top, Math.round(B.W * s), Math.round(B.H * s)); };
   function drawOwlFlight(ctx, x, y, t, e, fl, carry) {
     const S2 = img("e_owl"), B = owlBase(), s = 1.25;
     // how it's flying: a dive with the wings swept back, a hover (glaring) with quick shallow beats, or
@@ -1075,11 +1098,12 @@
     ctx.save(); ctx.translate(X, Y); ctx.rotate(bank); ctx.translate(-X, -Y);
     for (const sg of [-1, 1]) {
       const wf0 = owlWing(pose.ang + (sg > 0 ? bank : -bank) * 0.8, pose.spread, pose.curl), wf = fl ? tinted(wf0) : wf0;
-      const sxp = sg < 0 ? left + B.PX * s : left + (B.W - B.PX) * s, syp = top + B.PY * s;
+      // each wing swings from the body's flank at the shoulder (the wing image pivots at its own column PX)
+      const sxp = sg < 0 ? left + (B.LX + B.PX - 7) * s : left + (B.RX - B.PX + 7 + 1) * s, syp = top + B.PY * s;
       ctx.save(); ctx.translate(Math.round(sxp), Math.round(syp)); ctx.scale(sg < 0 ? 1 : -1, 1); ctx.drawImage(wf, Math.round(-R2), Math.round(-R2), Math.round(R2 * 2), Math.round(R2 * 2)); ctx.restore();
     }
-    // the body, its talons tucked up in a glide and reaching down in a dive
-    ctx.drawImage(fl ? tinted(S2) : S2, left, top, Math.round(B.W * s), Math.round(B.H * s));
+    // the body (no folded wings on it in flight)
+    ctx.drawImage(fl ? tinted(B.body) : B.body, left, top, Math.round(B.W * s), Math.round(B.H * s));
     ctx.restore();
     if (carry) { const OB = R().obsidian, c = (col) => (fl ? "#ffffff" : rgb(col)); px(ctx, X - 6, Y - 2, 13, 10, c(OB[0])); px(ctx, X - 5, Y - 1, 11, 8, c(OB[3])); px(ctx, X - 4, Y - 1, 6, 2, c(OB[5])); px(ctx, X + 2, Y + 3, 3, 3, c(OB[1])); }
   }
