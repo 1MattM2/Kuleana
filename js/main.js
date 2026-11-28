@@ -104,6 +104,7 @@
   addEventListener("keydown", (e) => {
     if (e.target && e.target.tagName === "INPUT") return;          // typing a join code
     if (window.Menu && Menu.open) { if (!e.repeat) Menu.key(e); for (const k in keys) keys[k] = false; return; }
+    if (globe.open) { if (!e.repeat) globeKey(e.code); for (const k in keys) keys[k] = false; e.preventDefault(); return; }
     if (e.code === "Escape" && !e.repeat) { window.Menu && Menu.toggle(true); for (const k in keys) keys[k] = false; return; }
     if (e.code === "KeyC" && !e.repeat) { window.Menu && Menu.toggle(true, "coop"); for (const k in keys) keys[k] = false; return; }
     keys[e.code] = true;
@@ -118,7 +119,7 @@
     if (e.code.startsWith("Arrow") || e.code === "Space" || e.code === "Tab") e.preventDefault();
   });
   addEventListener("keyup", (e) => (keys[e.code] = false));
-  addEventListener("pointerdown", (e) => { window.Ambience && Ambience.start(); if (window.Menu && Menu.open) return; if (e.pointerType !== "mouse" || player.dead) return; if (e.button === 0 && !dialog && fade.dir === 0) Combat.attack(); if (e.button === 2 && !dialog && fade.dir === 0) startRoll(); });
+  addEventListener("pointerdown", (e) => { window.Ambience && Ambience.start(); if (window.Menu && Menu.open) return; if (globe.open) { globeTap(e); return; } if (e.pointerType !== "mouse" || player.dead) return; if (e.button === 0 && !dialog && fade.dir === 0) Combat.attack(); if (e.button === 2 && !dialog && fade.dir === 0) startRoll(); });
   addEventListener("contextmenu", (e) => e.preventDefault());
   addEventListener("wheel", (e) => Combat.cycle(e.deltaY > 0 ? 1 : -1), { passive: true });
   addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
@@ -200,10 +201,10 @@
       case "revive":   // a partner held you up for long enough: back on your feet with half your hearts
         if (player.dead && player.downed) { player.dead = false; player.downed = false; player.hp = Math.ceil(player.maxHp / 2); player.inv = 2; banner = { title: "REVIVED", sub: (m.by || "A partner") + " got you back up", t0: time }; Ambience.sfx && Ambience.sfx("berry"); }
         break;
-      case "sync": if (m.portal) { Level.portalUnlocked = true; if (Level.cur) Level.cur.portalOpen = true; } if (m.heel) { Level.heelTaken = true; Combat.unlocked.add("heel"); if (Level.cur) Level.cur.shrineTaken = true; } break;
+      case "sync": if (m.un) for (const n of m.un) Level.unlock(n); if (m.portal) { Level.portalUnlocked = true; if (Level.cur) Level.cur.portalOpen = true; } if (m.heel) { Level.heelTaken = true; Combat.unlocked.add("heel"); if (Level.cur) Level.cur.shrineTaken = true; } break;
       case "act":     // a guest asks the host to do something that changes the shared world
         if (!Net.isHost()) break;
-        if (m.k === "go") goTo(m.to);
+        if (m.k === "go" && (!Level.DEFS[m.to] || m.to === "sanctum" || Level.unlocked.has(m.to) || scene === "level")) goTo(m.to);
         else if (m.k === "talk") { Level.portalUnlocked = true; if (Level.cur) Level.cur.portalOpen = true; Net.send({ t: "sync", portal: 1 }); Ambience.sfx && Ambience.sfx("portal"); }
         else if (m.k === "shrine") takeShrine(false);
         break;
@@ -242,7 +243,7 @@
     Net.onConnect = (slot) => {
       if (Net.isHost()) {
         banner = { title: "CO-OP", sub: `A partner has joined (${Net.count()} heroes)`, t0: time };
-        Net.sendTo(slot, { t: "scene", to: sceneName(), n: Net.count() }); Net.sendTo(slot, { t: "sync", portal: Level.portalUnlocked ? 1 : 0, heel: Level.heelTaken ? 1 : 0 });
+        Net.sendTo(slot, { t: "scene", to: sceneName(), n: Net.count() }); Net.sendTo(slot, { t: "sync", portal: Level.portalUnlocked ? 1 : 0, heel: Level.heelTaken ? 1 : 0, un: [...Level.unlocked] });
       } else banner = { title: "CO-OP", sub: "You joined the party", t0: time };
     };
     Net.onRoster = (slots) => { for (const s of [...mates.keys()]) if (!slots.includes(s)) mates.delete(s); };
@@ -264,8 +265,114 @@
     hurtRemote: (q, d, sx, sy, src) => { if (q.dead || q.hitInv > 0) return false; Net.sendTo(q.slot, { t: "hurt", d, x: sx, y: sy, s: src }); if (q.rolling || q.inv) return false; q.hitInv = 0.9; return true; },
   };
   let healT = -9;
+  Level.onUnlock = () => { if (window.Net && Net.isHost()) Net.send({ t: "sync", un: [...Level.unlocked] }); };
+
+  // ------------------------------------------------------------------ Kahu Lā's globe
+  // A little world turning in the keeper's hands. Each zone is an island on it; its levels are pins.
+  // Pick one and he sends the whole party there.
+  const globe = { open: false, zone: 0, sel: 0, rot: 0, pins: [], tex: null, can: null };
+  function openGlobe() {
+    globe.open = true; const z = Level.ZONES[globe.zone], un = z.levels.filter((n) => Level.unlocked.has(n));
+    globe.sel = Math.max(0, z.levels.indexOf(un[un.length - 1] || z.levels[0])); globe.t0 = time;
+    Ambience.sfx && Ambience.sfx("portal");
+  }
+  function globeKey(code) {
+    const z = Level.ZONES[globe.zone], n = Math.max(1, z.levels.length);
+    if (code === "Escape" || code === "KeyQ") globe.open = false;
+    else if (code === "ArrowLeft" || code === "KeyA" || code === "ArrowUp" || code === "KeyW") globe.sel = (globe.sel + n - 1) % n;
+    else if (code === "ArrowRight" || code === "KeyD" || code === "ArrowDown" || code === "KeyS" || code === "KeyR") globe.sel = (globe.sel + 1) % n;
+    else if (code === "KeyE" || code === "Enter" || code === "KeyJ" || code === "Space") travel();
+    else if (code === "Tab") { globe.zone = (globe.zone + 1) % Level.ZONES.length; globe.sel = 0; }
+  }
+  function travel() {
+    const z = Level.ZONES[globe.zone], name = z.levels[globe.sel];
+    if (!name || !Level.unlocked.has(name)) { Ambience.sfx && Ambience.sfx("guard"); return; }
+    globe.open = false; Level.dest = name; Ambience.sfx && Ambience.sfx("portal"); goTo(name);
+  }
+  function globeTap(e) {
+    const gx = (e.clientX * (screen.width / innerWidth)) / SCALE, gy = (e.clientY * (screen.height / innerHeight)) / SCALE;
+    for (const p of globe.pins) if (Math.abs(gx - p.x) < p.w && Math.abs(gy - p.y) < p.h) { if (p.close) { globe.open = false; return; } if (globe.sel === p.i) travel(); else globe.sel = p.i; return; }
+  }
+  function globeTexture() {
+    if (globe.tex) return globe.tex;
+    const TW = 256, TH = 128, d = new Uint8ClampedArray(TW * TH * 3), Z = Level.ZONES;
+    for (let v = 0; v < TH; v++) for (let u = 0; u < TW; u++) {
+      const lon = (u / TW) * Math.PI * 2, lat = (0.5 - v / TH) * Math.PI, px = Math.cos(lat) * Math.sin(lon), py = Math.sin(lat), pz = Math.cos(lat) * Math.cos(lon);
+      let h = K.fbm(px * 1.6 + 5, py * 1.6 + pz * 0.7, 4) * 0.55 + K.fbm(pz * 1.6 + 9, py * 1.6 - px * 0.7, 4) * 0.45 - 0.08;
+      let col, volc = 0;
+      for (const [zi, z] of Z.entries()) { const zx = Math.cos(z.lat) * Math.sin(z.lon), zy = Math.sin(z.lat), zz = Math.cos(z.lat) * Math.cos(z.lon), dd = Math.acos(Math.max(-1, Math.min(1, px * zx + py * zy + pz * zz))); if (dd < 0.32) h = Math.max(h, 0.62 - dd * 0.4 + (K.noise(u * 0.2, v * 0.2) - 0.5) * 0.1); if (zi === 0 && dd < 0.12) volc = 1 - dd / 0.12; }
+      if (h < 0.5) { const sh = Math.max(0, (h - 0.38) / 0.12); col = [18 + sh * 30, 52 + sh * 80, 102 + sh * 60]; }
+      else if (h < 0.53) col = [226, 198, 136];
+      else if (h < 0.62) col = [72, 150, 70];
+      else if (h < 0.7) col = [42, 104, 52];
+      else col = [104, 96, 92];
+      if (volc > 0.45) col = volc > 0.85 ? [255, 150, 60] : volc > 0.7 ? [70, 40, 46] : [48, 36, 44];
+      if (Math.abs(lat) > 1.25) col = [230, 236, 244];
+      d.set(col, (v * TW + u) * 3);
+    }
+    globe.tex = { d, TW, TH }; return globe.tex;
+  }
+  function drawGlobe(t) {
+    const u = SCALE, TX = globeTexture(), Z = Level.ZONES, z = Z[globe.zone];
+    const pw = Math.min(VW - 16, 380), ph = Math.min(VH - 16, 210), px0 = Math.round((VW - pw) / 2), py0 = Math.round((VH - ph) / 2);
+    const R0 = Math.min(70, Math.floor(ph / 2) - 18), gcx = px0 + 18 + R0, gcy = py0 + ph / 2 + 4;
+    if (!globe.can || globe.can.width !== pw) [globe.can, globe.cx] = K.canvas(pw, ph);
+    const gx = globe.cx, img = gx.createImageData(pw, ph), o = img.data;
+    // panel: dark koa with a gold rim
+    for (let y = 0; y < ph; y++) for (let x = 0; x < pw; x++) { const i = (y * pw + x) * 4, edge = x < 2 || y < 2 || x >= pw - 2 || y >= ph - 2, rim = x < 3 || y < 3 || x >= pw - 3 || y >= ph - 3; const c = edge ? [26, 18, 32] : rim ? [192, 138, 62] : [34, 24, 38]; o[i] = c[0]; o[i + 1] = c[1]; o[i + 2] = c[2]; o[i + 3] = 240; }
+    // the globe turns toward the chosen land
+    const pinsAt = (k, n) => ({ lon: z.lon + (k - (n - 1) / 2) * 0.14, lat: z.lat + (k % 2 ? 0.07 : -0.05) });
+    const target = z.levels.length ? pinsAt(globe.sel, z.levels.length).lon : z.lon;
+    globe.rot += Math.atan2(Math.sin(target - globe.rot), Math.cos(target - globe.rot)) * 0.08 + 0.0006;
+    const lx = -0.5, ly = -0.55, lz = 0.67, lc = gcx - px0, lcy = gcy - py0;
+    for (let y = -R0 - 3; y <= R0 + 3; y++) for (let x = -R0 - 3; x <= R0 + 3; x++) {
+      const r = Math.hypot(x + 0.5, y + 0.5) / R0, i = ((lcy + y) * pw + lc + x) * 4;
+      if (r > 1) { if (r < 1.06) { const a = (1.06 - r) / 0.06; o[i] = o[i] * (1 - a) + 90 * a; o[i + 1] = o[i + 1] * (1 - a) + 200 * a; o[i + 2] = o[i + 2] * (1 - a) + 230 * a; } continue; }
+      const nx = (x + 0.5) / R0, ny = (y + 0.5) / R0, nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
+      const lat = Math.asin(-ny), lon = Math.atan2(nx, nz) + globe.rot, tu = ((((lon / (Math.PI * 2)) % 1) + 1) % 1) * TX.TW | 0, tv = Math.min(TX.TH - 1, ((0.5 - lat / Math.PI) * TX.TH) | 0), j = (tv * TX.TW + tu) * 3;
+      const lit = Math.max(0, nx * lx + ny * ly + nz * lz), band = lit + PAL.bayer(x, y) * 0.12, sh = band > 0.55 ? 1.05 : band > 0.3 ? 0.85 : band > 0.1 ? 0.6 : 0.38;
+      let c0 = TX.d[j] * sh, c1 = TX.d[j + 1] * sh, c2 = TX.d[j + 2] * sh;
+      if (TX.d[j] === 255 && Math.sin(t * 4) > 0) { c0 = 255; c1 = 200; c2 = 120; }       // the volcano's glow
+      if (r > 0.9) { const a = (r - 0.9) / 0.1 * 0.5; c0 += (90 - c0) * a; c1 += (200 - c1) * a; c2 += (230 - c2) * a; }
+      o[i] = c0; o[i + 1] = c1; o[i + 2] = c2; o[i + 3] = 255;
+    }
+    gx.putImageData(img, 0, 0);
+    // pins for the levels of this zone (on the side facing you)
+    globe.pins = [];
+    z.levels.forEach((name, k) => {
+      const p = pinsAt(k, z.levels.length), rel = p.lon - globe.rot;
+      if (Math.cos(rel) * Math.cos(p.lat) < 0.05) return;
+      const x = Math.round(lc + R0 * Math.cos(p.lat) * Math.sin(rel)), y = Math.round(lcy - R0 * Math.sin(p.lat)), on = Level.unlocked.has(name), sel = k === globe.sel;
+      gx.fillStyle = "#140c16"; gx.fillRect(x - 3, y - 9, 7, 9); gx.fillStyle = on ? (sel && Math.sin(t * 8) > 0 ? "#ffffff" : "#ffd27a") : "#6a5a6a"; gx.fillRect(x - 2, y - 8, 5, 5); gx.fillRect(x, y - 3, 1, 3);
+      globe.pins.push({ x: px0 + x, y: py0 + y - 5, w: 8, h: 8, i: k });
+    });
+    sctx.imageSmoothingEnabled = false;
+    sctx.drawImage(globe.can, px0 * u, py0 * u, pw * u, ph * u);
+    // the list of lands
+    const lx0 = gcx + R0 + 16, tw = px0 + pw - lx0 - 8;
+    sctx.textAlign = "left"; sctx.textBaseline = "top";
+    sctx.font = `${10 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#ffe08a"; sctx.fillText(`ZONE ${globe.zone + 1}`, lx0 * u, (py0 + 10) * u);
+    sctx.font = `${7 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#fff6dc"; sctx.fillText(z.name, lx0 * u, (py0 + 24) * u);
+    z.levels.forEach((name, k) => {
+      const y = py0 + 42 + k * 30, on = Level.unlocked.has(name), sel = k === globe.sel, D = Level.DEFS[name];
+      sctx.fillStyle = sel ? "rgba(255,210,122,0.18)" : "rgba(0,0,0,0.2)"; sctx.fillRect((lx0 - 4) * u, (y - 3) * u, tw * u, 26 * u);
+      if (sel) { sctx.fillStyle = "#ffd27a"; sctx.fillRect((lx0 - 4) * u, (y - 3) * u, 2 * u, 26 * u); }
+      sctx.font = `${8 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = on ? (sel ? "#ffffff" : "#fff6dc") : "#7a6a78";
+      sctx.fillText(`${k + 1}  ${on ? D.title : "? ? ?"}`, lx0 * u, y * u);
+      sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = on ? "#c8b890" : "#5a4a58";
+      sctx.fillText(on ? D.sub : "Clear the land before it to reveal it", (lx0 + 9) * u, (y + 11) * u);
+      globe.pins.push({ x: lx0 - 4 + tw / 2, y: y + 10, w: tw / 2, h: 13, i: k });
+    });
+    if (!z.levels.length) { sctx.font = `${7 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#7a6a78"; sctx.fillText("Not yet... the sun has not reached it.", lx0 * u, (py0 + 44) * u); }
+    sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#c8b890";
+    sctx.fillText(TOUCH ? "Tap a land to choose, tap again to travel" : "W/S choose   E travel   Tab other zones   Esc close", (px0 + 10) * u, (py0 + ph - 12) * u);
+    // a close box for touch
+    sctx.fillStyle = "#c08a3e"; sctx.fillRect((px0 + pw - 16) * u, (py0 + 5) * u, 11 * u, 11 * u); sctx.fillStyle = "#1a1220"; sctx.font = `${8 * u}px 'Pixelify Sans', monospace`; sctx.fillText("x", (px0 + pw - 13) * u, (py0 + 5) * u);
+    globe.pins.push({ x: px0 + pw - 10, y: py0 + 10, w: 8, h: 8, close: true });
+  }
+
   // fallen enemies sometimes leave an ʻōhelo berry behind
-  Combat.onKill = (d) => { if (scene === "level" && Math.random() < 0.3) Level.dropBerry(d.type === "vine" ? d.rx : d.x, d.type === "vine" ? d.ry : d.y, time); };
+  Combat.onKill = (d) => { if (scene === "level" && d.type !== "runner" && Math.random() < (d.boss ? 1 : 0.3)) Level.dropBerry(d.type === "vine" ? d.rx : d.x, d.type === "vine" ? d.ry : d.y, time); };
   window.__hurt = hurtPlayer;
   const FOOT = [-5, -4, 5, 1];
 
@@ -303,7 +410,7 @@
       player.moving = true;
       return;
     }
-    if (dialog || fade.dir === 1 || Combat.busy) { player.moving = false; player.frame = Combat.busy ? 2 : 0; return; }
+    if (dialog || globe.open || fade.dir === 1 || Combat.busy) { player.moving = false; player.frame = Combat.busy ? 2 : 0; return; }
     let ix = 0, iy = 0;
     if (keys.KeyA || keys.ArrowLeft) ix -= 1;
     if (keys.KeyD || keys.ArrowRight) ix += 1;
@@ -332,15 +439,25 @@
 
   // ------------------------------------------------------------------ particles
   const parts = [];
+  // what the hero is standing on, for the sound of their steps (and the dust they kick up)
+  function surfaceAt(x, y) {
+    if (scene === "dojo") return "wood";
+    if (scene === "cave") return "tile";
+    if (scene === "level") {
+      const v = Level.tileAt(x, y);
+      return v === 9 || v === 10 ? "wood" : v === 3 ? "grass" : v === 4 ? "sand" : v === 2 ? "dirt" : v >= 5 ? "tile" : v === 11 ? "water" : "dirt";
+    }
+    if (World.bridges.some((b) => x > b.x0 && x < b.x1 && Math.abs(y - b.y) < 18)) return "wood";
+    const t = World.terrAt(x, y);
+    return t === World.SAND ? "sand" : t === World.PATH || t === World.PLAZA ? "tile" : t === World.WATER ? "water" : "grass";
+  }
   function footstep(run) {
-    const t = World.terrAt(player.x, player.y);
-    const onBridge = World.bridges.some((b) => player.x > b.x0 && player.x < b.x1 && Math.abs(player.y - b.y) < 18);
-    Ambience.step(onBridge ? "wood" : t === World.SAND ? "sand" : t === World.PATH || t === World.PLAZA ? "stone" : "grass", run);
-    if (onBridge) return;
-    const col = t === World.SAND ? [232, 196, 120] : t === World.PATH || t === World.PLAZA ? [214, 190, 150] : null;
-    if (!col) return;
-    for (let k = 0; k < (run ? 4 : 2); k++)
-      parts.push({ x: player.x + (Math.random() * 8 - 4), y: player.y, vx: (Math.random() - 0.5) * 14, vy: -6 - Math.random() * 8, life: 0.45, max: 0.45, col, size: 1, ground: true });
+    const s = surfaceAt(player.x, player.y);
+    Ambience.step(s, run);
+    const col = s === "sand" ? [232, 196, 120] : s === "tile" && scene !== "cave" ? [214, 190, 150] : s === "dirt" ? [120, 96, 84] : s === "water" ? [200, 236, 250] : null;
+    if (!col || scene === "dojo") return;
+    for (let k = 0; k < (run ? 4 : 2) + (s === "water" ? 3 : 0); k++)
+      parts.push({ x: player.x + (Math.random() * 8 - 4), y: player.y, vx: (Math.random() - 0.5) * 14, vy: -6 - Math.random() * (s === "water" ? 22 : 8), life: 0.45, max: 0.45, col, size: 1, ground: true });
   }
   function spawnLeaf(camX, camY, t) {
     const petal = Math.random() < 0.3;
@@ -414,12 +531,13 @@
       if (fade.to === "cave") {
         scene = "cave"; player.x = Cave.ENTRY.x; player.y = Cave.ENTRY.y + 18; player.dir = "down";
         banner = { title: "ANA ʻŌLINO", sub: "The Glowing Sea Cave", t0: time + 0.3 };
-      } else if (fade.to === "sanctum" || fade.to === "highlands") {
+      } else if (Level.DEFS[fade.to]) {
         scene = "level"; Level.players = window.Net && Net.active() ? (Net.isHost() ? Net.count() : Level.players || Net.count()) : 1; Level.coop = Level.players > 1; Level.netGuest = !!(window.Net && Net.isGuest()); const L = Level.load(fade.to);
         const from = fade.from === "level" ? Level.prev : null;
         let sp = L.spawn;
-        if (fade.to === "sanctum" && from === "highlands") sp = { x: L.def.returnAt.x * 32, y: L.def.returnAt.y * 32 };
-        player.x = sp.x; player.y = sp.y; player.dir = fade.to === "sanctum" && from !== "highlands" ? "up" : "down";
+        const fromLevel = from && from !== "sanctum" && Level.DEFS[from];
+        if (fade.to === "sanctum" && fromLevel) sp = { x: L.def.returnAt.x * 32, y: L.def.returnAt.y * 32 };
+        player.x = sp.x; player.y = sp.y; player.dir = fade.to === "sanctum" && !fromLevel ? "up" : "down";
         if (window.Net && Net.isGuest()) player.x += 20 * (Net.slot === 2 ? -1 : 1);                     // arrive beside the host, not on top of them
         // never arrive inside rock or a prop: spiral out to the nearest free footing
         if (blocked(player.x, player.y)) { search: for (let r = 4; r < 160; r += 4) for (let a = 0; a < Math.PI * 2; a += 0.3) { const x = sp.x + Math.cos(a) * r, y = sp.y + Math.sin(a) * r; if (!blocked(x, y)) { player.x = x; player.y = y; break search; } } }
@@ -437,7 +555,7 @@
       Combat.setTargets(scene === "dojo" ? Dojo.dummies : scene === "level" ? Level.cur.enemies : []);
       Combat.allUnlocked = scene === "dojo"; Combat.ensureOpen();
       parts.length = 0;
-      Ambience.setScene && Ambience.setScene(scene === "level" ? Level.cur.name : scene);
+      Ambience.setScene && Ambience.setScene(scene === "level" ? Level.cur.def.amb || Level.cur.name : scene);
     } else if (fade.dir === -1 && fade.a <= 0) { fade.a = 0; fade.dir = 0; }
   }
 
@@ -505,9 +623,12 @@
     for (const ex of L.def.exits || []) if (player.x > ex.x0 * T && player.x < ex.x1 * T && player.y > ex.y0 * T) { goTo(ex.to); return; }
     let near = null, bd = 42;
     for (const n of L.npcs) { const d = Math.hypot(n.x - player.x, n.y - player.y); if (d < bd) { bd = d; near = n; } }
-    if (near) { prompt = { x: near.x, y: near.y - 36 }; if (pressedE) { dialog = { name: near.name, lines: near.lines, i: 0, start: performance.now(), onEnd: () => { Level.portalUnlocked = true; L.portalOpen = true; Ambience.sfx && Ambience.sfx("portal"); if (window.Net && Net.isGuest()) Net.send({ t: "act", k: "talk" }); else if (window.Net && Net.isHost()) Net.send({ t: "sync", portal: 1 }); } }; } return; }
+    if (near) { prompt = { x: near.x, y: near.y - 36 }; if (pressedE) {
+      if (Level.portalUnlocked) { dialog = { name: near.name, lines: ["Look into the globe, and tell me where the sun should take you."], i: 0, start: performance.now(), onEnd: openGlobe }; }
+      else dialog = { name: near.name, lines: near.lines, i: 0, start: performance.now(), onEnd: () => { Level.portalUnlocked = true; L.portalOpen = true; Ambience.sfx && Ambience.sfx("portal"); if (window.Net && Net.isGuest()) Net.send({ t: "act", k: "talk" }); else if (window.Net && Net.isHost()) Net.send({ t: "sync", portal: 1 }); openGlobe(); } };
+    } return; }
     const pt = L.def.portal;
-    if (pt) { const px = pt.x * T, py = pt.y * T; if (Math.abs(player.x - px) < 18 && player.y < py + 12 && player.y > py - 30) { if (L.portalOpen) { Ambience.sfx && Ambience.sfx("portal"); goTo(pt.to); return; } else { prompt = { x: px, y: py - 70 }; if (pressedE) dialog = { name: "Sun Gate", lines: ["The great sun disc is cold and still.", "Perhaps its keeper can wake it."], i: 0, start: performance.now() }; } } }
+    if (pt) { const px = pt.x * T, py = pt.y * T; if (Math.abs(player.x - px) < 18 && player.y < py + 12 && player.y > py - 30) { if (L.portalOpen) { Ambience.sfx && Ambience.sfx("portal"); goTo(Level.dest || pt.to); return; } else { prompt = { x: px, y: py - 70 }; if (pressedE) dialog = { name: "Sun Gate", lines: ["The great sun disc is cold and still.", "Perhaps its keeper can wake it."], i: 0, start: performance.now() }; } } }
     for (const gte of L.def.gates || []) { const gx = gte.x * T, gy = gte.y * T; if (Math.hypot(player.x - gx, player.y - gy) < 26) { prompt = { x: gx, y: gy - 60 }; if (pressedE) { Ambience.sfx && Ambience.sfx("portal"); goTo(gte.to); } } }
     const sh = L.def.shrine;
     if (sh && !L.shrineTaken) { const sx = sh.x * T, sy = sh.y * T; if (Math.hypot(player.x - sx, player.y - sy) < 30) { prompt = { x: sx, y: sy - 52 }; if (pressedE) {
@@ -760,11 +881,12 @@
     drawCombatHUD(hctx);
     sctx.imageSmoothingEnabled = false;
     drawMate(ox, oy, t);
+    if (!player.dead && Combat.behindHero(player)) Combat.drawWeapon(actx, ox, oy, player, scene === "cave");
     sctx.drawImage(layerA, -sx, -sy, LW * SCALE, LH * SCALE);
     // the hero is a dark silhouette, rimmed by the pool's light
     drawHero(t, heroSil);
     sctx.drawImage(layerB, -sx, -sy, LW * SCALE, LH * SCALE);
-    composeFx(ox, oy, sx, sy);
+    composeFx(ox, oy, sx, sy, true);
     sctx.drawImage(hud, 0, 0, VW * SCALE, VH * SCALE);
     drawTexts(t, null);
     drawCombatTexts(SCALE);
@@ -828,10 +950,10 @@
     if (u <= 0 && prompt) { ctx.fillStyle = "#ffd27a"; ctx.fillRect(x - 1, cy - 6, 2, 3); ctx.fillRect(x - 1, cy - 2, 2, 1); }
   }
   // weapon + slash effects: crisp pixel layer, then additive glow, then the impact flash
-  function composeFx(ox, oy, sx, sy) {
+  function composeFx(ox, oy, sx, sy, sil) {
     const LW = VW + 1, LH = VH + 1;
     fctx.clearRect(0, 0, LW, LH);
-    Combat.drawWeapon(fctx, ox, oy, player);
+    if (!player.dead && !Combat.behindHero(player)) Combat.drawWeapon(fctx, ox, oy, player, sil);
     const any = Combat.drawAir(fctx, gctx, ox, oy);
     const [dk, tint] = Combat.darkness();
     if (dk > 0.01) { sctx.fillStyle = `rgba(${tint},${dk * 0.62})`; sctx.fillRect(0, 0, screen.width, screen.height); }
@@ -930,6 +1052,7 @@
     drawCombatHUD(hctx);
     sctx.imageSmoothingEnabled = false;
     drawMate(ox, oy, t);
+    if (!player.dead && Combat.behindHero(player)) Combat.drawWeapon(actx, ox, oy, player, scene === "cave");
     sctx.drawImage(layerA, -sx, -sy, LW * SCALE, LH * SCALE);
     drawHero(t, framesFor(mySlot()));
     sctx.drawImage(layerB, -sx, -sy, LW * SCALE, LH * SCALE);
@@ -949,7 +1072,7 @@
     bctx.clearRect(0, 0, LW, LH);
     const vis = [];
     for (const o of Level.drawables()) if (o.x > ox - 120 && o.x < ox + LW + 120 && o.y > oy - 20 && o.y < oy + LH + 140) vis.push(o);
-    for (const e of L.enemies) if (!e.dead && e.x > ox - 60 && e.x < ox + LW + 60 && e.y > oy - 40 && e.y < oy + LH + 60) vis.push({ y: e.y + (e.fly ? 14 : 0), enemy: e });
+    for (const e of L.enemies) if (!e.dead && e.x > ox - (e.big ? 220 : 60) && e.x < ox + LW + (e.big ? 220 : 60) && e.y > oy - (e.big ? 160 : 40) && e.y < oy + LH + (e.big ? 200 : 60)) vis.push({ y: e.y + (e.fly ? 14 : 0), enemy: e });
     vis.sort((a, b) => a.y - b.y);
     for (const o of vis) {
       const ctx = o.y < player.y ? actx : bctx;
@@ -968,6 +1091,7 @@
     const box = drawDialogBox(hctx);
     sctx.imageSmoothingEnabled = false;
     drawMate(ox, oy, t);
+    if (!player.dead && Combat.behindHero(player)) Combat.drawWeapon(actx, ox, oy, player, scene === "cave");
     sctx.drawImage(layerA, -sx, -sy, LW * SCALE, LH * SCALE);
     drawHero(t, framesFor(mySlot()));
     sctx.drawImage(layerB, -sx, -sy, LW * SCALE, LH * SCALE);
@@ -990,6 +1114,19 @@
       }
       sctx.textAlign = "left";
     }
+    const boss = L.enemies.find((e) => e.boss && !e.dead && e.alerted && e.introT <= 0);
+    if (boss) {
+      const w = Math.min(220, VW - 60), bx = Math.round((VW - w) / 2), by = 18;
+      sctx.fillStyle = "#140c16"; sctx.fillRect((bx - 2) * u, (by - 2) * u, (w + 4) * u, 8 * u);
+      sctx.fillStyle = "#4a2030"; sctx.fillRect(bx * u, by * u, w * u, 4 * u);
+      sctx.fillStyle = boss.armor < 0.2 ? "#c8c0b0" : "#e8503c"; sctx.fillRect(bx * u, by * u, Math.round(w * Math.max(0, boss.hp / boss.max)) * u, 4 * u);
+      sctx.fillStyle = "#ffb08a"; sctx.fillRect(bx * u, by * u, Math.round(w * Math.max(0, boss.hp / boss.max)) * u, u);
+      sctx.textAlign = "center"; sctx.font = `${7 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#120c16"; sctx.fillText(boss.name || "", (VW / 2) * u + u, (by - 11) * u + u); sctx.fillStyle = "#ffe08a"; sctx.fillText(boss.name || "", (VW / 2) * u, (by - 11) * u); sctx.textAlign = "left";
+    }
+    if (L.timer > 0) {
+      const sec = Math.ceil(L.timer), msg = `SURVIVE  ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+      sctx.textAlign = "center"; sctx.font = `${12 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#120c16"; sctx.fillText(msg, (VW / 2) * u + u, 14 * u + u); sctx.fillStyle = sec <= 5 ? "#7cf08a" : "#ffd27a"; sctx.fillText(msg, (VW / 2) * u, 14 * u); sctx.textAlign = "left";
+    }
     if (rev.target >= 0 && !player.dead) {
       sctx.textAlign = "center"; sctx.font = `${8 * u}px 'Pixelify Sans', monospace`;
       const msg = rev.t > 0 ? `Reviving... ${Math.round((rev.t / REVIVE_T) * 100)}%` : TOUCH ? "Hold USE to revive" : "Hold E to revive";
@@ -1003,6 +1140,7 @@
     else if (scene === "dojo") renderDojo(t);
     else if (scene === "level") renderLevel(t);
     else renderIsland(t);
+    if (globe.open) drawGlobe(t);
     if (fade.a > 0) { sctx.fillStyle = `rgba(2,3,8,${Math.min(1, fade.a)})`; sctx.fillRect(0, 0, screen.width, screen.height); }
   }
 
@@ -1073,6 +1211,7 @@
     // compose on screen
     sctx.imageSmoothingEnabled = false;
     drawMate(ox, oy, t);
+    if (!player.dead && Combat.behindHero(player)) Combat.drawWeapon(actx, ox, oy, player, scene === "cave");
     sctx.drawImage(layerA, -sx, -sy, LW * SCALE, LH * SCALE);
     drawHero(t, framesFor(mySlot()));
     sctx.drawImage(layerB, -sx, -sy, LW * SCALE, LH * SCALE);
@@ -1159,7 +1298,7 @@
       if (scene === "level" && fade.dir !== 1) {
         if (Level.netGuest && window.Net && Net.isGuest()) { Enemies.netUpdate(gdt, time, Level.cur); Level.update(gdt, time, player, levelApi, []); }
         else { const others = matesHere(); Enemies.update(gdt, time, player, Level.cur, levelApi, others); Level.update(gdt, time, player, levelApi, others); }
-        if (Level.cur.banner) { banner = { title: Level.cur.banner.title, sub: "", t0: time }; if (window.Net && Net.isHost()) Net.send({ t: "banner", title: Level.cur.banner.title }); Level.cur.banner = null; }
+        if (Level.cur.banner) { banner = { title: Level.cur.banner.title, sub: Level.cur.banner.sub || "", t0: time }; if (window.Net && Net.isHost()) Net.send({ t: "banner", title: banner.title, sub: banner.sub }); Level.cur.banner = null; }
       }
     }
     updateRevive(dt);
@@ -1190,6 +1329,7 @@
     if (shk > 0.05) { cam.fx += (K.noise(time * 37, 1) - 0.5) * 2 * shk; cam.fy += (K.noise(time * 37, 9) - 0.5) * 2 * shk; cam.fx = Math.max(0, cam.fx); cam.fy = Math.max(0, cam.fy); }
     cam.x = Math.floor(cam.fx); cam.y = Math.floor(cam.fy);
     K.updateWind(time, dt);
+    if (scene === "level" && fade.dir === 0) Level.idle(3, player.x, player.y);   // paint the rest of the area's ground in spare time
     Ambience.update(time, player.x, player.y);
     render(time);
     requestAnimationFrame(frame);

@@ -128,9 +128,9 @@
       enemy: true, dead: false, flash: 0, hitT: -9, ang: 0, angV: 0, face: 1, state: "idle", st: 0, kx: 0, ky: 0, stun: 0, alerted: false,
       ph: Math.random() * 6, t: Math.random() * 2, trail: [], seed: Math.random() * 99, introT: 0, moving: false, armor: 1 };
     e.onHit = function (dmg, ang) {
-      const kb = this.type === "vine" ? 0 : this.type === "spear" ? 70 : this.type === "wisp" ? 160 : 120;
+      const kb = s.kb !== undefined ? s.kb : this.type === "vine" ? 0 : this.type === "spear" ? 70 : this.type === "wisp" ? 160 : 120;
       this.kx = Math.cos(ang) * kb; this.ky = Math.sin(ang) * kb * 0.8;
-      if (this.type !== "vine" && this.type !== "spear") this.stun = Math.max(this.stun, 0.22);
+      if (this.type !== "vine" && this.type !== "spear" && !s.boss && !s.noStun) this.stun = Math.max(this.stun, 0.22);
       if (this.type === "spear" && this.state !== "lunge") this.stun = Math.max(this.stun, 0.12);
       this.alerted = true;
       if (this.state === "wind" && this.type !== "spear" && this.type !== "vine") { this.state = "recover"; this.st = 0; }
@@ -145,6 +145,8 @@
     if (type === "vine") { e.chain = []; for (let k = 0; k <= 10; k++) e.chain.push({ x: x, y: y - 6 - k * 2.2, px: x, py: y - 6 - k * 2.2 }); e.rise = 0; e.S = Surface(220, 200); }
     if (type === "wisp") { e.S = Surface(110, 110); e.y -= 14; e.hy = e.y; e.va = Math.random() * TAU; }
     if (type === "spear" || type === "dart") { e.cape = Array.from({ length: type === "spear" ? 7 : 12 }, (_, k) => ({ a: 0, v: 0, ph: k * 1.7 })); e.walkPh = Math.random() * 6; e.aimA = 0; e.puff = 0; }
+    if (s.boss) { e.boss = true; e.big = s.big || 20; e.name = s.name; } else if (s.big) e.big = s.big;
+    if (E.SETUP[type]) E.SETUP[type](e, L);
     return e;
   };
 
@@ -168,7 +170,8 @@
       if (!q.isRemote) q.attacking = Combat.busy;
       if (!q._api) q._api = { hurt: q.isRemote ? (d, sx, sy, src) => api.hurtRemote(q, d, sx, sy, src) : api.hurt, sfx: api.sfx };
     }
-    const alive = players.filter((q) => !q.dead), pick = (e) => {
+    const alive = players.filter((q) => !q.dead); E.alive = alive; E.players = players;
+    const pick = (e) => {
       if (alive.length < 2) return alive[0] || P;
       let near = alive[0]; for (const q of alive) if (dist(e, q) < dist(e, near)) near = q;
       if (!e.tgt || !alive.includes(e.tgt) || dist(e, near) < dist(e, e.tgt) * 0.6) e.tgt = near;
@@ -201,6 +204,7 @@
       for (let qi = 0; qi < alive.length; qi++) {
         const q = alive[qi], key = q.isRemote ? "r" + q.slot : "l";
         if (r.kind === "pulse") { const rad = (r.t / r.dur) * r.R; r.hits = r.hits || {}; if (!r.hits[key] && Math.abs(Math.hypot(q.x - r.x, (q.y - 6 - r.y) / 0.7) - rad) < 7) { if (q._api.hurt(1, r.x, r.y, "pulse")) r.hits[key] = 1; } }
+        if (r.kind === "flames") { r.hitT = r.hitT || {}; if (r.t > 0.15 && Math.hypot(q.x - r.x, (q.y - r.y) / 0.7) < r.R && t - (r.hitT[key] ?? -9) > 0.8) { if (q._api.hurt(1, r.x, r.y, "flames")) r.hitT[key] = t; } }
         if (r.kind === "spores") { if (typeof r.hitT !== "object") r.hitT = {}; if (Math.hypot(q.x - r.x, (q.y - r.y) / 0.7) < r.R && t - (r.hitT[key] ?? -9) > 0.9) { if (q._api.hurt(1, r.x, r.y, "spores")) r.hitT[key] = t; } }
         if (r.kind === "beam" && r.t > 0.7 && !r.a.dead && !r.b.dead) {
           const ax = r.a.x, ay = r.a.y, bx = r.b.x, by = r.b.y, dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1;
@@ -220,6 +224,7 @@
       const o = { i: q.id, k: q.type, x: r1(q.x), y: r1(q.y), s: q.state, t: r2(q.st), f: q.face, h: q.hp, m: q.max, it: r2(q.introT), mv: q.moving ? 1 : 0, aa: r2(q.aimA), am: r2(q.aim), tr: q.tribe };
       if (q.flash > 0) o.fl = 1; if (q.enter) o.en = q.enter; if (q.puff) o.pf = r2(q.puff); if (q.aimLine) o.al = 1; if (q.jabOut) o.jo = r2(q.jabOut); if (q.hopH) o.hh = r1(q.hopH);
       if (q.type === "vine") { o.ri = r2(q.rise); o.rx = r1(q.rx); o.ry = r1(q.ry); o.ch = q.chain.flatMap((n) => [r1(n.x), r1(n.y)]); }
+      if (E.NET[q.type]) E.NET[q.type].ser(q, o, r1, r2);
       if (q.type === "wisp") { o.va = r2(q.va); if (q.state === "trace" && q.arc) o.arc = q.arc.map((p) => [r1(p.x), r1(p.y)]); }
       return o;
     });
@@ -237,6 +242,7 @@
       e.introT = o.it || 0; e.enter = o.en; e.moving = !!o.mv; e.aimA = o.aa || 0; e.aim = o.am || 0; e.puff = o.pf || 0; e.aimLine = !!o.al; e.jabOut = o.jo || 0; e.hopH = o.hh || 0; e.alerted = true;
       if (o.ch) { e.rise = o.ri; e.nrx = o.rx; e.nry = o.ry; e.nch = o.ch; }
       if (o.va !== undefined) e.va = o.va;
+      if (E.NET[e.type]) E.NET[e.type].app(e, o);
       e.arc = o.arc ? o.arc.map(([x, y]) => ({ x, y })) : e.state === "trace" ? e.arc : null;
     }
     for (const e of L.enemies) if (!e.dead && !seen.has(e.id)) { e.dead = true; E.death(e); }
@@ -253,7 +259,8 @@
       if (e.nch) { e.rx += (e.nrx - e.rx) * k; e.ry += (e.nry - e.ry) * k; for (let i = 0; i < e.chain.length; i++) { e.chain[i].x += (e.nch[i * 2] - e.chain[i].x) * k; e.chain[i].y += (e.nch[i * 2 + 1] - e.chain[i].y) * k; } }
       animate(e, dt, t);
       if (e.moving && e.walkPh !== undefined) e.walkPh += 0;
-      if (e.type === "wisp") { e.trail.unshift([e.x, e.y]); if (e.trail.length > 28) e.trail.length = 28; }
+      if (e.type === "wisp" || e.sc) { e.trail.unshift([e.x, e.y]); if (e.trail.length > 28) e.trail.length = 28; }
+      if (E.NET[e.type] && E.NET[e.type].tick) E.NET[e.type].tick(e, dt, t);
     }
     for (const s of L.shots) { s.x += s.vx * dt; s.y += s.vy * dt; if (s.kind === "gourd" && s.h !== undefined) { s.h = Math.max(0, s.h + s.vh * dt); s.vh -= 300 * dt; } }
     for (const r of L.fx) r.t += dt;
@@ -390,6 +397,7 @@
 
     // ---------------------------------------------------------------- Sun-Wisp
     wisp(e, dt, t, P, L, api, d, live) {
+      if (e.merging) return;   // being drawn back into the Bonfire Hive (enemies2.js moves it)
       const toP = Math.atan2(P.y - 14 - e.y, P.x - e.x);
       let turn = 0, sp = 52;
       if (!e.alerted) { const toH = Math.atan2(e.hy - e.y, e.hx - e.x), dh = Math.hypot(e.hy - e.y, e.hx - e.x); turn = 1.4 + (dh > 50 ? Math.sin(toH - e.va) * 2 : 0); }
@@ -556,7 +564,7 @@
   const bez = (p, u) => ({ x: (1 - u) * (1 - u) * p[0].x + 2 * (1 - u) * u * p[1].x + u * u * p[2].x, y: (1 - u) * (1 - u) * p[0].y + 2 * (1 - u) * u * p[1].y + u * u * p[2].y });
 
   // ------------------------------------------------------------------ drawing
-  const glow = (g, x, y, r, rgb, a) => { if (!g) return; const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${rgb},${a})`); gr.addColorStop(1, `rgba(${rgb},0)`); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); };
+  const glow = (g, x, y, r, rgb, a) => { if (g) Level.glowAt(g, x, y, r, rgb, a); };
   // a sun-gold spark above a creature about to strike (the game's one shared "warning")
   function telegraph(ctx, x, y, t) {
     const on = Math.sin(t * 30) > 0, S = R().sun;
@@ -578,6 +586,7 @@
       else if (e.enter === "burst") e.rise = Math.max(e.rise || 0, 1 - u);
       else if (e.enter === "scurry") alpha = 1 - u;
     }
+    if (E.DRAW[e.type]) { ctx.globalAlpha = alpha; E.DRAW[e.type](e, ctx, ox, oy, t, g, introY, fl); ctx.globalAlpha = 1; if (!e.boss && e.hp < e.max && e.introT <= 0 && !e.hideBar) { const w = 18, bx = Math.round(x - w / 2), by = Math.round(y - (STATS[e.type].barY || 30)); ctx.fillStyle = css(R().obsidian[0]); ctx.fillRect(bx - 1, by - 1, w + 2, 4); ctx.fillStyle = css(R().hibiscus[0]); ctx.fillRect(bx, by, w, 2); ctx.fillStyle = css(R().hibiscus[3]); ctx.fillRect(bx, by, Math.round(w * Math.max(0, e.hp / e.max)), 2); } return; }
     if (e.type !== "wisp" && e.type !== "vine") { ctx.fillStyle = "rgba(10,12,16,0.32)"; ctx.beginPath(); ctx.ellipse(Math.round(x), Math.round(y), e.r + 3 - Math.min(4, -introY / 18), 3, 0, 0, TAU); ctx.fill(); }
     ctx.globalAlpha = alpha;
     if (e.type === "gecko") drawGecko(e, ctx, x, y + introY, t, fl);
@@ -593,7 +602,7 @@
   };
 
   function drawGecko(e, ctx, x, y, t, fl) {
-    const img = A.img.e_gecko;
+    const img = e.img || A.img.e_gecko;
     let sx = 1, sy = 1, bob = 0;
     if (e.state === "wind") { sx = 1.1; sy = 0.82; } else if (e.state === "lunge") { sx = 1.25; sy = 0.86; } else if (e.moving) bob = Math.abs(Math.sin(e.t * 28)) * 1.5;
     const tail = Math.round(Math.sin(e.t * (e.moving ? 22 : 4)) * (e.moving ? 2 : 1));
@@ -680,24 +689,25 @@
   // ---- the sun-wisp: a white-hot core with a sun-mask face, a corona of flame tongues that
   // streams away from its motion, and a curling comet tail along its path
   function drawWisp(e, ctx, ox, oy, t, fl, g, introY) {
-    const S = e.S, W = S.w, cx = W / 2, cy = W / 2, FI = P8("fire"), SUN = P8("sun"), OB = P8("obsidian");
+    const S = e.S, W = S.w, cx = W / 2, cy = W / 2, FI = P8("fire"), SUN = P8("sun"), OB = P8("obsidian"), sc = e.sc || 1, RR = Math.round(24 * sc);
     begin(S);
     const put = (x, y, c) => { if (x >= 0 && y >= 0 && x < W && y < W && !S.d[y * W + x]) { S.d[y * W + x] = fl ? WHITE : c; mark(S, x, y); } };
     const ex = e.x, ey = e.y + introY, back = e.va + Math.PI;
     const charge = e.state === "charge" ? Math.min(1, e.st / 0.8) : e.state === "shed" ? Math.min(1, e.st / 0.5) : 0;
-    const coreR = 5.6 - charge * 1.4 + Math.sin(t * 9 + e.ph) * 0.4;
+    const coreR = (5.6 - charge * 1.4 + Math.sin(t * 9 + e.ph) * 0.4) * sc;
     // core, face and corona
-    for (let y = cy - 24; y < cy + 24; y++) for (let x = cx - 24; x < cx + 24; x++) {
-      const dx = x + 0.5 - cx, dy = y + 0.5 - cy, r = Math.hypot(dx, dy);
-      if (r > 24) continue;
+    for (let y = cy - RR; y < cy + RR; y++) for (let x = cx - RR; x < cx + RR; x++) {
+      const dx = (x + 0.5 - cx), dy = (y + 0.5 - cy), r = Math.hypot(dx, dy);
+      if (r > RR) continue;
       const a = Math.atan2(dy, dx), tailward = Math.max(0, Math.cos(a - back));
-      const F = 3 + 4.6 * K.noise(a * 2.2 + e.seed, t * 3.6 + r * 0.1) + tailward * 8 + charge * 3;
+      const F = (3 + 4.6 * K.noise(a * 2.2 + e.seed, t * 3.6 + r * 0.1 / sc) + tailward * 8 + charge * 3) * sc;
       if (r < coreR) {
         let c = r < coreR * 0.5 ? FI[4] : FI[3];
         // the sun-mask face: two dark slit eyes (squinting when it attacks) and a small mouth
         const squint = charge > 0 || e.state === "swoop" ? 0.4 : 1, blink = (t + e.ph) % 3.4 < 0.12;
-        if (!blink && Math.abs(dy + 1) < 0.7 * squint + 0.3 && (Math.abs(dx - 2.1) < 0.9 || Math.abs(dx + 2.1) < 0.9)) c = OB[1];
-        if (charge > 0.5 && Math.abs(dx) < 1 && Math.abs(dy - 1.8) < 0.8) c = FI[1];
+        const fx = dx / sc, fy = dy / sc;
+        if (!blink && Math.abs(fy + 1) < 0.7 * squint + 0.3 && (Math.abs(fx - 2.1) < 0.9 || Math.abs(fx + 2.1) < 0.9)) c = OB[1];
+        if (charge > 0.5 && Math.abs(fx) < 1 && Math.abs(fy - 1.8) < 0.8) c = FI[1];
         put(x, y, c);
       } else if (r < coreR + F) {
         const u = (r - coreR) / F;
@@ -707,11 +717,11 @@
     // the comet tail along its trail, thinning and cooling to ash
     const tr = e.trail;
     for (let i = 1; i < tr.length; i++) {
-      const [x0, y0] = tr[i - 1], [x1, y1] = tr[i], s = i / tr.length, w = 5 * (1 - s) + 0.5;
+      const [x0, y0] = tr[i - 1], [x1, y1] = tr[i], s = i / tr.length, w = (5 * (1 - s) + 0.5) * sc;
       for (let k = 0; k <= 4; k++) { const px = x0 + (x1 - x0) * k / 4 - ex + cx, py = y0 + (y1 - y0) * k / 4 - ey + cy; for (let oy2 = -w; oy2 <= w; oy2 += 1) for (let ox2 = -w; ox2 <= w; ox2 += 1) { if (ox2 * ox2 + oy2 * oy2 > w * w) continue; const qx = (px + ox2) | 0, qy = (py + oy2) | 0; put(qx, qy, s < 0.25 ? FI[3] : s < 0.55 ? FI[2] : s < 0.8 ? FI[1] : PAL.bayer(qx, qy) > 0 ? OB[2] : 0); } }
     }
     if (flush(S, false)) ctx.drawImage(S.c, Math.round(ex - cx - ox), Math.round(ey - cy - oy));
-    glow(g, ex - ox, ey - oy, 40 + charge * 40, "255,180,80", 0.55 + charge * 0.4);
+    glow(g, ex - ox, ey - oy, (40 + charge * 40) * sc, "255,180,80", 0.55 + charge * 0.4);
     // the ground far below catches its light; its shadow is a soft point
     ctx.fillStyle = "rgba(10,12,16,0.22)"; ctx.beginPath(); ctx.ellipse(Math.round(ex - ox), Math.round(e.y - oy + 16), 4, 1.5, 0, 0, TAU); ctx.fill();
     if (charge > 0 && e.state === "charge") { ctx.strokeStyle = css(R().sun[5]); ctx.globalAlpha = charge * 0.8; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(Math.round(ex - ox), Math.round(e.y - oy + 10), 70 * (1 - charge * 0.15), 49 * (1 - charge * 0.15), 0, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; }
@@ -777,6 +787,10 @@
     const t = Combat.clock;
     for (const r of L.fx) {
       if (r.kind === "pulse") { const u = r.t / r.dur, rad = u * r.R; for (const [w, c, a] of [[4, R().fire[2], 0.7], [2, R().sun[5], 1]]) { ctx.strokeStyle = PAL.css(c, a * (1 - u)); ctx.lineWidth = w; ctx.beginPath(); ctx.ellipse(Math.round(r.x - ox), Math.round(r.y - oy), rad, rad * 0.7, 0, 0, TAU); ctx.stroke(); } }
+      else if (r.kind === "flames") {
+        const life = Math.min(1, (r.dur - r.t) / 0.5, r.t / 0.15), FI = R().fire;
+        for (let k = 0; k < 7; k++) { const a = k * 2.4 + r.x, rr = r.R * 0.7 * ((k * 37) % 10) / 10, fx = r.x + Math.cos(a) * rr, fy = r.y + Math.sin(a) * rr * 0.6, h = (2 + ((k + Math.floor(t * 14)) % 4)) * life; ctx.fillStyle = css(FI[1]); ctx.fillRect(Math.round(fx - ox), Math.round(fy - oy - h), 2, Math.ceil(h)); ctx.fillStyle = css(FI[3]); ctx.fillRect(Math.round(fx - ox), Math.round(fy - oy - h), 1, Math.ceil(h * 0.6)); if (h > 3) { ctx.fillStyle = css(FI[4]); ctx.fillRect(Math.round(fx - ox), Math.round(fy - oy - h), 1, 1); } }
+      }
       else if (r.kind === "spores") {
         // a lingering cloud of spores, drawn as drifting dithered motes
         const life = Math.min(1, (r.dur - r.t) / 0.6, r.t / 0.3), n = 46;
@@ -799,7 +813,14 @@
     for (const r of L.fx) if (r.kind === "beam" && r.t > 0.7 && !r.a.dead && !r.b.dead) { g.strokeStyle = "rgba(255,210,120,0.5)"; g.lineWidth = 12; g.beginPath(); g.moveTo(r.a.x - ox, r.a.y - oy); g.lineTo(r.b.x - ox, r.b.y - oy); g.stroke(); }
   };
   E.death = function (e) {
+    if (E.ON_DEATH[e.type]) E.ON_DEATH[e.type](e);
     for (let k = 0; k < 24; k++) { const a = Math.random() * TAU; Combat.addPart({ x: e.x, y: e.y - 10, vx: Math.cos(a) * rnd(40, 140), vy: Math.sin(a) * rnd(30, 100) - 50, g: 240, life: rnd(0.5, 1), col: e.colors[k % 3], size: k % 4 ? 1 : 2, kind: "debris" }); }
     for (let k = 0; k < 8; k++) Combat.addPart({ x: e.x + rnd(-6, 6), y: e.y - 10, vx: rnd(-10, 10), vy: rnd(-50, -20), g: -10, life: rnd(0.8, 1.4), col: css(R().sun[5]), size: 1, kind: "ember", glow: true });
   };
+
+  // ------------------------------------------------------------------ extension points (js/enemies2.js)
+  E.STATS = STATS; E.AI = AI;
+  E.SETUP = {}; E.DRAW = {}; E.NET = {}; E.ON_DEATH = {};
+  E.lib = { Surface, begin, mark, flush, tryMove, hitPlayer, telegraph, tinted, flipped, glow, rnd, dist, angDiff, bez, winding, TAU, css, R, P8, WHITE, sfx, landed,
+    tiki: () => TIKI, assets: () => A, drawGecko, drawWisp, drawTiki };
 })();

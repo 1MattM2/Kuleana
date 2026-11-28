@@ -435,6 +435,7 @@
       case "sealUp":    grind(t, 0.9, 1.0); ignite(t + 0.1, 0.6); thoom(t, 0.7); break;
       case "sealDown":  grind(t, 0.6, 0.7); noiseLayer(pinkB, "bandpass", t + 0.2, 1.0, 2400, 300, 0.9, 0.05, 0.6, 0, true); thoom(t, 0.4); break;
       case "warcry":    shout(t, 0.75, 118, 0.3, -0.4); shout(t + 0.04, 0.72, 134, 0.26, 0.4); shout(t + 0.08, 0.7, 152, 0.2, 0); pahu(t, 0.9); pahu(t + 0.28, 0.8); break;
+      case "stampede":  for (let k = 0; k < 14; k++) { impact(t + k * 0.05 + Math.random() * 0.03, 0.35); } noiseLayer(brownB, "lowpass", t, 0.9, 260, 90, 0.7, 0.1, 0.9); break;   // a herd thundering in
       case "land":      impact(t, 0.6); noiseLayer(brownB, "lowpass", t, 0.3, 600, 150, 0.7, 0.005, 0.7); break;
       // ---- creatures
       case "mat_wood":  knock(t, 0.9); crackle(t, 0.12, 4, 0.5); break;                          // a blade biting carved koa
@@ -475,24 +476,32 @@
   };
 
   // ---------------------------------------------------------------- footsteps
+  // Footsteps, one voice per surface:
+  //   grass - a soft swish of blades and a muffled heel
+  //   dirt  - a dull thud with a little grit
+  //   sand  - a crunch of fine grains that shift under the foot
+  //   wood  - a hollow knock off the planks, now and then a creak
+  //   tile  - a hard click and a short ring off cut stone
+  //   water - (shallow water) a splash, a slap, and a couple of bubbles
+  function burst(t, len, ft, f, q, v, curve) {
+    const src = ac.createBufferSource(), g = ac.createGain(), buf = ac.createBuffer(1, Math.max(1, (ac.sampleRate * len) | 0), ac.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, curve || 2.5);
+    src.buffer = buf; const fl = filt(ft, f, q); g.gain.value = v; src.connect(fl); fl.connect(g); g.connect(master); src.start(t);
+  }
+  function thump(t, f0, f1, len, v) { const o = ac.createOscillator(), og = gain(v); o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + len); og.gain.setValueAtTime(v, t); og.gain.exponentialRampToValueAtTime(0.001, t + len); o.connect(og); og.connect(master); o.start(t); o.stop(t + len + 0.02); }
   Amb.step = function (surface, run) {
     if (!ac || Amb.muted) return;
-    const t = ac.currentTime, src = ac.createBufferSource(), g = ac.createGain();
-    const len = surface === "wood" ? 0.09 : 0.07;
-    const buf = ac.createBuffer(1, ac.sampleRate * len, ac.sampleRate), d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.5);
-    src.buffer = buf;
-    const f = surface === "wood" ? filt("bandpass", 380, 2.5) : surface === "stone" ? filt("bandpass", 1800, 1.2) : surface === "sand" ? filt("lowpass", 1300, 0.6) : filt("highpass", 2200, 0.5);
-    const v = (surface === "wood" ? 0.5 : surface === "grass" ? 0.06 : 0.16) * (run ? 1.3 : 1);
-    g.gain.value = v;
-    src.connect(f); f.connect(g); g.connect(master);
-    if (surface === "wood") { // hollow knock
-      const o = ac.createOscillator(), og = gain(0.12);
-      o.frequency.setValueAtTime(190, t); o.frequency.exponentialRampToValueAtTime(110, t + 0.08);
-      og.gain.setValueAtTime(0.12, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-      o.connect(og); og.connect(master); o.start(t); o.stop(t + 0.12);
+    const t = ac.currentTime, k = (run ? 1.3 : 1) * (0.85 + Math.random() * 0.3), p = 0.92 + Math.random() * 0.16;
+    switch (surface) {
+      case "grass": burst(t, 0.09, "highpass", 2600 * p, 0.6, 0.05 * k, 1.6); burst(t + 0.025, 0.07, "bandpass", 1400 * p, 0.8, 0.035 * k); thump(t, 90, 60, 0.06, 0.05 * k); break;
+      case "dirt": burst(t, 0.06, "lowpass", 700 * p, 0.7, 0.2 * k); burst(t + 0.01, 0.04, "bandpass", 2600 * p, 1.5, 0.03 * k); thump(t, 110, 70, 0.07, 0.07 * k); break;
+      case "sand": for (let i = 0; i < 5; i++) burst(t + i * 0.012 + Math.random() * 0.008, 0.025, "bandpass", (2200 + Math.random() * 1600) * p, 2, 0.05 * k); burst(t, 0.08, "lowpass", 900 * p, 0.6, 0.1 * k); break;
+      case "wood": burst(t, 0.09, "bandpass", 380 * p, 2.5, 0.45 * k); thump(t, 190 * p, 110 * p, 0.1, 0.12 * k); if (Math.random() < 0.12) { const o = ac.createOscillator(), og = gain(0.02); o.type = "sawtooth"; o.frequency.setValueAtTime(140, t + 0.04); o.frequency.linearRampToValueAtTime(175, t + 0.2); og.gain.setValueAtTime(0.02, t + 0.04); og.gain.exponentialRampToValueAtTime(0.001, t + 0.22); const bf = filt("bandpass", 900, 3); o.connect(bf); bf.connect(og); og.connect(master); o.start(t + 0.04); o.stop(t + 0.24); } break;
+      case "tile": burst(t, 0.03, "bandpass", 2600 * p, 4, 0.22 * k, 4); burst(t + 0.004, 0.05, "bandpass", 5200 * p, 6, 0.06 * k, 3); thump(t, 140, 90, 0.05, 0.08 * k); break;
+      case "water": { const src = ac.createBufferSource(), g = ac.createGain(), len = 0.18, buf = ac.createBuffer(1, (ac.sampleRate * len) | 0, ac.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 1.8); src.buffer = buf; const fl = filt("bandpass", 700 * p, 1.4); fl.frequency.setValueAtTime(700 * p, t); fl.frequency.exponentialRampToValueAtTime(2600 * p, t + 0.08); g.gain.value = 0.22 * k; src.connect(fl); fl.connect(g); g.connect(master); src.start(t);
+        thump(t, 120, 70, 0.05, 0.06 * k); for (let i = 0; i < 2; i++) { const bt = t + 0.04 + Math.random() * 0.08, o = ac.createOscillator(), og = gain(0.03 * k); o.frequency.setValueAtTime(380 + Math.random() * 300, bt); o.frequency.exponentialRampToValueAtTime(900 + Math.random() * 500, bt + 0.03); og.gain.setValueAtTime(0.03 * k, bt); og.gain.exponentialRampToValueAtTime(0.001, bt + 0.04); o.connect(og); og.connect(master); o.start(bt); o.stop(bt + 0.05); } break; }
+      default: burst(t, 0.07, "bandpass", 1800 * p, 1.2, 0.16 * k);
     }
-    src.start(t);
   };
 
   // ---------------------------------------------------------------- per-frame mix

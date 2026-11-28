@@ -79,7 +79,7 @@
       portal: { x: 14, y: 7.6, to: "highlands", needsTalk: true },
     },
     highlands: {
-      title: "VOLCANIC HIGHLANDS", sub: "Where the sun first touched stone", bg: "valley", cliff: 104, wallFace: 24, ivy: 0.3,
+      title: "VOLCANIC HIGHLANDS", sub: "Where the sun first touched stone", zone: 1, level: 1, bg: "valley", cliff: 104, wallFace: 24, ivy: 0.3,
       map: [
         "                                                                ",
         "                                                                ",
@@ -182,7 +182,7 @@
             [{ e: "spear", x: 33, y: 27, tribe: 1, enter: "leap" }, { e: "spear", x: 40, y: 27, tribe: 1, enter: "leap" }, { e: "spear", x: 36.5, y: 26.4, tribe: 1, enter: "leap" }, { e: "dart", x: 29, y: 30, tribe: 1, enter: "leap" }, { e: "dart", x: 44, y: 30, tribe: 1, enter: "leap" }],
             [{ e: "spear", x: 29, y: 32, tribe: 2, enter: "leap" }, { e: "spear", x: 44, y: 32, tribe: 2, enter: "leap" }, { e: "dart", x: 31, y: 26, tribe: 2, enter: "leap" }, { e: "dart", x: 42, y: 26, tribe: 2, enter: "leap" }, { e: "wisp", x: 36.5, y: 29, enter: "descend" }, { e: "gecko", x: 28, y: 35, enter: "scurry" }, { e: "gecko", x: 45, y: 35, enter: "scurry" }],
           ] },
-        { title: "THE HOLLOW OF KŪ", rect: [7, 6, 27, 20], seals: [[27.4, 11, 28.4, 14.6]],
+        { title: "THE HOLLOW OF KŪ", rect: [7, 6, 27, 20], seals: [[27.4, 11, 28.4, 14.6]], unlocks: "canopy",
           waves: [
             [{ e: "spear", x: 15, y: 9, tribe: 4, enter: "leap" }, { e: "spear", x: 20, y: 9, tribe: 4, enter: "leap" }, { e: "dart", x: 12, y: 12, tribe: 4, enter: "leap" }, { e: "dart", x: 23, y: 12, tribe: 4, enter: "leap" }, { e: "vine", x: 11, y: 16.8, enter: "burst" }, { e: "vine", x: 23.6, y: 16.4, enter: "burst" }],
             [{ e: "wisp", x: 13, y: 12, enter: "descend" }, { e: "wisp", x: 22, y: 12, enter: "descend" }, { e: "spear", x: 17.5, y: 9, tribe: 5, enter: "leap" }, { e: "spear", x: 12, y: 15, tribe: 5, enter: "leap" }, { e: "dart", x: 23, y: 15, tribe: 5, enter: "leap" }, { e: "gecko", x: 9, y: 13, enter: "scurry" }, { e: "gecko", x: 25, y: 16, enter: "scurry" }],
@@ -190,6 +190,167 @@
       ],
       gates: [{ x: 14.5, y: 44.4, to: "sanctum" }, { x: 10.4, y: 8.8, to: "sanctum" }],
       shrine: { x: 7.6, y: 11.2, unlock: "heel" },
+    },
+    canopy: {
+      title: "CANOPY PASSES", sub: "Forest on the mountains' backs", bg: "valley", cliff: 110, wallFace: 26, ivy: 0.5, amb: "highlands", zone: 1, level: 2,
+      map: [
+        "   ###########################                                          ",
+        "   ###########################                                          ",
+        "                                                                        ",
+        "        ,,,,    ,,,,,,                                                  ",
+        "      ,,,,,,,,,,,,,,,,,,,,                                              ",
+        "     ,,,,,,,,,,,,,,,,,,,,,,                                             ",
+        "     ,,,,,,,........,,,,,,,,                                            ",
+        "     ,,,,,............,,,,,,                                            ",
+        "      ,,,,............,,,,,,                                            ",
+        "      ,,,,,............,,,,                                             ",
+        "        ,,,,........,,,,,                                               ",
+        "         ,,,,,.,...,,,,                                                 ",
+        "      ,,,,,,,,,,,,,,,,                                                  ",
+        "      ,,,,, ,,,,,,,,,                                                   ",
+        "       SSS       ,,,                                                    ",
+        "       SSS                     ############################             ",
+        "  #####SSS#####                ############################             ",
+        "  ###,,SSS#####                ############################             ",
+        "    ,,,,,,,                               ,,     ,,,,,,                 ",
+        "    ,,,,,,,,                          ,,,,,,,,,,,,,,,,,,                ",
+        "   ,,,,,,,,,,                     ,,,,,,,,,,,,,,,,:,,,,,,               ",
+        "   ,,,,,,,,,,,                 ,,,,,,,,,,,,,,,,:::::::,,,               ",
+        "   ,,,,,,,,,,,,               ,,,,,,,,,,,,,,,.::::::::,,,,              ",
+        "   ,,,,,,,,,,,,              ,,,,,,,,,,,.......:::::::,,,,              ",
+        "   ,,,,.,,,,,,,,HHHHHHHHHHHHHH,,,,,,,............::.,,,,,               ",
+        "  ,,,.....,,,,,,HHHHHHHHHHHHHH,,,,,,................,,,,,               ",
+        "  ,,......,,,,,,HHHHHHHHHHHHHH,,,,,,................,,,,                ",
+        "   ,,.....,,,,,              ,,,,,,,,................,,,                ",
+        "   ,,,,,,,,,,,                ,,,,,,,,..............,,,,                ",
+        "    ,,,,,,                     ,,,,,,,,,..........,,,,,                 ",
+        "     ,,,,,                        ,,,,,,,,,.,.,,,,,,,,,                 ",
+        "      ,,                             ,,,,,,,,,,,,,,,,,,                 ",
+        "                                      ,,,,,,,,,,,,,,,,                  ",
+        "                                       ,,,,,,,,,,,,,,                   ",
+        "                                        ,,,,,,,,,,,                     ",
+        "                                          ,,,,,                         ",
+        "                                           VVV                          ",
+        "                                           VVV                          ",
+        "                                           VVV                          ",
+        "                                           VVV                          ",
+        "                                           VVV                          ",
+        "                                           VVV                          ",
+        "                                           VVV                          ",
+        "                                           VVV                          ",
+        "   ####################             ######,,,,,######                   ",
+        "   #######,############             ######,,,,,######                   ",
+        "   #####,,,,,##########                  ,,,,,,                         ",
+        "        ,,,,,,,,                        ,,,,,,                          ",
+        "       ,,,,,,,,,,,,                   ,,,,,,,,,,,,,                     ",
+        "       ,,,,,,,,,,,,,                 ,,,,,,,,,,,,,,,,                   ",
+        "     ,,,,,,,,,,,,,,,,,              ,,,,,,.....,,,,,,,                  ",
+        "    ,,,,,,,,,,,,,,,,,,HHHHHHHHHHHHHH,,,,,.......,,,,,,                  ",
+        "    ,,,,,,,,,,,,,,,,,,HHHHHHHHHHHHHH,,,,,........,,,,,                  ",
+        "   ,,,,,,,.,.,,,,,,,,,HHHHHHHHHHHHHH,,,,,.......,,,,,                   ",
+        "    ,,,,.........,,,,,              ,,,,,,.....,,,,,,                   ",
+        "    ,,............,,,,                ,,,,,,,,,,,,,,                    ",
+        "     ,,...........,,,                 ,,,,,,,,,,,,,                     ",
+        "       ,,,,..   ,,,                    ,,,,,,,,,,                       ",
+        "         ,,,                           ,,,,                             ",
+        "                                                                        ",
+        "                                                                        ",
+        "                                                                        ",
+      ],
+      spawn: { x: 12, y: 53 },
+      props: [{k: "taro", x: 24.8, y: 7.9}, {k: "boulder", x: 36.8, y: 26.7, s: 1}, {k: "palm", x: 8.9, y: 53.2}, {k: "fern", x: 9.1, y: 27.9}, {k: "fern", x: 22.5, y: 8.4}, {k: "smallplant", x: 10.3, y: 6.4}, {k: "palm", x: 48.0, y: 21.6}, {k: "hibiscus", x: 48.1, y: 32.8}, {k: "palm", x: 37.5, y: 22.9}, {k: "taro", x: 50.2, y: 31.0}, {k: "smallplant", x: 16.0, y: 54.0}, {k: "palm", x: 51.2, y: 52.3}, {k: "palm", x: 33.7, y: 22.5}, {k: "palm", x: 40.5, y: 49.0}, {k: "smallplant", x: 48.2, y: 50.1}, {k: "palm", x: 5.4, y: 52.1}, {k: "smallplant", x: 5.9, y: 27.0}, {k: "fern", x: 46.6, y: 49.3}, {k: "smallplant", x: 35.9, y: 29.0}, {k: "boulder", x: 43.6, y: 31.1, s: 2}, {k: "smallplant", x: 9.1, y: 4.8}, {k: "hibiscus", x: 50.2, y: 50.8}, {k: "fern", x: 8.4, y: 7.3}, {k: "palm", x: 5.5, y: 54.2}, {k: "palm", x: 7.1, y: 24.4}, {k: "hibiscus", x: 46.6, y: 54.3}, {k: "boulder", x: 35.7, y: 22.3, s: 1}, {k: "monstera", x: 9.0, y: 51.5}, {k: "palm", x: 17.1, y: 56.5}, {k: "taro", x: 11.2, y: 7.9}, {k: "hibiscus", x: 52.7, y: 25.1}, {k: "fern", x: 52.5, y: 19.7}, {k: "smallplant", x: 12.0, y: 22.4}, {k: "palm", x: 46.1, y: 20.5}, {k: "monstera", x: 48.5, y: 53.6}, {k: "fern", x: 53.1, y: 22.9}, {k: "taro", x: 40.9, y: 31.9}, {k: "palm", x: 18.0, y: 50.8}, {k: "smallplant", x: 54.8, y: 22.0}, {k: "palm", x: 18.1, y: 55.4}, {k: "palm", x: 8.2, y: 56.4}, {k: "smallplant", x: 15.9, y: 51.0}, {k: "palm", x: 20.5, y: 9.7}, {k: "fern", x: 34.3, y: 27.5}, {k: "fern", x: 39.1, y: 23.4}, {k: "hibiscus", x: 54.9, y: 25.7}, {k: "fern", x: 39.1, y: 49.5}, {k: "palm", x: 8.7, y: 29.6}, {k: "fern", x: 51.9, y: 28.1}, {k: "palm", x: 40.5, y: 30.0}, {k: "palm", x: 6.5, y: 55.8}, {k: "fern", x: 49.5, y: 26.1}, {k: "palm", x: 49.9, y: 54.9}, {k: "hibiscus", x: 19.7, y: 11.4}, {k: "smallplant", x: 55.0, y: 20.3}, {k: "taro", x: 10.8, y: 20.7}, {k: "monstera", x: 10.1, y: 55.5}, {k: "monstera", x: 52.4, y: 30.6}, {k: "fern", x: 8.3, y: 26.3}, {k: "palm", x: 39.5, y: 28.3}, {k: "boulder", x: 11.1, y: 9.6, s: 2}, {k: "palm", x: 41.2, y: 33.8}, {k: "smallplant", x: 26.6, y: 7.0}, {k: "hibiscus", x: 38.6, y: 25.9}, {k: "palm", x: 6.7, y: 22.5}, {k: "palm", x: 34.6, y: 23.8}, {k: "fern", x: 47.2, y: 56.2}, {k: "fern", x: 46.2, y: 30.9}, {k: "hibiscus", x: 40.5, y: 54.6}, {k: "fern", x: 53.8, y: 29.8}, {k: "hibiscus", x: 7.8, y: 5.8}, {k: "fern", x: 14.7, y: 55.0}, {k: "fern", x: 38.4, y: 29.5}, {k: "monstera", x: 17.2, y: 53.0}, {k: "palm", x: 42.6, y: 55.4}, {k: "taro", x: 40.6, y: 51.0}, {k: "palm", x: 6.6, y: 6.8}, {k: "palm", x: 39.2, y: 20.8}, {k: "boulder", x: 33.7, y: 25.9, s: 2}, {k: "palm", x: 50.4, y: 28.4}, {k: "smallplant", x: 49.0, y: 34.0}, {k: "smallplant", x: 4.1, y: 26.2}, {k: "monstera", x: 48.7, y: 23.4}, {k: "fern", x: 50.8, y: 22.0}, {k: "taro", x: 37.4, y: 24.7}, {k: "smallplant", x: 44.1, y: 20.7}, {k: "smallplant", x: 15.6, y: 49.4}, {k: "palm", x: 39.4, y: 52.7}, {k: "smallplant", x: 42.1, y: 56.9}, {k: "fern", x: 9.5, y: 47.7}, {k: "monstera", x: 50.1, y: 20.6}, {k: "monstera", x: 45.2, y: 55.1}, {k: "taro", x: 22.0, y: 10.3}, {k: "taro", x: 48.2, y: 51.9}, {k: "fern", x: 12.9, y: 11.5}, {k: "boulder", x: 7.4, y: 54.4, s: 1}, {k: "palm", x: 42.3, y: 48.9}, {k: "fern", x: 6.1, y: 28.7}, {k: "palm", x: 33.0, y: 28.8}, {k: "monstera", x: 49.0, y: 30.0}, {k: "hibiscus", x: 12.2, y: 5.3}, {k: "taro", x: 51.6, y: 32.5}, {k: "smallplant", x: 11.4, y: 11.1}, {k: "taro", x: 5.2, y: 23.2}, {k: "fern", x: 9.1, y: 21.8}, {k: "hibiscus", x: 7.5, y: 51.6}, {k: "hibiscus", x: 53.0, y: 26.9}, {k: "smallplant", x: 51.0, y: 24.0}, {k: "fern", x: 10.8, y: 27.8}, {k: "palm", x: 18.5, y: 13.1}, {k: "smallplant", x: 38.6, y: 51.3}, {k: "smallplant", x: 52.8, y: 51.2}, {k: "palm", x: 41.4, y: 20.2}, {k: "fern", x: 19.9, y: 55.8}, {k: "monstera", x: 51.7, y: 53.9}, {k: "boulder", x: 9.6, y: 9.0, s: 1}, {k: "palm", x: 8.6, y: 49.7}, {k: "taro", x: 13.8, y: 12.9}, {k: "fern", x: 40.8, y: 21.9}, {k: "smallplant", x: 38.1, y: 53.7}, {k: "gate", x: 12, y: 49.2}, {k: "gate", x: 22, y: 4.6}, {k: "tiki", x: 8.6, y: 50.4}, {k: "tiki", x: 15.6, y: 50.4}, {k: "column", x: 37.6, y: 48.8}, {k: "column", x: 37.6, y: 55.4}, {k: "brazier", x: 40, y: 47.8}, {k: "brazier", x: 48, y: 47.8}, {k: "column", x: 33, y: 20.2}, {k: "column", x: 55, y: 20.2}, {k: "tiki", x: 44, y: 19.4}, {k: "crystals", big: 1, x: 26, y: 6.2}, {k: "crystals", x: 7, y: 6.4}, {k: "brazier", x: 19.4, y: 4.4}, {k: "brazier", x: 24.6, y: 4.4}],
+      enemies: [{e: "gecko", x: 9, y: 54}, {e: "gecko", x: 15, y: 55}, {e: "vine", x: 6, y: 52}, {e: "snake", x: 20, y: 25}, {e: "snake", x: 26, y: 24.5}, {e: "gecko", x: 23, y: 25.6}, {e: "snake", x: 6, y: 22}, {e: "vine", x: 10, y: 21}, {e: "dart", x: 5, y: 26, tribe: 12}, {e: "spear", x: 9, y: 27, tribe: 12}, {e: "gecko", x: 4, y: 24}],
+      arenas: [
+        { title: "THE PASS OF WINDS", rect: [36, 45, 53, 58], seals: [[35.2, 50.6, 36.2, 54.2], [41.6, 43.4, 46.4, 44.4]],
+          waves: [[{e: "snake", x: 41, y: 50, enter: "scurry"}, {e: "snake", x: 47, y: 54, enter: "scurry"}, {e: "gecko", x: 40, y: 54, enter: "scurry"}, {e: "gecko", x: 48, y: 50, enter: "scurry"}],
+                  [{e: "spear", x: 42, y: 49, tribe: 11}, {e: "spear", x: 46, y: 49, tribe: 11}, {e: "dart", x: 40, y: 52, tribe: 11}, {e: "dart", x: 49, y: 53, tribe: 11}, {e: "vine", x: 44, y: 55, enter: "burst"}],
+                  [{e: "snake", x: 40, y: 51, enter: "scurry"}, {e: "snake", x: 48, y: 53, enter: "scurry"}, {e: "wisp", x: 44, y: 50, enter: "descend"}, {e: "wisp", x: 42, y: 54, enter: "descend"}]] },
+        { title: "THE THUNDERING RIDGE", sub: "Survive the stampede", rect: [30, 18, 58, 33], seals: [[41.6, 33.2, 46.4, 34.2], [29.6, 22.6, 30.6, 27.4]], survive: 28, herd: 1.7,
+          waves: [[{e: "gecko", x: 38, y: 23, enter: "scurry"}, {e: "gecko", x: 50, y: 23, enter: "scurry"}, {e: "gecko", x: 40, y: 29, enter: "scurry"}, {e: "gecko", x: 48, y: 29, enter: "scurry"}],
+                  [{e: "snake", x: 44, y: 22, enter: "scurry"}, {e: "gecko", x: 36, y: 26, enter: "scurry"}, {e: "gecko", x: 52, y: 26, enter: "scurry"}],
+                  [{e: "vine", x: 38, y: 27, enter: "burst"}, {e: "vine", x: 50, y: 27, enter: "burst"}, {e: "gecko", x: 44, y: 30, enter: "scurry"}]] },
+        { title: "THE GARDEN OF MANY HEADS", rect: [5, 2, 27, 13], seals: [[5.6, 12.6, 10.4, 13.4]], unlocks: "crown",
+          waves: [[{e: "hydra", x: 16, y: 7.5, enter: "burst"}]] },
+      ],
+      gates: [{ x: 12, y: 50.4, to: "sanctum" }, { x: 22, y: 5.8, to: "sanctum" }],
+    },
+    crown: {
+      title: "THE SCORCHED CROWN", sub: "Where the mountain still burns", bg: "scorched", scorch: true, cliff: 104, wallFace: 24, ivy: 0.05, amb: "sanctum", zone: 1, level: 3,
+      map: [
+        "                                    #################################   ",
+        "                                    #################################   ",
+        "                                                   ::                   ",
+        "                                            :::::::::::                 ",
+        "                                          :::::::::::::::               ",
+        "                                         :::::::::::::::::::::::::::    ",
+        "                                        ::::::::::::::::::::::::::::::  ",
+        "                                       :::::::::::oooooo::::::::::::::: ",
+        "                                       :::::::::ooooooooo:::::::::::::: ",
+        "                                       ::::::::ooooooooooo::::::::::::: ",
+        "                                        ::::::::ooooooooo:::::::::::::: ",
+        "                                        :::::::::ooooooo::::::::::::::  ",
+        "                                         ::::::::::::::::::::::::::::   ",
+        "                                         :::::::::::::::::::::::::      ",
+        "                                          :::::::::::::::::::::         ",
+        "                                           :::::::::  ::: :::::         ",
+        "                                             ::::         :::::         ",
+        "                                                           VVV          ",
+        "                                                           VVV          ",
+        "                                                           VVV          ",
+        "                                                           VVV          ",
+        "                                                     ######VVV#######   ",
+        "                     ###########################     #####:::::######   ",
+        "                     ###########################          :::::::::     ",
+        "                     ###########################          :::::::::     ",
+        "                              ::::    ::::::           :::::::::::::    ",
+        "                         ::::::::::::::::::::         ::::::::::::::    ",
+        "                       :::::::::::::::::::::::        ::::::::::::::    ",
+        "                      :::::::::::o::::::::::::       ::::::::::::::::   ",
+        "                     :::::::::oooooooo::::::::::     ::::::......::::   ",
+        "                     :::::::::ooooooooo:::::::::HHHHH:::::.......::::   ",
+        "                     :::::::::ooooooooo:::::::::HHHHH:::::........:::   ",
+        "                     :::::::::ooooooooo:::::::::HHHHH::::........::::   ",
+        "                       ::::::::ooooooo::::::::::      :::::......:::    ",
+        "                         ::::::::::o::::::::           :::::..:::::     ",
+        "                            :::::::::::::::               ::::::::      ",
+        "                              ::::::::::::                 :::::::      ",
+        "                              :::::::::                     :::::       ",
+        "                                :::::                         ::        ",
+        "                                 SSS                                    ",
+        "                                 SSS                                    ",
+        "                                 SSS                                    ",
+        "   ###################           SSS                                    ",
+        "   ###################          :::::                                   ",
+        "   #######::::::######          :::::                                   ",
+        "        :::::::::            ::::::::::::::                             ",
+        "       ::::::::::        :::::::::::::::::::                            ",
+        "      ::::::::::::      :::::::::::::::::::::                           ",
+        "      ::::::::::::::   ::::::::::::::::::::::                           ",
+        "     ::::::::::::::::::::::::::::.......::::                            ",
+        "    ::::::.:::::::::::::::::::::.........:::                            ",
+        "    :::.......::::::::::::::::::.........::                             ",
+        "    :::........:::::::   :::::::.........:                              ",
+        "    :::.......:::::::       :::::.......:                               ",
+        "    :::::::.::::::::         ::::::::::::                               ",
+        "      :::::::::::             ::::::::::                                ",
+        "                               :::::::                                  ",
+        "                                                                        ",
+        "                                                                        ",
+        "                                                                        ",
+      ],
+      spawn: { x: 12, y: 51 },
+      sun: { x: 34, y: 31 }, sun2: { x: 52, y: 9 },
+      props: [{k: "crystals", x: 58.9, y: 26.0, big: 1}, {k: "boulder", x: 9.5, y: 53.1, s: 1}, {k: "boulder", x: 38.2, y: 51.2, s: 2}, {k: "brazier", x: 26.1, y: 27.2}, {k: "smallplant", x: 64.5, y: 24.4}, {k: "tiki", x: 28.8, y: 29.0}, {k: "crystals", x: 64.4, y: 34.0, big: 1}, {k: "boulder", x: 43.9, y: 32.7, s: 1}, {k: "crystals", x: 60.6, y: 10.9, big: 1}, {k: "tiki", x: 58.7, y: 12.1}, {k: "crystals", x: 62.2, y: 28.6}, {k: "smallplant", x: 7.4, y: 49.2}, {k: "crystals", x: 17.1, y: 54.0}, {k: "crystals", x: 40.2, y: 26.8, big: 1}, {k: "tiki", x: 43.6, y: 5.9}, {k: "boulder", x: 63.0, y: 30.6, s: 2}, {k: "boulder", x: 15.3, y: 54.8, s: 2}, {k: "smallplant", x: 7.0, y: 52.2}, {k: "crystals", x: 61.3, y: 8.3, big: 1}, {k: "crystals", x: 50.5, y: 14.8}, {k: "crystals", x: 59.4, y: 29.3}, {k: "crystals", x: 30.9, y: 27.1}, {k: "brazier", x: 32.8, y: 50.3}, {k: "column", x: 42.6, y: 10.8}, {k: "boulder", x: 8.9, y: 47.0, s: 1}, {k: "brazier", x: 28.7, y: 47.2}, {k: "boulder", x: 44.2, y: 8.5, s: 1}, {k: "crystals", x: 37.0, y: 48.6}, {k: "column", x: 47.3, y: 14.7}, {k: "crystals", x: 34.8, y: 47.8}, {k: "crystals", x: 28.6, y: 32.2}, {k: "smallplant", x: 63.7, y: 36.7}, {k: "boulder", x: 17.9, y: 52.1, s: 2}, {k: "crystals", x: 40.7, y: 51.7}, {k: "crystals", x: 13.2, y: 54.1}, {k: "smallplant", x: 61.4, y: 33.6}, {k: "tiki", x: 36.5, y: 27.1}, {k: "boulder", x: 36.3, y: 55.8, s: 2}, {k: "crystals", x: 20.9, y: 51.7}, {k: "crystals", x: 45.3, y: 11.5, big: 1}, {k: "crystals", x: 37.2, y: 46.6, big: 1}, {k: "tiki", x: 62.7, y: 24.2}, {k: "crystals", x: 42.2, y: 31.5, big: 1}, {k: "crystals", x: 66.4, y: 11.3}, {k: "crystals", x: 46.0, y: 5.6}, {k: "crystals", x: 63.3, y: 12.4}, {k: "boulder", x: 59.6, y: 34.6, s: 2}, {k: "boulder", x: 58.3, y: 6.8, s: 1}, {k: "crystals", x: 67.3, y: 9.4, big: 1}, {k: "crystals", x: 64.7, y: 7.3}, {k: "tiki", x: 66.9, y: 28.4}, {k: "crystals", x: 30.0, y: 51.6, big: 1}, {k: "smallplant", x: 58.1, y: 31.2}, {k: "smallplant", x: 47.6, y: 6.5}, {k: "column", x: 69.7, y: 8.5}, {k: "crystals", x: 67.8, y: 7.6}, {k: "column", x: 44.7, y: 14.8}, {k: "crystals", x: 32.3, y: 46.7}, {k: "boulder", x: 28.0, y: 49.3, s: 2}, {k: "crystals", x: 7.5, y: 54.4, big: 1}, {k: "brazier", x: 64.7, y: 27.0}, {k: "brazier", x: 60.1, y: 32.1}, {k: "brazier", x: 38.4, y: 53.2}, {k: "crystals", x: 65.9, y: 32.6}, {k: "crystals", x: 24.4, y: 30.8}, {k: "boulder", x: 26.1, y: 33.4, s: 2}, {k: "crystals", x: 57.3, y: 13.9}, {k: "boulder", x: 56.8, y: 28.5, s: 1}, {k: "brazier", x: 64.4, y: 10.9}, {k: "crystals", x: 36.8, y: 36.2}, {k: "tiki", x: 11.0, y: 55.0}, {k: "crystals", x: 38.6, y: 35.9}, {k: "tiki", x: 34.7, y: 54.6}, {k: "brazier", x: 66.6, y: 30.3}, {k: "crystals", x: 22.2, y: 31.5}, {k: "tiki", x: 40.6, y: 48.5}, {k: "crystals", x: 34.5, y: 51.7}, {k: "crystals", x: 32.4, y: 52.5}, {k: "crystals", x: 62.8, y: 26.3}, {k: "boulder", x: 15.6, y: 52.5, s: 1}, {k: "gate", x: 12, y: 47.2}, {k: "gate", x: 45, y: 5.4}, {k: "brazier", x: 42, y: 5.6}, {k: "brazier", x: 48, y: 5.6}],
+      enemies: [{e: "firegecko", x: 9, y: 52}, {e: "firegecko", x: 15, y: 53}, {e: "firedancer", x: 36, y: 49}, {e: "firegecko", x: 30, y: 51}, {e: "firegecko", x: 40, y: 52}, {e: "firegecko", x: 33, y: 47}, {e: "wisp", x: 38, y: 48}, {e: "wisp", x: 60, y: 27}, {e: "wisp", x: 64, y: 32}, {e: "wisp", x: 57, y: 33}, {e: "firegecko", x: 62, y: 29}, {e: "firegecko", x: 58, y: 30}, {e: "firedancer", x: 63, y: 34}],
+      arenas: [
+        { title: "THE DANCE OF EMBERS", rect: [21, 24, 47, 39], seals: [[31.6, 37.6, 36.4, 38.4], [46.6, 28.6, 47.6, 33.4]],
+          waves: [[{e: "firedancer", x: 29, y: 29}, {e: "firedancer", x: 39, y: 29}, {e: "firegecko", x: 27, y: 33, enter: "scurry"}, {e: "firegecko", x: 41, y: 33, enter: "scurry"}],
+                  [{e: "wisp", x: 30, y: 28, enter: "descend"}, {e: "wisp", x: 38, y: 28, enter: "descend"}, {e: "wisp", x: 34, y: 34, enter: "descend"}, {e: "firedancer", x: 34, y: 27}, {e: "firegecko", x: 25, y: 31, enter: "scurry"}],
+                  [{e: "firedancer", x: 28, y: 32}, {e: "firedancer", x: 40, y: 32}, {e: "spear", x: 31, y: 27, tribe: 21}, {e: "spear", x: 37, y: 27, tribe: 21}, {e: "dart", x: 34, y: 35, tribe: 21}]] },
+        { title: "KAHU-AHI", rect: [38, 2, 70, 17], seals: [[57.6, 16.6, 62.4, 17.4]], final: 1,
+          waves: [[{e: "hive", x: 52, y: 9.4, enter: "burst"}]] },
+      ],
+      gates: [{ x: 12, y: 48.4, to: "sanctum" }, { x: 45, y: 6.6, to: "sanctum" }],
     },
   };
   Level.DEFS = DEFS;
@@ -238,7 +399,7 @@
       d = 255; for (let y = H - 1; y >= 0; y--) { const i = y * W + x; if (terr[i] !== WALL) d = 0; else { d = Math.min(255, d + 1); down[i] = d; } }
       d = 255; for (let y = H - 1; y >= 0; y--) { const i = y * W + x, v = terr[i]; if (v !== VOID && v !== BH && v !== BV) d = 0; else { d = Math.min(255, d + 1); dn[i] = d; } }
     }
-    const { ground, lower, embers } = paint(def, tm, terr, up, down, W, H, dn);
+    const { ground, lower, embers, chunks } = paint(def, tm, terr, up, down, W, H, dn);
     const vines = vineSpots(def, terr, up, W, H);
     const below = { palms: [], mists: [] };
     // the forest far below: the island's own palms, standing on the lower floor wherever it shows
@@ -253,12 +414,12 @@
       below.palms.sort((a, b) => a.y - b.y);
       for (let k = 0; k < (W * H) / 60000; k++) below.mists.push({ x: r() * W, y: r() * H, sp: 3 + r() * 5, a: 0.18 + r() * 0.16 });
     }
-    return { tm, terr, up, W, H, CS, CW, CH: CHh, solid, ground, lower, embers, vines, below };
+    return { tm, terr, up, W, H, CS, CW, CH: CHh, solid, ground, lower, embers, chunks, vines, below };
   }
 
   // ------------------------------------------------------------------ painting the ground
   function paint(def, tm, terr, up, down, W, H, dn) {
-    const img = new ImageData(W, H), out = new Uint32Array(img.data.buffer), pk = K.rgb;
+    const pk = K.rgb;
     const OB = PAL.packed.obsidian, SO = PAL.packed.soil, GR = PAL.packed.grass, SA = PAL.packed.sand, GL = PAL.packed.glyph, ST = PAL.packed.stone, FE = PAL.packed.fern, HZ = PAL.packed.haze;
     const rock = A.px.tex_rock.data, grassT = A.px.tex_grass.data, sandT = A.px.tex_sand.data, glyph = A.px.tex_glyph.data;
     const lum = (v) => (v & 255) * 0.3 + ((v >>> 8) & 255) * 0.59 + ((v >>> 16) & 255) * 0.11;
@@ -295,11 +456,22 @@
         if (n0 - up2 < -0.05) ix += 1; else if (n0 - up2 > 0.06) ix -= 1;                 // clods: lit tops, shaded undersides
         c = SO[Math.max(0, Math.min(5, ix))];
         if (K.hash2(x >> 1, y >> 1, 21) > 0.988) c = OB[5];
+        if (def.scorch) { c = mixc(c, OB[1], 0.45); if (K.hash2(x, y, 61) > 0.996) c = PAL.pk(PAL.R.fire[2]); }
       } else if (t === GRASS) {
         c = grassT[ti];
         const v = K.fbm(x / 140 + 300, y / 140, 3) * 0.72 + K.noise(x / 46, y / 46) * 0.28 + B(x, y) * 0.07;
         if (v < 0.38) c = shade(c, 0.82); else if (v > 0.66) c = shade(c, 1.08);
-      } else c = sandT[ti];
+      } else {
+        c = sandT[ti];
+        if (def.scorch) {
+          // sun-baked ash sand: dulled toward the volcanic soil, burnt in dark drifts, with cinders in it
+          const b = K.fbm(x / 60 + 40, y / 60, 3), fine = K.noise(x / 5, y / 5);
+          c = mixc(shade(c, 0.86), SO[3], 0.38);
+          if (b < 0.5) c = mixc(c, OB[1], Math.min(0.75, (0.5 - b) * 2.6 + (PAL.bayer(x, y) + 0.5) * 0.08));
+          if (fine > 0.72 && b < 0.55) c = mixc(c, OB[2], 0.5);
+          if (K.hash2(x, y, 77) > 0.997) c = PAL.pk(PAL.R.fire[K.hash2(x, y, 78) > 0.5 ? 2 : 3]);
+        }
+      }
       // grass gets the island's dark rim against other ground; sand darkens toward soil
       let rim = 9;
       if (t !== SOIL) for (let dy = -2; dy <= 2 && rim > 1; dy++) for (let dx = -2; dx <= 2; dx++) { const tt = T_(x + dx, y + dy); if (tt !== t && tt >= SOIL && tt <= SAND && (t === GRASS || tt === SOIL)) { const m = Math.max(Math.abs(dx), Math.abs(dy)); if (m < rim) rim = m; } }
@@ -326,7 +498,7 @@
       if (lx === 1 || ly === 1) return pk(252, 192, 104); if (lx === 15 || ly === 15) return shade(base, 0.82);
       return base;
     };
-    const low = new ImageData(W, H), lo = new Uint32Array(low.data.buffer), embers = [];
+    const embers = [];
     // the ground far below. Highlands: jungle floor (the island's grass and soil, darkened under the
     // canopy and pushed into the haze). Sanctum: the volcano's obsidian floor with dull lava cracks.
     const lowerFloor = (x, y, d) => {
@@ -344,144 +516,158 @@
       if (d < 20) c = shade(c, 0.5 + d * 0.025);                                                // the cliff's shadow at its foot
       return c;
     };
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      const i = y * W + x, t = terr[i];
-      let c = 0;
-      if (t === VOID || t === BH || t === BV) {
-        const k = up[i];
-        if (k > CL) {
-          // beside a ledge's east or west edge: the rock flank of the cliff, a few pixels of it
-          let side = 9, st = 0; for (let dd = 1; dd <= 4 && side === 9; dd++) { const a2 = T_(x - dd, y), b2 = T_(x + dd, y); if ((a2 !== VOID && a2 !== BH && a2 !== BV) || (b2 !== VOID && b2 !== BH && b2 !== BV)) { side = dd; st = a2 === STAIR || b2 === STAIR; } }
-          const g2 = dn[i], below0 = T_(x, y + g2);
-          if (g2 <= 2 && below0 === GRASS && K.noise(x * 0.4, 51) > 0.45) { lo[i] = g2 === 1 ? GR[1] : GR[0]; continue; }      // grass hanging over the lip
-          let c2 = side === 1 ? OB[0] : side <= 4 ? (st ? (side === 2 ? ST[2] : ST[1]) : valley ? mixc(OB[side === 2 ? 3 : 2], HZ[2], 0.25) : OB[side === 2 ? 2 : 1]) : lowerFloor(x, y, k - CL);
-          if (g2 <= 12 && side > 4) c2 = shade(c2, 0.45 + g2 * 0.045);                 // hidden in the shadow of the ledge in front
-          lo[i] = c2;
-          continue;
-        }
-        // a cliff face of obsidian dropping from the ledge to the floor far below: strata, ledges, ivy
-        let ix = rockIdx(rock[(x & 31) | (((y * 0.55) & 31) << 5)]) + 1;
-        ix -= Math.floor(k / 40);
-        if ((x * 13 + (x >> 2) * 7) % 7 === 0) ix -= 1;                                      // vertical cracks
-        const band = (k + ((K.hash2(x >> 3, 0, 7) * 7) | 0)) % 19;
-        if (band === 0) ix += 1; else if (band === 1) ix -= 1;                                // ledges in the rock
-        if (k === 1) ix = 0; else if (k <= 3) ix = 5;                                         // lit lip under the edge
-        c = OB[Math.max(0, Math.min(6, ix))];
-        if (k > 3) { const iv = ivyAt(x, k - 3, 26); if (iv) c = iv; }
-        if (k > 3 && k < 7 && K.noise(x * 0.2, 9) > 0.62) c = (x + k) & 1 ? FE[2] : FE[1];            // a mossy fringe under the lip
-        // further down is further away: the rock takes on the haze (or the volcano's dark) toward its foot
-        const f = k / CL;
-        if (valley) { if (B(x, y) + 0.5 < f * 1.1) c = mixc(c, HZ[2], 0.18 + f * 0.22); }
-        else c = shade(c, 1 - f * 0.45);
-        if (k >= CL - 1) c = OB[0];                                                           // where the cliff meets the ground below
-        else if (k > CL - 6 && valley && K.noise(x * 0.3, 21) > 0.45) c = mixc(GR[1], HZ[2], 0.35);   // undergrowth at its foot
-        lo[i] = c; continue;
-      }
-      if (t === WALL) {
-        const d = down[i], rc = rock[patchIdx(x, y, 7)];
-        if (d <= FACE && T_(x, y + d) !== VOID) {
-          // the face of rising rock: the island's striated cliff, taller, with ledges and hanging ivy
-          if (d <= 1) c = ROCK_LINE;
-          else {
-            c = shade(rc, d > FACE - 2 ? 0.8 : d < 5 ? 0.5 : 0.62);
-            const strata = (x * 13 + ((x >> 2) * 7)) % 6;
-            if (strata === 0) c = shade(c, 0.7); else if (strata === 3 && d < FACE - 3) c = shade(c, 1.15);
-            const ledge = (d + ((K.hash2(x >> 4, 1, 5) * 9) | 0)) % 11;
-            if (ledge === 0 && d > 4 && d < FACE - 3) c = shade(rc, 0.9); else if (ledge === 1 && d > 4 && d < FACE - 3) c = shade(c, 0.6);
-            const iv = ivyAt(x, FACE - d);
-            if (iv) c = iv;
+    // The ground is painted in chunks, on demand: the ones in view at once, the rest a few at a time
+    // in spare frame time (Level.idle). Entering an area no longer stalls on painting all of it.
+    const [cv, gx] = K.canvas(W, H), [lv, lx] = K.canvas(W, H);
+    const CHK = 128, ncx = Math.ceil(W / CHK), ncy = Math.ceil(H / CHK), done = new Uint8Array(ncx * ncy);
+    const deco = decorate(def, terr, W, H, CHK, ncx, ncy), plants = valley ? undergrowth(terr, up, W, H, CL) : [];
+    function chunk(ci, cj) {
+      if (ci < 0 || cj < 0 || ci >= ncx || cj >= ncy || done[cj * ncx + ci]) return false;
+      done[cj * ncx + ci] = 1;
+      const x0 = ci * CHK, y0 = cj * CHK, cw = Math.min(CHK, W - x0), ch = Math.min(CHK, H - y0);
+      const img = new ImageData(cw, ch), out = new Uint32Array(img.data.buffer), low = new ImageData(cw, ch), lo = new Uint32Array(low.data.buffer);
+      for (let y = y0; y < y0 + ch; y++) for (let x = x0; x < x0 + cw; x++) {
+        const i = y * W + x, li = (y - y0) * cw + (x - x0), t = terr[i];
+        let c = 0;
+        if (t === VOID || t === BH || t === BV) {
+          const k = up[i];
+          if (k > CL) {
+            // beside a ledge's east or west edge: the rock flank of the cliff, a few pixels of it
+            let side = 9, st = 0; for (let dd = 1; dd <= 4 && side === 9; dd++) { const a2 = T_(x - dd, y), b2 = T_(x + dd, y); if ((a2 !== VOID && a2 !== BH && a2 !== BV) || (b2 !== VOID && b2 !== BH && b2 !== BV)) { side = dd; st = a2 === STAIR || b2 === STAIR; } }
+            const g2 = dn[i], below0 = T_(x, y + g2);
+            if (g2 <= 2 && below0 === GRASS && K.noise(x * 0.4, 51) > 0.45) { lo[li] = g2 === 1 ? GR[1] : GR[0]; continue; }      // grass hanging over the lip
+            let c2 = side === 1 ? OB[0] : side <= 4 ? (st ? (side === 2 ? ST[2] : ST[1]) : valley ? mixc(OB[side === 2 ? 3 : 2], HZ[2], 0.25) : OB[side === 2 ? 2 : 1]) : lowerFloor(x, y, k - CL);
+            if (g2 <= 12 && side > 4) c2 = shade(c2, 0.45 + g2 * 0.045);                 // hidden in the shadow of the ledge in front
+            lo[li] = c2;
+            continue;
           }
-        } else {
-          // the rock's top: the island texture as is, a lit rim along its north edge, outline at the sides
-          c = rc;
-          if (T_(x, y - 1) !== WALL) c = ROCK_HI; else if (T_(x, y - 2) !== WALL) c = mixc(rc, ROCK_HI, 0.5);
-          // moss and grass creep over the top and hang over the lip of the face
-          const m = K.fbm(x / 30 + 70, y / 30, 3), lip = d - FACE;
-          if (lip > 0 && lip < 4 && K.noise(x * 0.25, 13) > 0.45) c = lip === 1 ? FE[2] : (x + y) & 1 ? FE[3] : GR[1];
-          else if (m > 0.6 && B(x, y) + 0.5 < (m - 0.6) * 7) c = m > 0.67 ? (K.hash2(x, y, 3) > 0.85 ? FE[4] : FE[3]) : FE[2];
-          if (T_(x - 1, y) !== WALL || T_(x + 1, y) !== WALL) c = ROCK_LINE;
+          // a cliff face of obsidian dropping from the ledge to the floor far below: strata, ledges, ivy
+          let ix = rockIdx(rock[(x & 31) | (((y * 0.55) & 31) << 5)]) + 1;
+          ix -= Math.floor(k / 40);
+          if ((x * 13 + (x >> 2) * 7) % 7 === 0) ix -= 1;                                      // vertical cracks
+          const band = (k + ((K.hash2(x >> 3, 0, 7) * 7) | 0)) % 19;
+          if (band === 0) ix += 1; else if (band === 1) ix -= 1;                                // ledges in the rock
+          if (k === 1) ix = 0; else if (k <= 3) ix = 5;                                         // lit lip under the edge
+          c = OB[Math.max(0, Math.min(6, ix))];
+          if (k > 3) { const iv = ivyAt(x, k - 3, 26); if (iv) c = iv; }
+          if (k > 3 && k < 7 && K.noise(x * 0.2, 9) > 0.62) c = (x + k) & 1 ? FE[2] : FE[1];            // a mossy fringe under the lip
+          // further down is further away: the rock takes on the haze (or the volcano's dark) toward its foot
+          const f = k / CL;
+          if (valley) { if (B(x, y) + 0.5 < f * 1.1) c = mixc(c, HZ[2], 0.18 + f * 0.22); }
+          else c = shade(c, 1 - f * 0.45);
+          if (k >= CL - 1) c = OB[0];                                                           // where the cliff meets the ground below
+          else if (k > CL - 6 && valley && K.noise(x * 0.3, 21) > 0.45) c = mixc(GR[1], HZ[2], 0.35);   // undergrowth at its foot
+          lo[li] = c; continue;
         }
-        out[i] = c; continue;
-      }
-      // ---- walkable ground
-      if (t === SOIL || t === GRASS || t === SAND) c = groundSoft(t, x, y);
-      else if (t === PATH) {
-        // the island's carved road, its edges eaten by moss and soil
-        const tx = x >> 5, ty = y >> 5, lx = x & 31, ly = y & 31;
-        const nb = (dx, dy) => tm.at(tx + dx, ty + dy) === PATH;
-        const e = Math.min(nb(-1, 0) ? 99 : lx, nb(1, 0) ? 99 : 31 - lx, nb(0, -1) ? 99 : ly, nb(0, 1) ? 99 : 31 - ly) - (1 + K.noise(x * 0.3, y * 0.3) * 5.5 + K.noise(x * 0.9, y * 0.9) * 1.5);
-        if (e < 0) c = groundSoft(K.noise(x * 0.07, y * 0.07) > 0.5 ? GRASS : SOIL, x, y);
-        else {
+        if (t === WALL) {
+          const d = down[i], rc = rock[patchIdx(x, y, 7)];
+          if (d <= FACE && T_(x, y + d) !== VOID) {
+            // the face of rising rock: the island's striated cliff, taller, with ledges and hanging ivy
+            if (d <= 1) c = ROCK_LINE;
+            else {
+              c = shade(rc, d > FACE - 2 ? 0.8 : d < 5 ? 0.5 : 0.62);
+              const strata = (x * 13 + ((x >> 2) * 7)) % 6;
+              if (strata === 0) c = shade(c, 0.7); else if (strata === 3 && d < FACE - 3) c = shade(c, 1.15);
+              const ledge = (d + ((K.hash2(x >> 4, 1, 5) * 9) | 0)) % 11;
+              if (ledge === 0 && d > 4 && d < FACE - 3) c = shade(rc, 0.9); else if (ledge === 1 && d > 4 && d < FACE - 3) c = shade(c, 0.6);
+              const iv = ivyAt(x, FACE - d);
+              if (iv) c = iv;
+            }
+          } else {
+            // the rock's top: the island texture as is, a lit rim along its north edge, outline at the sides
+            c = rc;
+            if (T_(x, y - 1) !== WALL) c = ROCK_HI; else if (T_(x, y - 2) !== WALL) c = mixc(rc, ROCK_HI, 0.5);
+            // moss and grass creep over the top and hang over the lip of the face
+            const m = K.fbm(x / 30 + 70, y / 30, 3), lip = d - FACE;
+            if (lip > 0 && lip < 4 && K.noise(x * 0.25, 13) > 0.45) c = lip === 1 ? FE[2] : (x + y) & 1 ? FE[3] : GR[1];
+            else if (m > 0.6 && B(x, y) + 0.5 < (m - 0.6) * 7) c = m > 0.67 ? (K.hash2(x, y, 3) > 0.85 ? FE[4] : FE[3]) : FE[2];
+            if (T_(x - 1, y) !== WALL || T_(x + 1, y) !== WALL) c = ROCK_LINE;
+          }
+          out[li] = c; continue;
+        }
+        // ---- walkable ground
+        if (t === SOIL || t === GRASS || t === SAND) c = groundSoft(t, x, y);
+        else if (t === PATH) {
+          // the island's carved road, its edges eaten by moss and soil
+          const tx = x >> 5, ty = y >> 5, lx = x & 31, ly = y & 31;
+          const nb = (dx, dy) => tm.at(tx + dx, ty + dy) === PATH;
+          const e = Math.min(nb(-1, 0) ? 99 : lx, nb(1, 0) ? 99 : 31 - lx, nb(0, -1) ? 99 : ly, nb(0, 1) ? 99 : 31 - ly) - (1 + K.noise(x * 0.3, y * 0.3) * 5.5 + K.noise(x * 0.9, y * 0.9) * 1.5);
+          if (e < 0) c = groundSoft(K.noise(x * 0.07, y * 0.07) > 0.5 ? GRASS : SOIL, x, y);
+          else {
+            c = glyph[(x & 63) + ((y & 63) << 6)];
+            if (e < 2) c = shade(c, 0.8); else if (e < 4 && ((x + y) & 1)) c = shade(c, 0.9);
+            if (K.noise(x * 0.12, y * 0.12) > 0.8 && K.hash2(x, y, 3) > 0.72) c = GR[1 + ((x + y) & 1)];
+          }
+        } else if (t === SUN) {
+          c = sunCourt(x, y, (sun2 && Math.hypot(x - sun2.x * T, y - sun2.y * T) < Math.hypot(x - sunC.x * T, y - sunC.y * T)) ? sun2 : sunC);
+          let e = 9; for (let dd = 1; dd <= 6 && e === 9; dd++) if (T_(x - dd, y) !== SUN || T_(x + dd, y) !== SUN || T_(x, y - dd) !== SUN || T_(x, y + dd) !== SUN) e = dd - 1;
+          if (e < 3) c = shade(glyph[(x & 63) + ((y & 63) << 6)], e < 1 ? 0.62 : 0.85);
+          else if (e < 6 && K.hash2(x, y, 5) > 0.75) c = mixc(c, GR[2], 0.55);
+        } else if (t === PAVE) {
+          // ruin floor: the island's carved sandstone path, weathered, with moss in its cracks
           c = glyph[(x & 63) + ((y & 63) << 6)];
-          if (e < 2) c = shade(c, 0.8); else if (e < 4 && ((x + y) & 1)) c = shade(c, 0.9);
-          if (K.noise(x * 0.12, y * 0.12) > 0.8 && K.hash2(x, y, 3) > 0.72) c = GR[1 + ((x + y) & 1)];
+          const w = K.fbm(x / 40 + 31, y / 40, 2);
+          if (w < 0.4) c = shade(c, 0.88);
+          if (K.noise(x * 0.12, y * 0.12) > 0.78 && K.hash2(x, y, 3) > 0.7) c = GR[1 + ((x + y) & 1)];
+        } else if (t === STAIR) {
+          // a carved stairway: each step is a lit nosing, a sandstone tread and a shadowed riser,
+          // running between stone cheek walls (the island's temple stone)
+          const tx = x >> 5, ty = y >> 5, lx = x & 31, ly = y & 7, eL = tm.at(tx - 1, ty) !== STAIR, eR = tm.at(tx + 1, ty) !== STAIR;
+          if ((eL && lx < 6) || (eR && lx > 25)) {
+            // cheek walls of fitted stone blocks, lit on top, mossy in their joints
+            const o = eL && lx < 6 ? lx : 31 - lx, left = eL && lx < 6, by = y + (left ? 0 : 6), block = by % 12 === 0, bk = K.hash2(Math.floor(by / 12), x >> 5, left ? 3 : 4);
+            c = o === 0 ? OB[1] : o === 5 ? ST[1] : block ? (bk > 0.6 ? FE[2] : ST[1]) : o === 1 ? ST[5] : ST[bk > 0.66 ? 4 : bk > 0.33 ? 3 : 2];
+            if (!block && o > 1 && o < 5 && (by % 12) === 1) c = ST[5];
+          } else {
+            const v = glyph[((x * 2) & 63) + (((y >> 3) * 13 + ly) & 63) * 64], l = lum(v);
+            if (ly === 0) c = GL[5];                                                // the nosing catches the light
+            else if (ly <= 4) c = l > 230 ? GL[4] : l > 175 ? GL[3] : GL[2];       // the tread
+            else if (ly === 7) c = GL[0];                                           // where the riser meets the step below
+            else c = l > 200 ? GL[2] : GL[1];                                       // the riser, in shadow
+            // each step is cut into slabs: staggered joints and a slightly different stone per slab
+            const step = y >> 3, sx2 = (x + (step & 1) * 9 + step * 5) % 13, slab = K.hash2(Math.floor((x + (step & 1) * 9 + step * 5) / 13), step, 23);
+            if (sx2 === 0 && ly > 0) c = ly < 5 ? GL[1] : GL[0];
+            else if (ly > 0 && ly < 5) c = slab > 0.72 ? shade(c, 1.07) : slab < 0.25 ? shade(c, 0.9) : c;
+            const inner = Math.min(eL ? lx - 6 : 99, eR ? 25 - lx : 99);
+            if (inner < 2 && ly > 0 && ly < 7) c = shade(c, 0.8);                   // the cheek's shadow on the steps
+            if (ly >= 1 && ly <= 4 && inner < 5 && K.hash2(x >> 1, y >> 1, 13) > 0.84) c = FE[(x + y) & 1 ? 3 : 2];   // moss in the corners
+          }
+        } else c = 0;   // bridges are drawn as props over the void
+        // ---- edges of walkable ground
+        if (c) {
+          const below = T_(x, y + 1), below2 = T_(x, y + 2), above = T_(x, y - 1);
+          if (below === VOID) c = OB[1];                                         // the dark edge of the drop
+          else if (below2 === VOID && t !== STAIR) c = shade(c, 1.18);           // lit lip
+          if ((T_(x - 1, y) === VOID || T_(x + 1, y) === VOID) && t < BH) c = OB[1];
+          if (above === VOID && t < BH) c = OB[1];                               // the rim of a ledge seen from behind
+          else if (T_(x, y - 2) === VOID && t < BH) c = shade(c, 1.2);
+          let wall = 0; for (let d = 1; d <= 6; d++) if (T_(x, y - d) === WALL) { wall = d; break; }
+          if (wall) c = shade(c, 0.6 + wall * 0.055);                            // shadow at the foot of the rock
         }
-      } else if (t === SUN) {
-        c = sunCourt(x, y, (sun2 && Math.hypot(x - sun2.x * T, y - sun2.y * T) < Math.hypot(x - sunC.x * T, y - sunC.y * T)) ? sun2 : sunC);
-        let e = 9; for (let dd = 1; dd <= 6 && e === 9; dd++) if (T_(x - dd, y) !== SUN || T_(x + dd, y) !== SUN || T_(x, y - dd) !== SUN || T_(x, y + dd) !== SUN) e = dd - 1;
-        if (e < 3) c = shade(glyph[(x & 63) + ((y & 63) << 6)], e < 1 ? 0.62 : 0.85);
-        else if (e < 6 && K.hash2(x, y, 5) > 0.75) c = mixc(c, GR[2], 0.55);
-      } else if (t === PAVE) {
-        // ruin floor: the island's carved sandstone path, weathered, with moss in its cracks
-        c = glyph[(x & 63) + ((y & 63) << 6)];
-        const w = K.fbm(x / 40 + 31, y / 40, 2);
-        if (w < 0.4) c = shade(c, 0.88);
-        if (K.noise(x * 0.12, y * 0.12) > 0.78 && K.hash2(x, y, 3) > 0.7) c = GR[1 + ((x + y) & 1)];
-      } else if (t === STAIR) {
-        // a carved stairway: each step is a lit nosing, a sandstone tread and a shadowed riser,
-        // running between stone cheek walls (the island's temple stone)
-        const tx = x >> 5, ty = y >> 5, lx = x & 31, ly = y & 7, eL = tm.at(tx - 1, ty) !== STAIR, eR = tm.at(tx + 1, ty) !== STAIR;
-        if ((eL && lx < 6) || (eR && lx > 25)) {
-          // cheek walls of fitted stone blocks, lit on top, mossy in their joints
-          const o = eL && lx < 6 ? lx : 31 - lx, left = eL && lx < 6, by = y + (left ? 0 : 6), block = by % 12 === 0, bk = K.hash2(Math.floor(by / 12), x >> 5, left ? 3 : 4);
-          c = o === 0 ? OB[1] : o === 5 ? ST[1] : block ? (bk > 0.6 ? FE[2] : ST[1]) : o === 1 ? ST[5] : ST[bk > 0.66 ? 4 : bk > 0.33 ? 3 : 2];
-          if (!block && o > 1 && o < 5 && (by % 12) === 1) c = ST[5];
-        } else {
-          const v = glyph[((x * 2) & 63) + (((y >> 3) * 13 + ly) & 63) * 64], l = lum(v);
-          if (ly === 0) c = GL[5];                                                // the nosing catches the light
-          else if (ly <= 4) c = l > 230 ? GL[4] : l > 175 ? GL[3] : GL[2];       // the tread
-          else if (ly === 7) c = GL[0];                                           // where the riser meets the step below
-          else c = l > 200 ? GL[2] : GL[1];                                       // the riser, in shadow
-          // each step is cut into slabs: staggered joints and a slightly different stone per slab
-          const step = y >> 3, sx2 = (x + (step & 1) * 9 + step * 5) % 13, slab = K.hash2(Math.floor((x + (step & 1) * 9 + step * 5) / 13), step, 23);
-          if (sx2 === 0 && ly > 0) c = ly < 5 ? GL[1] : GL[0];
-          else if (ly > 0 && ly < 5) c = slab > 0.72 ? shade(c, 1.07) : slab < 0.25 ? shade(c, 0.9) : c;
-          const inner = Math.min(eL ? lx - 6 : 99, eR ? 25 - lx : 99);
-          if (inner < 2 && ly > 0 && ly < 7) c = shade(c, 0.8);                   // the cheek's shadow on the steps
-          if (ly >= 1 && ly <= 4 && inner < 5 && K.hash2(x >> 1, y >> 1, 13) > 0.84) c = FE[(x + y) & 1 ? 3 : 2];   // moss in the corners
-        }
-      } else c = 0;   // bridges are drawn as props over the void
-      // ---- edges of walkable ground
-      if (c) {
-        const below = T_(x, y + 1), below2 = T_(x, y + 2), above = T_(x, y - 1);
-        if (below === VOID) c = OB[1];                                         // the dark edge of the drop
-        else if (below2 === VOID && t !== STAIR) c = shade(c, 1.18);           // lit lip
-        if ((T_(x - 1, y) === VOID || T_(x + 1, y) === VOID) && t < BH) c = OB[1];
-        if (above === VOID && t < BH) c = OB[1];                               // the rim of a ledge seen from behind
-        else if (T_(x, y - 2) === VOID && t < BH) c = shade(c, 1.2);
-        let wall = 0; for (let d = 1; d <= 6; d++) if (T_(x, y - d) === WALL) { wall = d; break; }
-        if (wall) c = shade(c, 0.6 + wall * 0.055);                            // shadow at the foot of the rock
+        out[li] = c;
       }
-      out[i] = c;
+      for (const [x, y, c, on] of deco[cj * ncx + ci]) if (terr[y * W + x] === on) out[(y - y0) * cw + (x - x0)] = c;
+      gx.putImageData(img, x0, y0); lx.putImageData(low, x0, y0);
+      if (plants.length) {
+        lx.save(); lx.beginPath(); lx.rect(x0, y0, cw, ch); lx.clip();
+        for (const q of plants) if (q.x + q.w > x0 && q.x < x0 + cw && q.y + q.h > y0 && q.y < y0 + ch) lx.drawImage(q.img, 0, 0, q.w, q.h, q.x, q.y, q.w, q.h);
+        lx.restore();
+      }
+      return true;
     }
-    decorate(def, terr, out, W, H);
-    const [cv, cx] = K.canvas(W, H);
-    cx.putImageData(img, 0, 0);
-    const [lv, lx] = K.canvas(W, H);
-    lx.putImageData(low, 0, 0);
-    if (valley) undergrowth(lx, terr, up, W, H, CL);
-    return { ground: cv, lower: lv, embers };
+    return { ground: cv, lower: lv, embers, chunks: { CHK, ncx, ncy, done, chunk } };
   }
   // ferns, monstera, taro and hibiscus on the floor far below, hazed by the distance
-  function undergrowth(ctx, terr, up, W, H, CL) {
-    const r = K.rng(41), floor = (x, y) => { x |= 0; y |= 0; if (x < 0 || y < 0 || x >= W || y >= H) return false; const i = y * W + x, v = terr[i]; return (v === VOID || v === BH || v === BV) && up[i] > CL + 2; };
+  function undergrowth(terr, up, W, H, CL) {
+    const r = K.rng(41), out = [], floor = (x, y) => { x |= 0; y |= 0; if (x < 0 || y < 0 || x >= W || y >= H) return false; const i = y * W + x, v = terr[i]; return (v === VOID || v === BH || v === BV) && up[i] > CL + 2; };
     const kinds = [["flora_fern", 0], ["flora_monstera", 0], ["plant_taro_a", 1], ["bush_hibiscus", 1]];
     for (let k = 0; k < (W * H) / 2600; k++) {
       const x = (r() * W) | 0, y = (r() * H) | 0, [n, sheet] = kinds[(r() * kinds.length) | 0], img = A.img[n];
       const w = sheet ? A.meta[n].fw : img.width, h = sheet ? A.meta[n].fh : img.height;
       if (!floor(x, y) || !floor(x - w / 2, y) || !floor(x + w / 2, y) || !floor(x - w / 2, y - h) || !floor(x + w / 2, y - h) || !floor(x, y - h / 2)) continue;
-      ctx.drawImage(hazed(img, n), 0, 0, w, h, Math.round(x - w / 2), Math.round(y - h), w, h);
+      out.push({ img: hazed(img, n), x: Math.round(x - w / 2), y: Math.round(y - h), w, h });
     }
+    return out;
   }
   // a copy of a sprite pushed into the distance: darker and toward the haze (cached)
   const hazeCache = new Map();
@@ -494,9 +680,10 @@
   }
 
   // stamped detail: blade clumps, clover, pebbles and tiny blooms (as on the island meadow)
-  function decorate(def, terr, out, W, H) {
+  function decorate(def, terr, W, H, CHK, ncx, ncy) {
     const r = K.rng(def.title.length * 97), GR = PAL.packed.grass, SO = PAL.packed.soil, OB = PAL.packed.obsidian;
-    const put = (x, y, c, on) => { if (x >= 0 && y >= 0 && x < W && y < H && terr[y * W + x] === on) out[y * W + x] = c; };
+    const buckets = Array.from({ length: ncx * ncy }, () => []);
+    const put = (x, y, c, on) => { if (x >= 0 && y >= 0 && x < W && y < H) buckets[((y / CHK) | 0) * ncx + ((x / CHK) | 0)].push([x, y, c, on]); };
     for (let k = 0; k < (W * H) / 140; k++) {
       const x = (r() * W) | 0, y = (r() * H) | 0, t = terr[y * W + x];
       if (t !== GRASS && t !== SOIL) continue;
@@ -507,6 +694,7 @@
       else if (t === SOIL && kind < 0.75) { for (let j = 0; j < 3; j++) put(x + j - 1, y - (j === 1 ? 1 : 0), GR[j === 1 ? 3 : 2], SOIL); }
       else if (t === GRASS && kind < 0.82) { put(x, y, r() < 0.5 ? K.rgb(250, 236, 120) : K.rgb(250, 250, 240), GRASS); put(x, y + 1, GR[0], GRASS); }
     }
+    return buckets;
   }
 
   // vines hang from cliff lips
@@ -533,6 +721,7 @@
   // glows are pre-rendered once per size and colour, then stamped with an alpha (building a fresh
   // radial gradient for every mote, crystal and brazier every frame was a steady cost)
   const glowCache = new Map();
+  Level.glowAt = (g, cx, cy, R2, rgb, a) => glowAt(g, cx, cy, R2, rgb, a);
   const glowAt = (g, cx, cy, R2, rgb, a) => {
     const R = Math.max(2, Math.round(R2)), key = R + ":" + rgb;
     let c = glowCache.get(key);
@@ -590,7 +779,7 @@
       }
       case "tiki": {
         const ti = tikiArt || (tikiArt = Props.make.tiki());
-        o.draw = (ctx, ox, oy) => ctx.drawImage(ti, Math.round(x - 7 - ox), Math.round(y - 26 - oy));
+        o.draw = (ctx, ox, oy) => ctx.drawImage(ti, Math.round(x - ti.width / 2 - ox), Math.round(y - ti.height + 1 - oy));
         o.solids = [[x - 6, y - 5, x + 6, y + 1]];
         break;
       }
@@ -719,11 +908,12 @@
   function coopRoster(list, b) {
     const np = Level.players || 1;
     if (np < 2 || !list.length) return list;
-    const out = list.slice(), n = Math.round(list.length * COOP.extra * (np - 1)), r = K.rng(list.length * 7 + 3 + np);
+    const src0 = list.filter((q) => !(Enemies.STATS[q.e] || {}).boss); if (!src0.length) return list;
+    const out = list.slice(), n = Math.round(src0.length * COOP.extra * (np - 1)), r = K.rng(list.length * 7 + 3 + np);
     const ok = (x, y) => { x = (x * T) | 0; y = (y * T) | 0; return x > 0 && y > 0 && x < b.W && y < b.H && walk(b.terr[y * b.W + x]); };
     const clear = (x, y, gap) => out.every((o) => Math.hypot(o.x - x, (o.y - y) / 0.8) > gap);
     for (let k = 0; k < n; k++) {
-      const src = list[Math.floor((k + 0.5) * list.length / n) % list.length];
+      const src = src0[Math.floor((k + 0.5) * src0.length / n) % src0.length];
       let placed = false;
       for (let tries = 0; tries < 40 && !placed; tries++) {
         const a = r() * 6.28, d = 1.6 + r() * (1.4 + np * 0.6), x = src.x + Math.cos(a) * d, y = src.y + Math.sin(a) * d * 0.75;
@@ -736,8 +926,8 @@
   function arenaWaves(waves) {
     if ((Level.players || 1) < 3 || !waves.length) return waves;
     const mix = [];
-    waves.forEach((w, wi) => w.forEach((s, i) => { if ((i + wi) % 2 === 0) mix.push({ ...s, tribe: s.tribe ? s.tribe + 40 : 0 }); }));
-    return waves.concat([mix]);
+    waves.forEach((w, wi) => w.forEach((s, i) => { if ((i + wi) % 2 === 0 && !(Enemies.STATS[s.e] || {}).boss) mix.push({ ...s, tribe: s.tribe ? s.tribe + 40 : 0 }); }));
+    return mix.length ? waves.concat([mix]) : waves;
   }
 
   // ------------------------------------------------------------------ arenas, pickups, birds (per frame)
@@ -761,17 +951,16 @@
           // and nobody is ever sealed inside a doorway
           for (let k = 0; k < 200 && !q.isRemote && L.seals.some((s) => q.x > s[0] - 8 && q.x < s[2] + 8 && q.y > s[1] - 6 && q.y < s[3] + 6); k++) { const a2 = Math.atan2(my - q.y, mx - q.x); q.x += Math.cos(a2) * 2; q.y += Math.sin(a2) * 2; }
         }
-        L.banner = { title: a.title, t0: t };
+        L.banner = { title: a.title, sub: a.sub, t0: t };
         api.sfx("sealUp"); api.sfx("warcry");
+        if (a.survive) { a.endT = t + a.survive * (1 + 0.12 * (heroes.length - 1)); a.herdT = t + 2; a.waveT = t + 0.5; }
       }
+      if (a.state === "active" && a.survive) { survival(a, L, t, heroes, api); continue; }
       if (a.state === "active" && a.live.filter((e) => !e.dead).length === 0 && t > a.next) {
         a.wave++;
         if (a.wave >= a.waves.length) {
-          a.state = "done"; L.seals = []; api.sfx("sealDown");
-          L.banner = { title: "THE WAY IS OPEN", t0: t };
-          const Pc = heroes.find((q) => !q.dead) || P0, nb = 3 + 2 * (heroes.length - 1);
-          for (let k = 0; k < nb; k++) L.pickups.push({ x: Pc.x + (k - (nb - 1) / 2) * 18, y: Pc.y - 16, t0: t, vy: -60 });
-          Combat.momentum = Math.min(100, Combat.momentum + 30);
+          finishArena(a, L, t, api);
+          rewards(heroes, P0, L, t);
         } else {
           a.live = coopRoster(a.waves[a.wave], L).map((s) => { const e = Enemies.spawn(s.e, s.x * T, s.y * T, s.tribe || 0, L); e.enter = s.enter || "leap"; e.introT = 0.9; e.alerted = true; L.enemies.push(e); return e; });
           a.next = t + 1.2;
@@ -785,14 +974,67 @@
     }
     L.pickups = L.pickups.filter((b) => !b.got && t - b.t0 < 40);
   };
+  function rewards(heroes, P0, L, t) {
+    const Pc = heroes.find((q) => !q.dead) || P0, nb = 3 + 2 * (heroes.length - 1);
+    for (let k = 0; k < nb; k++) L.pickups.push({ x: Pc.x + (k - (nb - 1) / 2) * 18, y: Pc.y - 16, t0: t, vy: -60 });
+    Combat.momentum = Math.min(100, Combat.momentum + 30);
+  }
+  function finishArena(a, L, t, api) {
+    a.state = "done"; L.seals = []; api.sfx("sealDown");
+    L.banner = { title: "THE WAY IS OPEN", t0: t };
+    if (a.unlocks && !Level.unlocked.has(a.unlocks)) { Level.unlock(a.unlocks); L.banner = { title: "THE WAY IS OPEN", sub: "A new land glows on Kahu Lā's globe", t0: t }; }
+    if (a.final) L.banner = { title: "ZONE 1 CLEARED", sub: "The Volcanic Highlands are at peace", t0: t };
+  }
+  // a stampede: herds of geckos thunder across the arena from every side while smaller waves press
+  // in. Hold out until the dust settles.
+  function survival(a, L, t, heroes, api) {
+    const [x0, y0, x1, y1] = a.rect.map((v) => v * T), np = heroes.length;
+    a.live = a.live.filter((e) => !e.dead);
+    L.timer = Math.max(0, a.endT - t);
+    if (t < a.endT) {
+      if (t > a.waveT && a.live.length < 4 + np * 2) { const w = a.waves[(a.wave = (a.wave + 1) % a.waves.length)]; for (const s of coopRoster(w, L)) { const e = Enemies.spawn(s.e, s.x * T, s.y * T, s.tribe || 0, L); if (!e) continue; e.enter = s.enter || "leap"; e.introT = 0.9; e.alerted = true; L.enemies.push(e); a.live.push(e); } a.waveT = t + 7; }
+      if (t > a.herdT) {
+        a.herdT = t + a.herd * (np >= 3 ? 0.8 : 1);
+        // pick a side, aim across at the heroes, and send a staggered line of runners
+        const side = (Math.random() * 4) | 0, tgt = heroes[(Math.random() * heroes.length) | 0], n = 4 + np + ((Math.random() * 3) | 0);
+        for (let k = 0; k < n; k++) {
+          const u = (k + 0.5) / n, jitter = (Math.random() - 0.5) * 30;
+          let x, y;
+          if (side === 0) { x = x0 + 16 + Math.random() * 20; y = y0 + (y1 - y0) * u + jitter; } else if (side === 1) { x = x1 + T - 16 - Math.random() * 20; y = y0 + (y1 - y0) * u + jitter; }
+          else if (side === 2) { y = y0 + 16 + Math.random() * 20; x = x0 + (x1 - x0) * u + jitter; } else { y = y1 + T - 16 - Math.random() * 20; x = x0 + (x1 - x0) * u + jitter; }
+          if (!walk(tAt(x, y)) || Level.solidAt(x, y)) continue;
+          const e = Enemies.spawn("runner", x, y, 0, L); if (!e) continue;
+          const base = side === 0 ? 0 : side === 1 ? Math.PI : side === 2 ? Math.PI / 2 : -Math.PI / 2, toT = Math.atan2(tgt.y - y, tgt.x - x);
+          e.runA = base + Math.max(-0.5, Math.min(0.5, Math.atan2(Math.sin(toT - base), Math.cos(toT - base)))); e.bounds = [x0, y0, x1 + T, y1 + T]; e.alerted = true; e.introT = 0.15 + k * 0.08; e.enter = "scurry";
+          L.enemies.push(e);
+        }
+        api.sfx("stampede");
+      }
+    } else {
+      // the dust settles: what's left scatters, and the way opens
+      for (const e of L.enemies) if (!e.dead && (e.type === "runner" || a.live.includes(e))) { e.dead = true; e.gone = true; Enemies.death(e); }
+      a.live = []; L.timer = 0;
+      finishArena(a, L, t, api); rewards(heroes, heroes[0], L, t);
+    }
+  }
+  // ------------------------------------------------------------------ zones and progress
+  // Kahu Lā's globe: zones of several levels each. Clearing a level's last arena unlocks the next.
+  Level.ZONES = [
+    { name: "VOLCANIC HIGHLANDS", lon: 0.35, lat: -0.25, levels: ["highlands", "canopy", "crown"] },
+    { name: "???", lon: 2.4, lat: 0.3, levels: [] },
+    { name: "???", lon: 4.3, lat: -0.45, levels: [] },
+  ];
+  Level.unlocked = new Set(["highlands"]);
+  try { const v = JSON.parse(localStorage.getItem("kuleana.unlocked") || "[]"); for (const n of v) if (DEFS[n]) Level.unlocked.add(n); } catch (e) { /* storage off: progress lasts this session */ }
+  Level.unlock = (n) => { if (!DEFS[n] || Level.unlocked.has(n)) return; Level.unlocked.add(n); try { localStorage.setItem("kuleana.unlocked", JSON.stringify([...Level.unlocked])); } catch (e) {} if (Level.onUnlock) Level.onUnlock(n); };
   // the parts of a level the guest needs from the host each tick
   Level.serialize = function (L) {
-    return { pk: L.pickups.map((b) => [Math.round(b.x), Math.round(b.y), b.vy !== undefined ? 1 : 0]), se: L.seals, ar: L.arenas.map((a) => a.state), po: L.portalOpen ? 1 : 0, sh: L.shrineTaken ? 1 : 0 };
+    return { pk: L.pickups.map((b) => [Math.round(b.x), Math.round(b.y), b.vy !== undefined ? 1 : 0]), se: L.seals, ar: L.arenas.map((a) => a.state), po: L.portalOpen ? 1 : 0, sh: L.shrineTaken ? 1 : 0, tm: L.timer ? Math.round(L.timer * 10) / 10 : 0 };
   };
   Level.applySnap = function (L, S, t) {
     L.pickups = S.pk.map(([x, y]) => ({ x, y, t0: t }));
     L.seals = S.se; S.ar.forEach((st, i) => { if (L.arenas[i]) L.arenas[i].state = st; });
-    if (S.po) L.portalOpen = true; if (S.sh) L.shrineTaken = true;
+    if (S.po) L.portalOpen = true; if (S.sh) L.shrineTaken = true; L.timer = S.tm || 0;
   };
   function updateAir(L, dt, t) {
     const A2 = L.air;
@@ -803,11 +1045,28 @@
     }
     for (const m of A2.motes) if (m.ember) { m.y -= m.sp * dt; if (m.y0 - m.y > L.def.cliff * 0.9) m.y = m.y0; }
   }
+  // paint whatever ground is in (or right next to) view
+  Level.ensure = function (x, y, w, h) {
+    const C = Level.cur && Level.cur.chunks; if (!C) return;
+    for (let cj = Math.floor(y / C.CHK); cj <= Math.floor((y + h) / C.CHK); cj++) for (let ci = Math.floor(x / C.CHK); ci <= Math.floor((x + w) / C.CHK); ci++) C.chunk(ci, cj);
+  };
+  // spend spare frame time painting the rest, nearest to the camera first
+  Level.idle = function (budgetMs, cx, cy) {
+    const C = Level.cur && Level.cur.chunks; if (!C) return;
+    const t0 = performance.now();
+    while (performance.now() - t0 < budgetMs) {
+      let best = -1, bd = 1e18;
+      for (let k = 0; k < C.done.length; k++) if (!C.done[k]) { const dx = (k % C.ncx + 0.5) * C.CHK - cx, dy = (((k / C.ncx) | 0) + 0.5) * C.CHK - cy, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = k; } }
+      if (best < 0) return;
+      C.chunk(best % C.ncx, (best / C.ncx) | 0);
+    }
+  };
   Level.dropBerry = (x, y, t) => Level.cur.pickups.push({ x, y: y - 10, t0: t, vy: -70 });
 
   // ------------------------------------------------------------------ drawing
   Level.drawBack = function (ctx, ox, oy, LW, LH, t) {
     const L = Level.cur, B2 = L.below, CL = L.def.cliff;
+    Level.ensure(ox - 32, oy - 32, LW + 64, LH + 64);
     ctx.drawImage(L.lower, ox, oy, LW, LH, 0, 0, LW, LH);
     // bridge shadows fall on the ground far below
     eachBridge(ox, oy, LW, LH + CL, (v, X, Y) => { ctx.fillStyle = "rgba(6,10,8,0.32)"; if (v === BH) ctx.fillRect(X + 5, Y + 7 + CL, T, 20); else ctx.fillRect(X + 9, Y + 4 + CL, 20, T); });
@@ -844,7 +1103,7 @@
     }
     // the ledges, walls and paths you walk on
     ctx.drawImage(L.ground, ox, oy, LW, LH, 0, 0, LW, LH);
-    eachBridge(ox, oy, LW, LH, (v, X, Y, tx, ty) => ctx.drawImage(bridgeTile(v, (tx * 7 + ty * 3) % 3), X, Y));
+    eachBridge(ox, oy, LW, LH, (v, X, Y, tx, ty) => { const tm = L.tm, a = v === BH ? tm.at(tx, ty - 1) !== v : tm.at(tx - 1, ty) !== v, b = v === BH ? tm.at(tx, ty + 1) !== v : tm.at(tx + 1, ty) !== v; ctx.drawImage(bridgeTile(v, (tx * 7 + ty * 3) % 3, a, b), X, Y); });
     for (const v of L.vines) if (v.x > ox - 10 && v.x < ox + LW + 10 && v.y > oy - 60 && v.y < oy + LH + 10) Ruins.drawVine(ctx, v.x - ox, v.y - oy, v.len, t, v.ph);
     for (const b of L.pickups) { const bob = b.vy === undefined ? Math.round(Math.sin(t * 3 + b.x) * 1.5) : 0; ctx.drawImage(Ruins.berry, Math.round(b.x - 4 - ox), Math.round(b.y - 6 - oy + bob)); }
   };
@@ -857,20 +1116,20 @@
   // rope bridges planked like the Hale Koa floor: koa boards with a lit edge, dark seams, grain and
   // knots, lashed with twisted lauhala rope to posts. Gaps between boards show the drop beneath.
   const bridgeTiles = {};
-  function bridgeTile(v, variant) {
-    const key = v + ":" + variant; if (bridgeTiles[key]) return bridgeTiles[key];
+  function bridgeTile(v, variant, eA = true, eB = true) {
+    const key = v + ":" + variant + (eA ? "a" : "") + (eB ? "b" : ""); if (bridgeTiles[key]) return bridgeTiles[key];
     const [c, x] = K.canvas(T, T), rect = (col, a, b, w, h) => { x.fillStyle = col; if (v === BH) x.fillRect(a, b, w, h); else x.fillRect(b, a, h, w); };
     const PL = ["#5a3220", "#6c3c24", "#7a4628", "#86502e"], SEAM = "#3a1e12", LIT = "#9a6038", GRAIN = "#4a2816", POST = "#2a160c", ROPE = ["#a07a44", "#d8b470"];
     for (let a = 0, k = 0; a < T; a += 6, k++) {
-      const h = (n) => K.hash2(variant * 9 + k, n, v), t0 = 5 + (h(1) > 0.6 ? 1 : 0), t1 = 27 - (h(2) > 0.7 ? 1 : 0), base = PL[(h(3) * 4) | 0];
+      const h = (n) => K.hash2(variant * 9 + k, n, v), t0 = eA ? 5 + (h(1) > 0.6 ? 1 : 0) : 0, t1 = eB ? 27 - (h(2) > 0.7 ? 1 : 0) : 32, base = PL[(h(3) * 4) | 0];
       rect(base, a, t0, 5, t1 - t0);
       rect(LIT, a, t0, 5, 1); rect(SEAM, a + 4, t0, 1, t1 - t0); rect(SEAM, a, t1 - 1, 5, 1);
       for (let g = 0; g < 2; g++) { const gx = a + 1 + ((h(4 + g) * 3) | 0), gy = t0 + 2 + ((h(6 + g) * 10) | 0); rect(GRAIN, gx, gy, 1, 4 + ((h(8 + g) * 5) | 0)); }
       if (h(10) > 0.78) { rect(SEAM, a + 1, t0 + 9, 2, 2); rect(LIT, a + 1, t0 + 9, 1, 1); }     // a knot
     }
     // lashing: two twisted ropes along the edges, tied off at a post each tile
-    for (let a = 0; a < T; a++) { const sag = Math.round(Math.sin((a / T) * Math.PI) * 1.2); rect(ROPE[(a >> 1) & 1], a, 3 + sag, 1, 1); rect(ROPE[(a >> 1) & 1], a, 28 + sag, 1, 1); rect(SEAM, a, 4 + sag, 1, 1); rect(SEAM, a, 29 + sag, 1, 1); }
-    for (const b of [1, 26]) { rect(POST, 0, b, 3, 5); rect(LIT, 0, b, 3, 1); rect(ROPE[1], 0, b + 2, 3, 1); }
+    for (let a = 0; a < T; a++) { const sag = Math.round(Math.sin((a / T) * Math.PI) * 1.2); if (eA) { rect(ROPE[(a >> 1) & 1], a, 3 + sag, 1, 1); rect(SEAM, a, 4 + sag, 1, 1); } if (eB) { rect(ROPE[(a >> 1) & 1], a, 28 + sag, 1, 1); rect(SEAM, a, 29 + sag, 1, 1); } }
+    for (const b of [eA ? 1 : -1, eB ? 26 : -1]) if (b >= 0) { rect(POST, 0, b, 3, 5); rect(LIT, 0, b, 3, 1); rect(ROPE[1], 0, b + 2, 3, 1); }
     bridgeTiles[key] = c; return c;
   }
   // flying insects, drawn over everything on the ground

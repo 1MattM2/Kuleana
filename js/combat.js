@@ -228,9 +228,9 @@
   function at(t) { return C.clock + t; }
   function sfx(kind, delay) { if (!window.Ambience || !Ambience.sfx) return; if (delay) C.events.push({ t: at(delay), fn: () => Ambience.sfx(kind) }); else Ambience.sfx(kind); }
 
-  function hitArc(s, t, o) { C.events.push({ t: at(t), fn: () => { const hx = C.p.x, hy = C.p.y - 10; for (const d of C.targets) { if (d.dead) continue; const dx = d.x - hx, dy = (d.y - 12 - hy) / 0.8, dist = Math.hypot(dx, dy); let da = Math.atan2(dy, dx) - s.a; da = Math.atan2(Math.sin(da), Math.cos(da)); if (dist < o.range * 1.25 + 8 && Math.abs(da) < o.span / 2 + 0.3) damage(d, o, Math.atan2(dy, dx)); } } }); }
-  function hitLine(s, t, o) { C.events.push({ t: at(t), fn: () => { const hx = C.p.x, hy = C.p.y - 10, ux = Math.cos(s.a), uy = Math.sin(s.a); for (const d of C.targets) { if (d.dead) continue; const dx = d.x - hx, dy = d.y - 12 - hy, along = dx * ux + dy * uy, perp = Math.abs(-dx * uy + dy * ux); if (along > -8 && along < o.len + 8 && perp < o.w + 6) damage(d, o, s.a); } } }); }
-  function hitCircle(s, t, o) { C.events.push({ t: at(t), fn: () => { let cx = C.p.x, cy = C.p.y - 10; if (o.at) { cx = o.at.x; cy = o.at.y; } else if (o.fwd) { cx += Math.cos(s.a) * o.fwd; cy += Math.sin(s.a) * o.fwd * 0.8; } for (const d of C.targets) { if (d.dead) continue; if (Math.hypot(d.x - cx, (d.y - 12 - cy) / 0.85) < o.r + 8) damage(d, o, Math.atan2(d.y - cy, d.x - cx)); } } }); }
+  function hitArc(s, t, o) { C.events.push({ t: at(t), fn: () => { const hx = C.p.x, hy = C.p.y - 10; for (const d of C.targets) { if (d.dead) continue; const dx = d.x - hx, dy = (d.y - 12 - hy) / 0.8, dist = Math.hypot(dx, dy); let da = Math.atan2(dy, dx) - s.a; da = Math.atan2(Math.sin(da), Math.cos(da)); if (dist < o.range * 1.25 + 8 + (d.big || 0) && Math.abs(da) < o.span / 2 + 0.3 + (d.big ? Math.min(0.8, d.big / Math.max(dist, 1)) : 0)) damage(d, o, Math.atan2(dy, dx)); } } }); }
+  function hitLine(s, t, o) { C.events.push({ t: at(t), fn: () => { const hx = C.p.x, hy = C.p.y - 10, ux = Math.cos(s.a), uy = Math.sin(s.a); for (const d of C.targets) { if (d.dead) continue; const dx = d.x - hx, dy = d.y - 12 - hy, along = dx * ux + dy * uy, perp = Math.abs(-dx * uy + dy * ux); if (along > -8 - (d.big || 0) && along < o.len + 8 + (d.big || 0) && perp < o.w + 6 + (d.big || 0)) damage(d, o, s.a); } } }); }
+  function hitCircle(s, t, o) { C.events.push({ t: at(t), fn: () => { let cx = C.p.x, cy = C.p.y - 10; if (o.at) { cx = o.at.x; cy = o.at.y; } else if (o.fwd) { cx += Math.cos(s.a) * o.fwd; cy += Math.sin(s.a) * o.fwd * 0.8; } for (const d of C.targets) { if (d.dead) continue; if (Math.hypot(d.x - cx, (d.y - 12 - cy) / 0.85) < o.r + 8 + (d.big || 0)) damage(d, o, Math.atan2(d.y - cy, d.x - cx)); } } }); }
 
   // Co-op: a move can be played for a partner's hero (a "ghost" replay). Everything it schedules or
   // spawns is bound to that hero, so its effects follow them and its hits come from where they stand.
@@ -1031,24 +1031,54 @@
     return any;
   };
   // the equipped weapon in hand, swinging with the move
-  C.drawWeapon = function (ctx, ox, oy, p) {
+  // The weapon in the hero's hand. At rest it is held upright in the hand the art actually shows
+  // (beside the body, never through it), with the fist drawn closed over the grip; facing away it is
+  // drawn behind the hero. In the sea cave it becomes a silhouette like the hero (sil = true).
+  const silCache = new Map();
+  function silOf(img) {
+    if (silCache.has(img)) return silCache.get(img);
+    const w = img.width, h = img.height, [c, x] = K.canvas(w, h); x.drawImage(img, 0, 0);
+    const d = x.getImageData(0, 0, w, h), p = d.data, o = new Uint8ClampedArray(p.length), op = (a, b) => a >= 0 && b >= 0 && a < w && b < h && p[(b * w + a) * 4 + 3] > 0;
+    for (let y = 0; y < h; y++) for (let xx = 0; xx < w; xx++) {
+      if (!op(xx, y)) continue;
+      const i = (y * w + xx) * 4; let c2 = [8, 12, 26];
+      if (!op(xx + 1, y) || !op(xx, y + 1)) c2 = [86, 206, 238]; else if (!op(xx - 1, y)) c2 = [40, 120, 170]; else if (!op(xx, y - 1)) c2 = [22, 40, 70];
+      o[i] = c2[0]; o[i + 1] = c2[1]; o[i + 2] = c2[2]; o[i + 3] = 255;
+    }
+    x.putImageData(new ImageData(o, w, h), 0, 0); silCache.set(img, c); return c;
+  }
+  const REST = { down: [7, -8, -Math.PI / 2 + 0.3], up: [7, -9, -Math.PI / 2 + 0.2], side: [1, -8, -Math.PI / 2 + 0.45], left: [-1, -8, -Math.PI / 2 - 0.45] };
+  function fist(ctx, x, y, sil) {
+    x = Math.round(x); y = Math.round(y);
+    ctx.fillStyle = sil ? "#081022" : "#24181e"; ctx.fillRect(x - 2, y - 2, 4, 4);
+    ctx.fillStyle = sil ? "#28507a" : "#b2724a"; ctx.fillRect(x - 1, y - 1, 2, 2);
+    ctx.fillStyle = sil ? "#56cdee" : "#ce8e62"; ctx.fillRect(x - 1, y - 1, 1, 1);
+  }
+  C.drawWeapon = function (ctx, ox, oy, p, sil) {
     const w = WEAPONS[C.cur]; if (!w.spr) return;
-    if (w.id === "chain" && !C.move) { ctx.save(); ctx.translate(Math.round(p.x - ox + (p.dir === "left" ? -6 : 6)), Math.round(p.y - 8 - oy)); ctx.drawImage(w.spr.c, -15, -7); ctx.restore(); return; }
+    const art = (c) => (sil ? silOf(c) : c);
+    if (w.id === "chain" && !C.move) { ctx.save(); ctx.translate(Math.round(p.x - ox + (p.dir === "left" ? -6 : 6)), Math.round(p.y - 8 - oy)); ctx.drawImage(art(w.spr.c), -15, -7); ctx.restore(); return; }
     if (w.spr.none) return;
-    if (w.spr.gauntlet) { const fx_ = p.dir === "left" ? -7 : 7, lift = C.move ? -3 : 0; ctx.drawImage(w.spr.c, 9, 2, 14, 11, Math.round(p.x - ox + fx_ - 7), Math.round(p.y - 14 - oy + lift), 14, 11); return; }
-    let ang, ext = 0;
+    if (w.spr.gauntlet) { const fx_ = p.dir === "left" ? -7 : 7, lift = C.move ? -3 : 0; ctx.drawImage(art(w.spr.c), 9, 2, 14, 11, Math.round(p.x - ox + fx_ - 7), Math.round(p.y - 14 - oy + lift), 14, 11); return; }
+    let ang, ext = 0, hx, hy;
     if (C.move) {
       const main = C.fx.find((f) => (f.type === "arc" || f.type === "thrust") && f.follow && C.clock - f.t0 >= 0);
       if (main && main.type === "arc") { const pr = (C.clock - main.t0) / main.dur; ang = main.a0 + (main.a1 - main.a0) * easeOut(pr / 0.5); }
       else { ang = C.aim; ext = 6 * Math.sin(Math.min(1, C.moveT / (C.move.dur * 0.5)) * Math.PI); }
-    } else ang = p.dir === "left" ? Math.PI * 0.72 : p.dir === "up" ? -Math.PI * 0.3 : Math.PI * 0.28;
-    const hx = p.x - ox + Math.cos(ang) * (4 + ext), hy = p.y - 12 - oy + Math.sin(ang) * (4 + ext) * 0.8;
+      // mid-swing the hand travels round the shoulder, out at arm's length
+      hx = p.x - ox + Math.cos(ang) * (8 + ext); hy = p.y - 12 - oy + Math.sin(ang) * (7 + ext) * 0.8;
+    } else {
+      const r = REST[p.dir] || REST.down, bob = p.moving && p.frame % 2 ? 1 : 0;
+      ang = r[2]; hx = p.x - ox + r[0]; hy = p.y - oy + r[1] + bob;
+    }
     ctx.save(); ctx.translate(Math.round(hx), Math.round(hy)); ctx.rotate(ang); ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(w.spr.c, -w.spr.gx, -w.spr.gy);
-    if (w.id === "fangs" && C.move) { ctx.rotate(0.5); ctx.drawImage(w.spr.c, -w.spr.gx, -w.spr.gy + 3); }
+    ctx.drawImage(art(w.spr.c), -w.spr.gx, -w.spr.gy);
+    if (w.id === "fangs" && C.move) { ctx.rotate(0.5); ctx.drawImage(art(w.spr.c), -w.spr.gx, -w.spr.gy + 3); }
     ctx.restore();
+    fist(ctx, hx, hy, sil);
   };
-  C.behindHero = (p) => !C.move && p.dir !== "down";
+  // facing away, the weapon is held in front of the body: draw it behind the hero
+  C.behindHero = (p) => !C.move && p.dir === "up";
   // how much the sky darkens for storm / celestial finishers (0..1) and its tint
   C.darkness = function () {
     let d = 0, tint = "8,10,30";
