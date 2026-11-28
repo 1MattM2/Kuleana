@@ -441,7 +441,7 @@
   // the brute's own animation, from the user's concept sheet (frames 64x69, anchored at the feet):
   //   0-5 the walk, 6 stance, 7 wind-up, 8-9 fists raised, 10 the ground strike, 11 recover,
   //   12 step, 13 fist drawn back, 14 the punch into the ground, 15 fists high, 16 stance
-  const BA = { W: 64, H: 69 }, bruteFrame = (i) => { const sh = img("e_brute_anim"); if (!sh) return null; const k = "f" + i; if (!BA[k]) { const [c, x] = K.canvas(BA.W, BA.H); x.drawImage(sh, i * BA.W, 0, BA.W, BA.H, 0, 0, BA.W, BA.H); BA[k] = c; } return BA[k]; };
+  const BA = { W: 70, H: 79 }, bruteFrame = (i) => { const sh = img("e_brute_anim"); if (!sh) return null; const k = "f" + i; if (!BA[k]) { const [c, x] = K.canvas(BA.W, BA.H); x.drawImage(sh, i * BA.W, 0, BA.W, BA.H, 0, 0, BA.W, BA.H); BA[k] = c; } return BA[k]; };
   function bruteAnimFrame(e, t) {
     const st = e.state;
     if (st === "windSlam") { const u = e.st / 0.65; return u < 0.35 ? 7 : u < 0.75 ? 8 : 9; }

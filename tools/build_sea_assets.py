@@ -193,8 +193,8 @@ def brute_anim():
             yy, xx = y + dy, x + dx
             if 0 <= yy < H0 and 0 <= xx < W0 and near[yy, xx] and not bgm[yy, xx]: bgm[yy, xx] = True; q.append((yy, xx))
     src[bgm, 3] = 0
-    cw, rows = 1376 / 6, [(0, 246), (246, 512), (512, 768)]
-    BW, BH, OW, OH = 216, 232, 64, 69
+    cw, rows = 1376 / 6, [(0, 244), (250, 510), (518, 768)]   # (clear of the grid lines between rows)
+    BW, BH, OW, OH = 236, 266, 70, 79   # (room for raised fists and swung arms: nothing cut off)
     frames = []
     for ri, (y0, y1) in enumerate(rows):
         for ci in range(6):
@@ -202,13 +202,17 @@ def brute_anim():
             cell = ~bgm[y0:y1, x0:x1]
             if cell.sum() < 2000: continue                                 # the empty cell
             ys = np.where(cell.sum(1) > 6)[0]; feet = y0 + ys.max()
-            cx = (x0 + x1) // 2
+            # centre each frame on its body (the head and chest band), not on the cell, so the figure
+            # doesn't jitter sideways from frame to frame
+            ys2 = np.where(cell.any(1))[0]; band = cell[ys2.min() + 10:ys2.min() + 90]
+            bx = np.where(band.any(0))[0]
+            cols_w = band.sum(0); cx = x0 + int(round((np.arange(len(cols_w)) * cols_w).sum() / max(1, cols_w.sum())))
             box = np.zeros((BH, BW, 4), np.int32)
             sy0, sx0 = feet + 4 - BH, cx - BW // 2
             ys0, xs0 = max(0, sy0), max(0, sx0); ys1, xs1 = min(src.shape[0], sy0 + BH), min(src.shape[1], sx0 + BW)
             box[ys0 - sy0:ys1 - sy0, xs0 - sx0:xs1 - sx0] = src[ys0:ys1, xs0:xs1]
             # keep only this cell's pixels (no neighbours' fists)
-            mx = np.zeros_like(box[..., 3]); mx[:, max(0, x0 - sx0):max(0, min(BW, x1 - sx0))] = 1; box[..., 3] *= mx
+            mx = np.zeros_like(box[..., 3]); mx[max(0, y0 - sy0):max(0, min(BH, y1 - sy0)), max(0, x0 - sx0):max(0, min(BW, x1 - sx0))] = 1; box[..., 3] *= mx   # (this cell only: no neighbours' fists)
             box[box[..., 3] == 0] = 0
             d = clean_frame(box, OW, OH)
             frames.append(d.astype(np.uint8))
