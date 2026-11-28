@@ -94,6 +94,77 @@ put("e_brute", ecut((48, 44, 512, 512), 58, 40))
 # double-fist slam, row 3 a punch and a ground smash. Each frame is cut on a fixed box anchored at the
 # feet (so they line up), the navy ground and grid keyed out, and brought down to the game's scale.
 from collections import deque
+
+from PIL import ImageFilter
+BRUTE_PAL = None
+def clean_frame(box, OW, OH):
+    """Concept frame -> clean game sprite: the compression noise smoothed away, the silhouette thickened a
+    touch so thin wrists and joints survive the shrink, every colour snapped to the clean brute sprite's own
+    palette, stray specks dropped, gaps filled and a uniform dark outline round it all."""
+    global BRUTE_PAL
+    if BRUTE_PAL is None:
+        bs = np.array(Image.open(os.path.join(SRC, "sea_e_brute.png")).convert("RGBA")).astype(np.int32)
+        cols = bs[bs[..., 3] > 0][:, :3]
+        BRUTE_PAL = np.unique(cols, axis=0)
+    im = Image.fromarray(box.astype(np.uint8), "RGBA")
+    rgb = im.convert("RGB").filter(ImageFilter.MedianFilter(5))
+    al = im.getchannel("A").point(lambda v: 255 if v > 0 else 0).filter(ImageFilter.MaxFilter(5))
+    # the colour under newly grown edge pixels: the nearest real pixel's
+    src_rgb = np.array(rgb).astype(np.int32); a0 = np.array(im.getchannel("A")) > 0; a1 = np.array(al) > 0
+    grow = a1 & ~a0
+    have = a0.copy()
+    for _ in range(4):                                   # spread real colours outward a pixel at a time
+        if not (grow & ~have).any(): break
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            sh = np.roll(have, (dy, dx), (0, 1)); shc = np.roll(src_rgb, (dy, dx), (0, 1))
+            take = grow & ~have & sh
+            src_rgb[take] = shc[take]; have = have | take
+    H0, W0 = a1.shape; fy, fx = H0 / OH, W0 / OW
+    out = np.zeros((OH, OW, 4), np.int32)
+    for y in range(OH):
+        for x in range(OW):
+            y0, y1, x0, x1 = int(y * fy), int((y + 1) * fy), int(x * fx), int((x + 1) * fx)
+            m = a1[y0:y1, x0:x1]
+            if m.mean() < 0.42: continue
+            blk = src_rgb[y0:y1, x0:x1][m]
+            c = np.median(blk, axis=0)
+            out[y, x, :3] = c; out[y, x, 3] = 255
+    # snap to the brute's palette (by brightness-weighted distance)
+    op = out[..., 3] > 0
+    px_ = out[op][:, :3]
+    dd = ((px_[:, None, :] - BRUTE_PAL[None, :, :]) ** 2 * np.array([3, 4, 2])).sum(2)
+    out[op, :3] = BRUTE_PAL[dd.argmin(1)]
+    # drop specks of fewer than 4 pixels, fill enclosed gaps
+    op = out[..., 3] > 0; seen = np.zeros_like(op)
+    for y in range(OH):
+        for x in range(OW):
+            if not op[y, x] or seen[y, x]: continue
+            comp = [(y, x)]; seen[y, x] = True; q = deque([(y, x)])
+            while q:
+                cy, cx = q.popleft()
+                for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    yy, xx = cy + dy, cx + dx
+                    if 0 <= yy < OH and 0 <= xx < OW and op[yy, xx] and not seen[yy, xx]: seen[yy, xx] = True; q.append((yy, xx)); comp.append((yy, xx))
+            if len(comp) < 4:
+                for (yy, xx) in comp: out[yy, xx] = 0
+    op = out[..., 3] > 0; outside = np.zeros_like(op); q = deque()
+    for y in range(OH):
+        for x in range(OW):
+            if (y in (0, OH - 1) or x in (0, OW - 1)) and not op[y, x]: outside[y, x] = True; q.append((y, x))
+    while q:
+        cy, cx = q.popleft()
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            yy, xx = cy + dy, cx + dx
+            if 0 <= yy < OH and 0 <= xx < OW and not op[yy, xx] and not outside[yy, xx]: outside[yy, xx] = True; q.append((yy, xx))
+    filled = ~op & ~outside
+    DARK = BRUTE_PAL[((BRUTE_PAL).sum(1)).argmin()]
+    out[filled, :3] = DARK; out[filled, 3] = 255
+    # a uniform 1px outline in the sprite's darkest colour
+    op = out[..., 3] > 0; pad_ = np.pad(op, 1)
+    edge = ~op & (pad_[:-2, 1:-1] | pad_[2:, 1:-1] | pad_[1:-1, :-2] | pad_[1:-1, 2:])
+    out[edge, :3] = DARK; out[edge, 3] = 255
+    return out
+
 def brute_anim():
     src = np.array(Image.open(os.path.join(SRC, "Brute_concept_animation.webp")).convert("RGBA")).astype(np.int32)
     r, g, b = src[..., 0], src[..., 1], src[..., 2]
@@ -139,36 +210,7 @@ def brute_anim():
             # keep only this cell's pixels (no neighbours' fists)
             mx = np.zeros_like(box[..., 3]); mx[:, max(0, x0 - sx0):max(0, min(BW, x1 - sx0))] = 1; box[..., 3] *= mx
             box[box[..., 3] == 0] = 0
-            d = crisp(box.astype(np.uint8), (OW, OH), 40).astype(np.int32)
-            # close it up: navy left inside the body becomes the sprite's own dark outline brown, and any gap
-            # not open to the outside is filled with it (no holes, no seams between limbs)
-            DARK = np.array([44, 26, 20])
-            nv = (d[..., 3] > 0) & (d[..., 2] >= d[..., 0]) & (d[..., :3].max(2) < 90)
-            d[nv, :3] = DARK
-            out = np.zeros(d.shape[:2], bool); qq = deque()
-            hh, ww = out.shape
-            for yy in range(hh):
-                for xx in (0, ww - 1):
-                    if d[yy, xx, 3] == 0 and not out[yy, xx]: out[yy, xx] = True; qq.append((yy, xx))
-            for xx in range(ww):
-                for yy in (0, hh - 1):
-                    if d[yy, xx, 3] == 0 and not out[yy, xx]: out[yy, xx] = True; qq.append((yy, xx))
-            while qq:
-                yy, xx = qq.popleft()
-                for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                    y2, x2 = yy + dy, xx + dx
-                    if 0 <= y2 < hh and 0 <= x2 < ww and d[y2, x2, 3] == 0 and not out[y2, x2]: out[y2, x2] = True; qq.append((y2, x2))
-            hole = (d[..., 3] == 0) & ~out
-            d[hole, :3] = DARK; d[hole, 3] = 255
-            # notches and pinholes: a clear pixel mostly surrounded by the sprite takes its neighbours' colour
-            for _ in range(3):
-                op = d[..., 3] > 0; pad_ = np.pad(op, 1); nb = pad_[:-2, 1:-1].astype(int) + pad_[2:, 1:-1] + pad_[1:-1, :-2] + pad_[1:-1, 2:]
-                diag = pad_[:-2, :-2].astype(int) + pad_[:-2, 2:] + pad_[2:, :-2] + pad_[2:, 2:]
-                fill = (~op) & ((nb >= 3) | ((nb >= 2) & (diag >= 3)))
-                if not fill.any(): break
-                for yy, xx in zip(*np.where(fill)):
-                    cs = [d[y2, x2, :3] for y2, x2 in ((yy - 1, xx), (yy + 1, xx), (yy, xx - 1), (yy, xx + 1)) if 0 <= y2 < hh and 0 <= x2 < ww and d[y2, x2, 3] > 0]
-                    d[yy, xx, :3] = np.min(cs, axis=0); d[yy, xx, 3] = 255
+            d = clean_frame(box, OW, OH)
             frames.append(d.astype(np.uint8))
     sheet = np.concatenate(frames, axis=1)
     print("  brute anim frames", len(frames))
