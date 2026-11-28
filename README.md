@@ -5,7 +5,11 @@ Open `index.html` in a browser (Chrome, Edge, Safari or Firefox). No server or i
 **Surge:** Stormcaller, Glowtide and Starfall have ultimates (Tempest, Glowing Maelstrom, The Heavens). Land 3 full combos
 with the weapon to fill its Surge diamonds; the next combo finisher becomes the ultimate.
 
-**Controls:** WASD/arrows move, Shift run, J or left-click attack (keep pressing to combo), Space/K or right-click dodge-roll, Q/R/wheel/1-9 switch weapon, E talk/use, M mute.
+**Controls:** WASD/arrows move, Shift run, J or left-click attack (keep pressing to combo), Space/K or right-click dodge-roll, Q/R/wheel/1-5 switch weapon, E talk/use, M mute.
+
+**Title and saves:** the game opens on a title screen (Continue, New Game, Load Game, Settings) with three save slots. It autosaves when you arrive somewhere and every minute; Settings > Menu has Save game and Quit to title.
+
+**Weapons:** every weapon you pick up (the dojo rack, Pele's shrine) is yours to keep. You carry up to **five**; the toolbar shows just those. If you own more than five, Kahu Lā asks you to choose your five before he sends you through the Sun Gate.
 
 ## What's here
 - A walkable island built from the art in `docs/`, rendered as 32px-grid pixel art.

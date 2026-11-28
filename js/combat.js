@@ -451,13 +451,29 @@
   C.momTier = () => (C.momentum >= 100 ? 3 : C.momentum >= 66 ? 2 : C.momentum >= 33 ? 1 : 0);
   C.loseMomentum = (f) => { C.momentum *= f; };
   // ---- weapon locks: only a few basic Hawaiian weapons until you find the rest (all free in the dojo)
+  // Inventory and loadout: every weapon you own is in C.unlocked; up to five of them are equipped in
+  // C.loadout, and only those are switched between (Q/R, wheel, 1-5). In the dojo every rack weapon is
+  // free to try.
+  C.LOADOUT_MAX = 5;
   C.unlocked = new Set(["spear", "pahoa", "newa"]);
+  C.loadout = ["spear", "pahoa", "newa"];
   C.allUnlocked = false;
-  C.isOpen = (i) => C.allUnlocked || C.unlocked.has(WEAPONS[i].id);
-  C.ensureOpen = () => { if (!C.isOpen(C.cur)) C.cur = WEAPONS.findIndex((w, i) => C.isOpen(i)); };
+  const idOf = (i) => WEAPONS[i] && WEAPONS[i].id, indexOf = (id) => WEAPONS.findIndex((w) => w.id === id);
+  C.indexOf = indexOf;
+  C.isOpen = (i) => C.allUnlocked || C.loadout.includes(idOf(i));
+  C.ensureOpen = () => { C.loadout = C.loadout.filter((id) => C.unlocked.has(id)); if (!C.loadout.length) C.loadout = [...C.unlocked].slice(0, C.LOADOUT_MAX); if (!C.isOpen(C.cur)) C.cur = Math.max(0, indexOf(C.loadout[0])); };
+  // a new weapon goes into the inventory, and straight into the loadout while there's room
+  C.gain = (id) => { if (indexOf(id) < 0) return false; const isNew = !C.unlocked.has(id); C.unlocked.add(id); if (!C.loadout.includes(id) && C.loadout.length < C.LOADOUT_MAX) C.loadout.push(id); return isNew; };
   C.attack = () => { C.queued = 0.3; };
-  C.cycle = (d) => { if (C.move) return; let i = C.cur; for (let k = 0; k < WEAPONS.length; k++) { i = (i + d + WEAPONS.length) % WEAPONS.length; if (C.isOpen(i)) break; } C.cur = i; C.switchT = C.clock; window.Ambience && Ambience.sfx && Ambience.sfx("equip"); };
-  C.select = (i) => { if (C.move || i < 0 || i >= WEAPONS.length || !C.isOpen(i)) return; C.cur = i; C.switchT = C.clock; window.Ambience && Ambience.sfx && Ambience.sfx("equip"); };
+  const switched = () => { C.switchT = C.clock; window.Ambience && Ambience.sfx && Ambience.sfx("equip"); };
+  C.cycle = (d) => {
+    if (C.move) return;
+    if (C.allUnlocked) { let i = C.cur; for (let k = 0; k < WEAPONS.length; k++) { i = (i + d + WEAPONS.length) % WEAPONS.length; if (C.isOpen(i)) break; } C.cur = i; return switched(); }
+    const L = C.loadout; if (L.length < 2) return;
+    const k = L.indexOf(idOf(C.cur)); C.cur = indexOf(L[((k < 0 ? 0 : k) + d + L.length) % L.length]); switched();
+  };
+  C.select = (i) => { if (C.move || i < 0 || i >= WEAPONS.length || !C.isOpen(i)) return; C.cur = i; switched(); };
+  C.selectSlot = (k) => { const id = C.loadout[k]; if (id) C.select(indexOf(id)); };
 
   function facingAngle(p) { return p.dir === "down" ? Math.PI / 2 : p.dir === "up" ? -Math.PI / 2 : p.dir === "left" ? Math.PI : 0; }
   function dirFromAngle(a) { const c = Math.cos(a), s = Math.sin(a); return Math.abs(c) > Math.abs(s) * 0.9 ? (c > 0 ? "side" : "left") : s > 0 ? "down" : "up"; }

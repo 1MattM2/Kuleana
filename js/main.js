@@ -105,6 +105,7 @@
     if (window.Title && Title.open) return;
     if (e.target && e.target.tagName === "INPUT") return;          // typing a join code
     if (window.Menu && Menu.open) { if (!e.repeat) Menu.key(e); for (const k in keys) keys[k] = false; return; }
+    if (loadoutUI.open) { if (!e.repeat) loadoutKey(e.code); for (const k in keys) keys[k] = false; e.preventDefault(); return; }
     if (globe.open) { if (!e.repeat) globeKey(e.code); for (const k in keys) keys[k] = false; e.preventDefault(); return; }
     if (e.code === "Escape" && !e.repeat) { window.Menu && Menu.toggle(true); for (const k in keys) keys[k] = false; return; }
     if (e.code === "KeyC" && !e.repeat) { window.Menu && Menu.toggle(true, "coop"); for (const k in keys) keys[k] = false; return; }
@@ -116,11 +117,11 @@
     if ((e.code === "Space" || e.code === "KeyK") && !e.repeat && !dialog && fade.dir === 0 && !player.dead) startRoll();
     if (e.code === "KeyQ" && !e.repeat) Combat.cycle(-1);
     if (e.code === "KeyR" && !e.repeat) Combat.cycle(1);
-    if (/^Digit[0-9]$/.test(e.code)) { const n = +e.code.slice(5); Combat.select(n === 0 ? 9 : n - 1); }
+    if (/^Digit[1-5]$/.test(e.code)) Combat.selectSlot(+e.code.slice(5) - 1);
     if (e.code.startsWith("Arrow") || e.code === "Space" || e.code === "Tab") e.preventDefault();
   });
   addEventListener("keyup", (e) => (keys[e.code] = false));
-  addEventListener("pointerdown", (e) => { if (window.Title && Title.open) return; window.Ambience && Ambience.start(); if (window.Menu && Menu.open) return; if (globe.open) { globeTap(e); return; } if (e.pointerType !== "mouse" || player.dead) return; if (e.button === 0 && !dialog && fade.dir === 0) Combat.attack(); if (e.button === 2 && !dialog && fade.dir === 0) startRoll(); });
+  addEventListener("pointerdown", (e) => { if (window.Title && Title.open) return; window.Ambience && Ambience.start(); if (window.Menu && Menu.open) return; if (loadoutUI.open) { loadoutTap(e); return; } if (globe.open) { globeTap(e); return; } if (e.pointerType !== "mouse" || player.dead) return; if (e.button === 0 && !dialog && fade.dir === 0) Combat.attack(); if (e.button === 2 && !dialog && fade.dir === 0) startRoll(); });
   addEventListener("contextmenu", (e) => e.preventDefault());
   addEventListener("wheel", (e) => Combat.cycle(e.deltaY > 0 ? 1 : -1), { passive: true });
   addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
@@ -202,7 +203,7 @@
       case "revive":   // a partner held you up for long enough: back on your feet with half your hearts
         if (player.dead && player.downed) { player.dead = false; player.downed = false; player.hp = Math.ceil(player.maxHp / 2); player.inv = 2; banner = { title: "REVIVED", sub: (m.by || "A partner") + " got you back up", t0: time }; Ambience.sfx && Ambience.sfx("berry"); }
         break;
-      case "sync": if (m.un) for (const n of m.un) Level.unlock(n); if (m.portal) { Level.portalUnlocked = true; if (Level.cur) Level.cur.portalOpen = true; } if (m.heel) { Level.heelTaken = true; Combat.unlocked.add("heel"); if (Level.cur) Level.cur.shrineTaken = true; } break;
+      case "sync": if (m.un) for (const n of m.un) Level.unlock(n); if (m.portal) { Level.portalUnlocked = true; if (Level.cur) Level.cur.portalOpen = true; } if (m.heel) { Level.heelTaken = true; Combat.gain("heel"); if (Level.cur) Level.cur.shrineTaken = true; } break;
       case "act":     // a guest asks the host to do something that changes the shared world
         if (!Net.isHost()) break;
         if (m.k === "go" && (!Level.DEFS[m.to] || m.to === "sanctum" || Level.unlocked.has(m.to) || scene === "level")) goTo(m.to);
@@ -289,7 +290,65 @@
   function travel() {
     const z = Level.ZONES[globe.zone], name = z.levels[globe.sel];
     if (!name || !Level.unlocked.has(name)) { Ambience.sfx && Ambience.sfx("guard"); return; }
-    globe.open = false; Level.dest = name; Ambience.sfx && Ambience.sfx("portal"); goTo(name);
+    globe.open = false; Level.dest = name;
+    if (Combat.unlocked.size > Combat.LOADOUT_MAX) { openLoadout(name); return; }
+    Ambience.sfx && Ambience.sfx("portal"); goTo(name);
+  }
+  // ------------------------------------------------------------------ choosing your five
+  // Before Kahu Lā sends you, if you own more than five weapons: pick which five to carry.
+  const loadoutUI = { open: false, sel: 0, dest: null, hit: [], msgT: -9, msg: "" };
+  function openLoadout(dest) { loadoutUI.open = true; loadoutUI.dest = dest; loadoutUI.sel = 0; loadoutUI.msg = ""; Ambience.sfx && Ambience.sfx("equip"); }
+  const owned = () => Combat.weapons.map((w, i) => i).filter((i) => Combat.unlocked.has(Combat.weapons[i].id));
+  function toggleEquip(i) {
+    const id = Combat.weapons[i].id, L = Combat.loadout, k = L.indexOf(id);
+    if (k >= 0) { if (L.length <= 1) { loadoutUI.msg = "Carry at least one weapon"; loadoutUI.msgT = time; return; } L.splice(k, 1); }
+    else { if (L.length >= Combat.LOADOUT_MAX) { loadoutUI.msg = "Five at most: put one down first"; loadoutUI.msgT = time; return; } L.push(id); }
+    Combat.ensureOpen(); Ambience.sfx && Ambience.sfx("equip");
+  }
+  function setOut() { loadoutUI.open = false; Combat.ensureOpen(); Ambience.sfx && Ambience.sfx("portal"); if (loadoutUI.dest) goTo(loadoutUI.dest); }
+  function loadoutKey(code) {
+    const list = owned(), n = list.length, cols = Math.min(6, n);
+    if (code === "Escape" || code === "KeyQ") { loadoutUI.open = false; openGlobe(); }
+    else if (code === "ArrowRight" || code === "KeyD") loadoutUI.sel = (loadoutUI.sel + 1) % n;
+    else if (code === "ArrowLeft" || code === "KeyA") loadoutUI.sel = (loadoutUI.sel + n - 1) % n;
+    else if (code === "ArrowDown" || code === "KeyS") loadoutUI.sel = Math.min(n - 1, loadoutUI.sel + cols);
+    else if (code === "ArrowUp" || code === "KeyW") loadoutUI.sel = Math.max(0, loadoutUI.sel - cols);
+    else if (code === "KeyE" || code === "KeyJ") toggleEquip(list[loadoutUI.sel]);
+    else if (code === "Enter" || code === "Space") setOut();
+  }
+  function loadoutTap(e) {
+    const gx = (e.clientX * (screen.width / innerWidth)) / SCALE, gy = (e.clientY * (screen.height / innerHeight)) / SCALE;
+    for (const h of loadoutUI.hit) if (gx > h.x && gx < h.x + h.w && gy > h.y && gy < h.y + h.h) { if (h.go) setOut(); else if (h.back) { loadoutUI.open = false; openGlobe(); } else { loadoutUI.sel = h.k; toggleEquip(h.i); } return; }
+  }
+  function drawLoadout(t) {
+    const u = SCALE, list = owned(), n = list.length, cols = Math.min(6, n), rows = Math.ceil(n / cols), C2 = 34;
+    const pw = Math.max(240, cols * C2 + 40), ph = 96 + rows * C2, px0 = Math.round((VW - pw) / 2), py0 = Math.round((VH - ph) / 2);
+    sctx.fillStyle = "rgba(8,6,14,0.55)"; sctx.fillRect(0, 0, screen.width, screen.height);
+    const R = (c, x, y, w, h) => { sctx.fillStyle = c; sctx.fillRect(x * u, y * u, w * u, h * u); };
+    R("#1a1220", px0, py0, pw, ph); R("#c08a3e", px0 + 1, py0 + 1, pw - 2, ph - 2); R("#221828", px0 + 2, py0 + 2, pw - 4, ph - 4);
+    sctx.textBaseline = "top"; sctx.textAlign = "center";
+    sctx.font = `${10 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#ffe08a"; sctx.fillText("CHOOSE YOUR FIVE", (VW / 2) * u, (py0 + 8) * u);
+    sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#c8b890"; sctx.fillText(`${Combat.loadout.length} / ${Combat.LOADOUT_MAX} carried  -  bound for ${Level.DEFS[loadoutUI.dest] ? Level.DEFS[loadoutUI.dest].title : ""}`, (VW / 2) * u, (py0 + 22) * u);
+    loadoutUI.hit = [];
+    const gx0 = Math.round(VW / 2 - (cols * C2) / 2);
+    list.forEach((i, k) => {
+      const w = Combat.weapons[i], x = gx0 + (k % cols) * C2, y = py0 + 34 + Math.floor(k / cols) * C2, eq = Combat.loadout.indexOf(w.id), sel = k === loadoutUI.sel;
+      R(sel ? "#ffffff" : eq >= 0 ? w.col : "#3a2e3c", x, y, 32, 32); R(eq >= 0 ? "#2c2030" : "#161018", x + 1, y + 1, 30, 30);
+      sctx.globalAlpha = eq >= 0 ? 1 : 0.45; sctx.imageSmoothingEnabled = false; sctx.drawImage(w.icon, (x + 2) * u, (y + 2) * u, w.icon.width * u, w.icon.height * u); sctx.globalAlpha = 1;
+      if (eq >= 0) { sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = w.col; sctx.textAlign = "left"; sctx.fillText(String(eq + 1), (x + 3) * u, (y + 2) * u); sctx.textAlign = "center"; }
+      loadoutUI.hit.push({ x, y, w: 32, h: 32, i, k });
+    });
+    const sw = Combat.weapons[list[loadoutUI.sel]] || Combat.weapons[0], by = py0 + 38 + rows * C2;
+    sctx.font = `${8 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#fff6dc"; sctx.fillText(sw.name, (VW / 2) * u, by * u);
+    sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = sw.col; sctx.fillText(sw.cls, (VW / 2) * u, (by + 10) * u);
+    const msg = time - loadoutUI.msgT < 2 ? loadoutUI.msg : TOUCH ? "Tap to carry / put down" : "E carry / put down   Enter set out   Esc back";
+    sctx.fillStyle = time - loadoutUI.msgT < 2 ? "#ffb08a" : "#a89880"; sctx.fillText(msg, (VW / 2) * u, (by + 22) * u);
+    // set out / back buttons
+    const bw = 56, bx = px0 + pw - bw - 8, byy = py0 + ph - 18;
+    R("#c08a3e", bx, byy, bw, 12); R("#2e1e24", bx + 1, byy + 1, bw - 2, 10); sctx.fillStyle = "#ffe08a"; sctx.fillText("SET OUT", (bx + bw / 2) * u, (byy + 2) * u);
+    R("#6a5a6a", px0 + 8, byy, 40, 12); R("#1e161e", px0 + 9, byy + 1, 38, 10); sctx.fillStyle = "#c8b890"; sctx.fillText("BACK", (px0 + 28) * u, (byy + 2) * u);
+    loadoutUI.hit.push({ x: bx, y: byy, w: bw, h: 12, go: 1 }, { x: px0 + 8, y: byy, w: 40, h: 12, back: 1 });
+    sctx.textAlign = "left";
   }
   function globeTap(e) {
     const gx = (e.clientX * (screen.width / innerWidth)) / SCALE, gy = (e.clientY * (screen.height / innerHeight)) / SCALE;
@@ -412,7 +471,7 @@
       player.moving = true;
       return;
     }
-    if (dialog || globe.open || fade.dir === 1 || Combat.busy) { player.moving = false; player.frame = Combat.busy ? 2 : 0; return; }
+    if (dialog || globe.open || loadoutUI.open || fade.dir === 1 || Combat.busy) { player.moving = false; player.frame = Combat.busy ? 2 : 0; return; }
     let ix = 0, iy = 0;
     if (keys.KeyA || keys.ArrowLeft) ix -= 1;
     if (keys.KeyD || keys.ArrowRight) ix += 1;
@@ -576,7 +635,12 @@
       if (player.y > Dojo.H - 8) goTo("island");
       rackHover = Dojo.rackIndexAt(player.x, player.y);
       if (rackHover >= 0) prompt = { x: Dojo.rackPos.x + Dojo.rackSlots[rackHover], y: Dojo.rackPos.y + 50 };
-      if (pressedE && rackHover >= 0) Combat.select(rackHover);
+      if (pressedE && rackHover >= 0) {
+        // taking a weapon from the rack keeps it: it joins your inventory (and your loadout, if there's room)
+        const w = Combat.weapons[rackHover], isNew = Combat.gain(w.id);
+        Combat.select(rackHover);
+        if (isNew) banner = { title: w.name.toUpperCase(), sub: Combat.loadout.includes(w.id) ? "Added to your weapons" : "Added to your weapons. Your loadout is full: choose at Kahu Lā's globe", t0: time };
+      }
       pressedE = false;
       return;
     }
@@ -641,7 +705,7 @@
   // Pele's shrine gives the Ember Heel; in co-op both heroes take it up
   function takeShrine(here) {
     const L = Level.cur, sh = L.def.shrine; if (!sh) return;
-    L.shrineTaken = Level.heelTaken = true; Combat.unlocked.add(sh.unlock); Ambience.sfx && Ambience.sfx("pickup");
+    L.shrineTaken = Level.heelTaken = true; Combat.gain(sh.unlock); Ambience.sfx && Ambience.sfx("pickup");
     if (window.Net && Net.isHost()) Net.send({ t: "sync", heel: 1 });
     const w = Combat.weapons.find((q) => q.id === sh.unlock);
     if (here || !(window.Net && Net.active())) dialog = { name: "Pele's Shrine", lines: [`You take up the ${w.name}.`, "Its heat settles into your stride. (Press Q / R to switch weapons.)"], i: 0, start: performance.now() };
@@ -980,31 +1044,43 @@
     sctx.imageSmoothingEnabled = false;
     return any;
   }
-  // weapon panel (bottom centre) + combo counter
+  // weapon toolbar (bottom centre): one slot per equipped weapon, numbered 1-5, the one in hand lit in
+  // its colour, with the surge diamonds over it. It is only as wide as what you carry.
+  const SLOT = 30;
+  function barSlots() { return Combat.allUnlocked && !Combat.loadout.includes(Combat.weapons[Combat.cur].id) ? Combat.loadout.concat([Combat.weapons[Combat.cur].id]) : Combat.loadout; }
+  function barRect() { const n = barSlots().length, w = n * SLOT + 4; return { n, w, x: Math.round(VW / 2 - w / 2), y: VH - 36 }; }
   function drawCombatHUD(ctx) {
-    if (dialog) return;
-    const w = Combat.weapons[Combat.cur], x = Math.round(VW / 2 - 70), y = VH - 36;
-    ctx.fillStyle = "#1a1220"; ctx.fillRect(x - 2, y - 2, 144, 32);
-    ctx.fillStyle = "#c08a3e"; ctx.fillRect(x - 1, y - 1, 142, 30);
-    ctx.fillStyle = "#231a26"; ctx.fillRect(x, y, 140, 28);
-    ctx.fillStyle = w.col; ctx.fillRect(x, y, 2, 28);
-    ctx.drawImage(w.icon, x + 2, y);
-    // pips: one per weapon in the arsenal
-    for (let i = 0; i < Combat.weapons.length; i++) { ctx.fillStyle = i === Combat.cur ? w.col : "#4a3e48"; ctx.fillRect(x + 34 + i * 6, y + 23, 4, 2); }
-    // surge diamonds for weapons with an ultimate: fill by landing full combos
-    if (w.ult) for (let k = 0; k < Combat.SURGE; k++) {
-      const full = k < (w.charge || 0), ready = (w.charge || 0) >= Combat.SURGE, dx = x + 120 + k * 7, dy = y + 4;
+    if (dialog || globe.open || loadoutUI.open) return;
+    const w = Combat.weapons[Combat.cur], B = barRect(), ids = barSlots();
+    ctx.fillStyle = "#1a1220"; ctx.fillRect(B.x - 2, B.y - 2, B.w + 4, SLOT + 6);
+    ctx.fillStyle = "#c08a3e"; ctx.fillRect(B.x - 1, B.y - 1, B.w + 2, SLOT + 4);
+    ctx.fillStyle = "#231a26"; ctx.fillRect(B.x, B.y, B.w, SLOT + 2);
+    ids.forEach((id, k) => {
+      const wi = Combat.indexOf(id), ww = Combat.weapons[wi], sx = B.x + 2 + k * SLOT, on = wi === Combat.cur;
+      ctx.fillStyle = on ? ww.col : "#3a2e3c"; ctx.fillRect(sx, B.y + 1, SLOT - 2, SLOT);
+      ctx.fillStyle = on ? "#2c2030" : "#1c1420"; ctx.fillRect(sx + 1, B.y + 2, SLOT - 4, SLOT - 2);
+      ctx.globalAlpha = on ? 1 : 0.62; ctx.drawImage(ww.icon, sx, B.y + 2); ctx.globalAlpha = 1;
+      if (k < 5) { ctx.fillStyle = on ? ww.col : "#8a7a88"; K.pixmap(ctx, DIGITS[k], { o: on ? hexRGB(ww.col) : [138, 122, 136] }, sx + 2, B.y + 3, false, 3); }
+    });
+    // surge diamonds above the weapon in hand
+    const k = ids.indexOf(w.id);
+    if (w.ult && k >= 0) for (let q = 0; q < Combat.SURGE; q++) {
+      const full = q < (w.charge || 0), ready = (w.charge || 0) >= Combat.SURGE, dx = B.x + 2 + k * SLOT + SLOT / 2 - 11 + q * 7, dy = B.y - 9;
       const blink = ready && Math.floor(Combat.clock * 6) % 2;
       ctx.fillStyle = "#120c16"; ctx.fillRect(dx - 1, dy + 1, 7, 3); ctx.fillRect(dx + 1, dy - 1, 3, 7);
       ctx.fillStyle = full ? (blink ? "#ffffff" : w.col) : "#3a3040"; ctx.fillRect(dx, dy + 2, 5, 1); ctx.fillRect(dx + 2, dy, 1, 5); ctx.fillRect(dx + 1, dy + 1, 3, 3);
     }
   }
+  const DIGITS = [[".o.", "oo.", ".o.", ".o.", "ooo"], ["oo.", "..o", ".o.", "o..", "ooo"], ["oo.", "..o", ".o.", "..o", "oo."], ["o.o", "o.o", "ooo", "..o", "..o"], ["ooo", "o..", "oo.", "..o", "oo."]];
+  const hexRGB = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   function drawCombatTexts(u) {
     if (dialog) return;
-    const w = Combat.weapons[Combat.cur], x = VW / 2 - 70 + 34, y = VH - 33;
-    sctx.textBaseline = "top"; sctx.textAlign = "left";
-    sctx.font = `${8 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#fff6dc"; sctx.fillText(w.name, x * u, y * u);
-    sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = w.col; sctx.fillText(w.cls, x * u, (y + 10) * u);
+    if (globe.open || loadoutUI.open) return;
+    // the name of the weapon in hand, over the toolbar
+    const w = Combat.weapons[Combat.cur], B = barRect(), nx = VW / 2, ny = B.y - (w.ult ? 22 : 13);
+    sctx.textBaseline = "top"; sctx.textAlign = "center";
+    sctx.font = `${7 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#120c16"; sctx.fillText(w.name, nx * u + u, ny * u + u); sctx.fillStyle = "#fff6dc"; sctx.fillText(w.name, nx * u, ny * u);
+    sctx.textAlign = "left";
     if (scene === "dojo" && rackHover >= 0) {
       const hw = Combat.weapons[rackHover], hx = (Dojo.rackPos.x + Dojo.rackSlots[rackHover] - cam.fx) * u, hy = (Dojo.rackPos.y + 64 - cam.fy) * u;
       sctx.textAlign = "center"; sctx.font = `${7 * u}px 'Pixelify Sans', monospace`;
@@ -1143,6 +1219,7 @@
     else if (scene === "level") renderLevel(t);
     else renderIsland(t);
     if (globe.open) drawGlobe(t);
+    if (loadoutUI.open) drawLoadout(t);
     if (fade.a > 0) { sctx.fillStyle = `rgba(2,3,8,${Math.min(1, fade.a)})`; sctx.fillRect(0, 0, screen.width, screen.height); }
   }
 
@@ -1379,14 +1456,14 @@
   const Game = (window.Game = {
     snapshot() {
       return { v: 1, t: Date.now(), play: playT, where: scene === "level" ? Level.cur.name : "island", x: Math.round(scene === "island" ? player.x : World.START.x), y: Math.round(scene === "island" ? player.y : World.START.y),
-        unlocked: [...Level.unlocked], cleared: Level.cleared.size, clearedList: [...Level.cleared], heel: !!Level.heelTaken, portal: !!Level.portalUnlocked, weapons: [...Combat.unlocked], cur: Combat.cur, place: placeName() };
+        unlocked: [...Level.unlocked], cleared: Level.cleared.size, clearedList: [...Level.cleared], heel: !!Level.heelTaken, portal: !!Level.portalUnlocked, weapons: [...Combat.unlocked], loadout: [...Combat.loadout], cur: Combat.cur, place: placeName() };
     },
     save() { if (!slot || !window.Title || fade.dir !== 0) return; Title.store.set(slot, Game.snapshot()); saveT = time; },
     begin(n, d) {
       slot = n; playT = d ? d.play || 0 : 0; saveT = time;
       Level.unlocked = new Set(d ? d.unlocked : ["highlands"]); Level.cleared = new Set(d ? d.clearedList || [] : []);
       Level.heelTaken = d ? !!d.heel : false; Level.portalUnlocked = d ? !!d.portal : false; Level.dest = null;
-      Combat.unlocked = new Set(d ? d.weapons : DEFAULT_WEAPONS); Combat.cur = d ? d.cur || 0 : 0; Combat.ensureOpen();
+      Combat.unlocked = new Set(d ? d.weapons : DEFAULT_WEAPONS); Combat.loadout = (d && d.loadout ? d.loadout : [...Combat.unlocked]).slice(0, Combat.LOADOUT_MAX); Combat.cur = d ? d.cur || 0 : 0; Combat.ensureOpen();
       player.hp = player.maxHp; player.dead = false; player.downed = false;
       scene = "island"; player.x = d ? d.x : World.START.x; player.y = d ? d.y : World.START.y; player.dir = "down";
       if (blocked(player.x, player.y)) unstick();

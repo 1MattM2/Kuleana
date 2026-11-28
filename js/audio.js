@@ -31,9 +31,14 @@
     if (Amb.started) return;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
-    ac = new AC();
+    // a slightly larger audio buffer than the default: a stall on the main thread (building an area, a
+    // busy fight) no longer starves the sound card, which is what made the sound cut in and out
+    const touch = window.TouchPad && TouchPad.enabled;
+    try { ac = new AC({ latencyHint: touch ? "playback" : 0.05 }); } catch (e) { ac = new AC(); }
     Amb.started = true;
-    master = gain(0); master.connect(ac.destination);
+    master = gain(0);
+    const lim = ac.createDynamicsCompressor(); lim.threshold.value = -4; lim.knee.value = 2; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.12;
+    master.connect(lim); lim.connect(ac.destination);
     set(master.gain, Amb.muted ? 0 : 0.7 * Amb.volume, 0.08);
     // small outdoor "space" for the birds
     const conv = ac.createConvolver(), ir = ac.createBuffer(2, ac.sampleRate * 1.4, ac.sampleRate);
@@ -148,7 +153,7 @@
     const ir = (secs, decay) => { const b = ac.createBuffer(2, ac.sampleRate * secs, ac.sampleRate); for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); let lp = 0; for (let i = 0; i < d.length; i++) { lp = lp * 0.6 + (Math.random() * 2 - 1) * 0.4; d[i] = lp * Math.pow(1 - i / d.length, decay); } } return b; };
     const rv = ac.createConvolver(); rv.buffer = ir(1.8, 3);
     sfxWet = ac.createGain(); sfxWet.gain.value = 0.22; sfxBus.connect(sfxWet); sfxWet.connect(rv); rv.connect(comp);
-    const rv2 = ac.createConvolver(); rv2.buffer = ir(4.5, 1.6);
+    const rv2 = ac.createConvolver(); rv2.buffer = ir(2.6, 1.8);   // (shorter tail: long convolution reverbs are heavy on the audio thread)
     skySend = ac.createGain(); skySend.gain.value = 0.9; skySend.connect(rv2); rv2.connect(comp);
     const n = ac.sampleRate * 3;
     white = ac.createBuffer(1, n, ac.sampleRate); pinkB = ac.createBuffer(1, n, ac.sampleRate); brownB = ac.createBuffer(1, n, ac.sampleRate);
@@ -369,9 +374,21 @@
   const ELEM = { heel: "fire", maul: "fire", tide: "water", glowtide: "water", storm: "storm", starfall: "sky", stone: "stone", koi: "stone", kakau: "drum" };
   const elem = () => { const C = window.Combat; const w = C && C.weapons && C.weapons[C.cur]; return (w && ELEM[w.id]) || "steel"; };
 
+  // Only so many sounds at once: the same sound twice within 40ms is one sound, and past ~26 voices
+  // new ones are dropped (a crowd fight used to swamp the audio thread).
+  const lastKind = {}, voices = [];
+  const allow = (kind) => {
+    const now = ac.currentTime;
+    if (lastKind[kind] !== undefined && now - lastKind[kind] < 0.04) return false;
+    while (voices.length && voices[0] < now) voices.shift();
+    if (voices.length > 26) return false;
+    lastKind[kind] = now; voices.push(now + 0.5); voices.sort((a, b) => a - b);
+    return true;
+  };
   Amb.sfx = function (kind) {
     if (!ac || Amb.muted) return;
     if (ac.state === "suspended") ac.resume();
+    if (!allow(kind)) return;
     bus();
     const t = ac.currentTime + 0.01, r = rnd(0.92, 1.08), el = elem();
     switch (kind) {
@@ -484,9 +501,10 @@
   //   tile  - a hard click and a short ring off cut stone
   //   water - (shallow water) a splash, a slap, and a couple of bubbles
   function burst(t, len, ft, f, q, v, curve) {
-    const src = ac.createBufferSource(), g = ac.createGain(), buf = ac.createBuffer(1, Math.max(1, (ac.sampleRate * len) | 0), ac.sampleRate), d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, curve || 2.5);
-    src.buffer = buf; const fl = filt(ft, f, q); g.gain.value = v; src.connect(fl); fl.connect(g); g.connect(master); src.start(t);
+    bus();
+    const s2 = ac.createBufferSource(), g = ac.createGain(), fl = filt(ft, f, q);
+    s2.buffer = white; g.gain.setValueAtTime(v, t); g.gain.setTargetAtTime(0.0001, t + len * 0.1, len / (1 + (curve || 2.5)));
+    s2.connect(fl); fl.connect(g); g.connect(master); s2.start(t, Math.random() * 2, len + 0.05);
   }
   function thump(t, f0, f1, len, v) { const o = ac.createOscillator(), og = gain(v); o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + len); og.gain.setValueAtTime(v, t); og.gain.exponentialRampToValueAtTime(0.001, t + len); o.connect(og); og.connect(master); o.start(t); o.stop(t + len + 0.02); }
   Amb.step = function (surface, run) {
@@ -498,7 +516,7 @@
       case "sand": for (let i = 0; i < 5; i++) burst(t + i * 0.012 + Math.random() * 0.008, 0.025, "bandpass", (2200 + Math.random() * 1600) * p, 2, 0.05 * k); burst(t, 0.08, "lowpass", 900 * p, 0.6, 0.1 * k); break;
       case "wood": burst(t, 0.09, "bandpass", 380 * p, 2.5, 0.45 * k); thump(t, 190 * p, 110 * p, 0.1, 0.12 * k); if (Math.random() < 0.12) { const o = ac.createOscillator(), og = gain(0.02); o.type = "sawtooth"; o.frequency.setValueAtTime(140, t + 0.04); o.frequency.linearRampToValueAtTime(175, t + 0.2); og.gain.setValueAtTime(0.02, t + 0.04); og.gain.exponentialRampToValueAtTime(0.001, t + 0.22); const bf = filt("bandpass", 900, 3); o.connect(bf); bf.connect(og); og.connect(master); o.start(t + 0.04); o.stop(t + 0.24); } break;
       case "tile": burst(t, 0.03, "bandpass", 2600 * p, 4, 0.22 * k, 4); burst(t + 0.004, 0.05, "bandpass", 5200 * p, 6, 0.06 * k, 3); thump(t, 140, 90, 0.05, 0.08 * k); break;
-      case "water": { const src = ac.createBufferSource(), g = ac.createGain(), len = 0.18, buf = ac.createBuffer(1, (ac.sampleRate * len) | 0, ac.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 1.8); src.buffer = buf; const fl = filt("bandpass", 700 * p, 1.4); fl.frequency.setValueAtTime(700 * p, t); fl.frequency.exponentialRampToValueAtTime(2600 * p, t + 0.08); g.gain.value = 0.22 * k; src.connect(fl); fl.connect(g); g.connect(master); src.start(t);
+      case "water": { bus(); const src = ac.createBufferSource(), g = ac.createGain(), len = 0.18; src.buffer = white; const fl = filt("bandpass", 700 * p, 1.4); fl.frequency.setValueAtTime(700 * p, t); fl.frequency.exponentialRampToValueAtTime(2600 * p, t + 0.08); g.gain.setValueAtTime(0.22 * k, t); g.gain.setTargetAtTime(0.0001, t + 0.02, len / 3); src.connect(fl); fl.connect(g); g.connect(master); src.start(t, Math.random() * 2, len + 0.05);
         thump(t, 120, 70, 0.05, 0.06 * k); for (let i = 0; i < 2; i++) { const bt = t + 0.04 + Math.random() * 0.08, o = ac.createOscillator(), og = gain(0.03 * k); o.frequency.setValueAtTime(380 + Math.random() * 300, bt); o.frequency.exponentialRampToValueAtTime(900 + Math.random() * 500, bt + 0.03); og.gain.setValueAtTime(0.03 * k, bt); og.gain.exponentialRampToValueAtTime(0.001, bt + 0.04); o.connect(og); og.connect(master); o.start(bt); o.stop(bt + 0.05); } break; }
       default: burst(t, 0.07, "bandpass", 1800 * p, 1.2, 0.16 * k);
     }
