@@ -1000,31 +1000,62 @@
   // from the shoulder (pre-rotated, nearest pixel, into stepped frames) and lengthened, beating slowly;
   // the body rides up and down with each beat
   let OWLF = null;
-  function owlFlight() {
-    if (OWLF) return OWLF;
+  // The pueo in flight, built from its own perched sprite: the folded wing is lifted off the sprite and swung
+  // out from the shoulder. A wing frame is made for any (sweep angle, spread, tip curl): the spread opens the
+  // wing to its full length mid-beat and foreshortens it at the top and bottom of the stroke; the curl bends the
+  // primaries back on the upstroke (the feathers trail the motion). Frames are cached on a coarse grid.
+  let OWLB = null; const OWLW = new Map();
+  function owlBase() {
+    if (OWLB) return OWLB;
     const S2 = img("e_owl"), W = S2.width, H = S2.height, [, sx] = K.canvas(W, H); sx.drawImage(S2, 0, 0);
-    const d0 = new Uint32Array(sx.getImageData(0, 0, W, H).data.buffer), PX = 6, PY = 9;
-    const wing = (x, y) => (x >= 0 && x <= 7 && y >= 8 && y < 25 ? d0[y * W + x] : 0);
-    const N = 6, frames = [], R2 = 30;
-    for (let f = 0; f < N; f++) {
-      const ang = 1.05 + (f / (N - 1)) * 0.75, ca = Math.cos(ang), sa = Math.sin(ang), [c, x] = K.canvas(R2 * 2, R2 * 2), im = x.createImageData(R2 * 2, R2 * 2), o = new Uint32Array(im.data.buffer);
-      for (let yy = 0; yy < R2 * 2; yy++) for (let xx = 0; xx < R2 * 2; xx++) {
-        const dx = xx - R2, dy = yy - R2, ux = dx * ca + dy * sa, uy = (-dx * sa + dy * ca) / 1.45;   // back into the folded wing's frame, stretched along its length
-        const v = wing(Math.round(PX + ux), Math.round(PY + uy)); if (v >>> 24) o[yy * R2 * 2 + xx] = v;
-      }
-      x.putImageData(im, 0, 0); frames.push(c);
-    }
-    return (OWLF = { frames, W, H, PX, PY, R2 });
+    return (OWLB = { d0: new Uint32Array(sx.getImageData(0, 0, W, H).data.buffer), W, H, PX: 6, PY: 9, R2: 32 });
   }
-  function drawOwlFlight(ctx, x, y, t, flap, fl, carry) {
-    const S2 = img("e_owl"), F = owlFlight(), s = 1.25, ph = (Math.sin(flap) + 1) / 2, fi = Math.min(F.frames.length - 1, Math.round(ph * (F.frames.length - 1)));
-    const bob = Math.round((1 - ph) * 2), X = Math.round(x), Y = Math.round(y + bob), top = Y - Math.round(F.H * s), left = X - Math.round((F.W * s) / 2);
-    const wf = fl ? tinted(F.frames[fi]) : F.frames[fi], R2 = F.R2 * s;
+  function owlWing(ang, spread, curl) {
+    const qa = Math.round(ang * 12) / 12, qs = Math.round(spread * 8) / 8, qc = Math.round(curl * 6) / 6, key = qa + "|" + qs + "|" + qc;
+    let c0 = OWLW.get(key); if (c0) return c0;
+    const B = owlBase(), R2 = B.R2, ca = Math.cos(qa), sa = Math.sin(qa), [c, x] = K.canvas(R2 * 2, R2 * 2), im = x.createImageData(R2 * 2, R2 * 2), o = new Uint32Array(im.data.buffer);
+    const wing = (xx, yy) => (xx >= 0 && xx <= 7 && yy >= 8 && yy < 25 ? B.d0[yy * B.W + xx] : 0);
+    for (let yy = 0; yy < R2 * 2; yy++) for (let xx = 0; xx < R2 * 2; xx++) {
+      const dx = xx - R2, dy = yy - R2;
+      let ux = dx * ca + dy * sa, uy = (-dx * sa + dy * ca) / qs;
+      // the outer part of the wing bends back with the curl
+      const along = Math.max(0, uy - 7); ux -= along * along * 0.05 * qc;
+      const v = wing(Math.round(B.PX + ux), Math.round(B.PY + uy)); if (v >>> 24) o[yy * R2 * 2 + xx] = v;
+    }
+    x.putImageData(im, 0, 0); OWLW.set(key, c); return c;
+  }
+  // one wingbeat, u from 0 to 1: a quick, powerful downstroke (u 0-0.42) and a slower recovery
+  function owlStroke(u) {
+    // (angle 0 = folded at the side, ~1.3 level, ~2.3 raised high)
+    if (u < 0.42) { const k = u / 0.42, e2 = k * k * (3 - 2 * k); return { ang: 2.25 - e2 * 1.6, spread: 1.0 + Math.sin(k * Math.PI) * 0.3, curl: 0.1, lift: -Math.sin(k * Math.PI) * 2.5 }; }
+    const k = (u - 0.42) / 0.58, e2 = k * k * (3 - 2 * k); return { ang: 0.65 + e2 * 1.6, spread: 0.92 + Math.sin(k * Math.PI) * 0.08, curl: 0.9 - Math.abs(k - 0.5) * 0.8, lift: Math.sin(k * Math.PI) * 1.2 };
+  }
+  L0.owlTest = (ctx, x, y, ang, spread, curl) => { const B = owlBase(), s = 1.25, R2 = B.R2 * s, top = y - Math.round(B.H * s), left = x - Math.round((B.W * s) / 2); for (const sg of [-1, 1]) { const wf = owlWing(ang, spread, curl), sxp = sg < 0 ? left + B.PX * s : left + (B.W - B.PX) * s, syp = top + B.PY * s; ctx.save(); ctx.translate(Math.round(sxp), Math.round(syp)); ctx.scale(sg < 0 ? 1 : -1, 1); ctx.drawImage(wf, Math.round(-R2), Math.round(-R2), Math.round(R2 * 2), Math.round(R2 * 2)); ctx.restore(); } ctx.drawImage(img("e_owl"), left, top, Math.round(B.W * s), Math.round(B.H * s)); };
+  function drawOwlFlight(ctx, x, y, t, e, fl, carry) {
+    const S2 = img("e_owl"), B = owlBase(), s = 1.25;
+    // how it's flying: a dive with the wings swept back, a hover (glaring) with quick shallow beats, or
+    // cruising: bursts of flapping between long glides on outstretched wings
+    e.flapT = (e.flapT || 0) + 1 / 60;
+    let pose;
+    if (e.state === "swoop") pose = { ang: 0.45, spread: 1.05, curl: 1, lift: 0 };                      // wings tucked for the dive
+    else if (e.state === "glare") { const u = ((t * 2.6 + e.ph) % 1 + 1) % 1, p = owlStroke(u); pose = { ang: 1.45 + (p.ang - 1.45) * 0.55, spread: p.spread, curl: p.curl, lift: p.lift }; }
+    else {
+      const cyc = 3.2, c = ((t + e.ph * 3) % cyc + cyc) % cyc;
+      if (c < 1.4) pose = owlStroke((c / 1.4 * 3) % 1);                               // three beats...
+      else { const gl = Math.sin((c - 1.4) * 1.1) * 0.06; pose = { ang: 1.42 + gl, spread: 1.28, curl: 0.15, lift: Math.sin((c - 1.4) * 2) * 0.6 }; }   // ...then a glide, rocking gently
+    }
+    const X = Math.round(x), Y = Math.round(y + pose.lift), top = Y - Math.round(B.H * s), left = X - Math.round((B.W * s) / 2), R2 = B.R2 * s;
+    // a slight bank toward the way it's heading
+    const bank = Math.max(-0.12, Math.min(0.12, (e.vxs || 0) * 0.0015));
+    ctx.save(); ctx.translate(X, Y); ctx.rotate(bank); ctx.translate(-X, -Y);
     for (const sg of [-1, 1]) {
-      const sxp = sg < 0 ? left + F.PX * s : left + (F.W - F.PX) * s, syp = top + F.PY * s;
+      const wf0 = owlWing(pose.ang + (sg > 0 ? bank : -bank) * 0.8, pose.spread, pose.curl), wf = fl ? tinted(wf0) : wf0;
+      const sxp = sg < 0 ? left + B.PX * s : left + (B.W - B.PX) * s, syp = top + B.PY * s;
       ctx.save(); ctx.translate(Math.round(sxp), Math.round(syp)); ctx.scale(sg < 0 ? 1 : -1, 1); ctx.drawImage(wf, Math.round(-R2), Math.round(-R2), Math.round(R2 * 2), Math.round(R2 * 2)); ctx.restore();
     }
-    ctx.drawImage(fl ? tinted(S2) : S2, left, top, Math.round(F.W * s), Math.round(F.H * s));
+    // the body, its talons tucked up in a glide and reaching down in a dive
+    ctx.drawImage(fl ? tinted(S2) : S2, left, top, Math.round(B.W * s), Math.round(B.H * s));
+    ctx.restore();
     if (carry) { const OB = R().obsidian, c = (col) => (fl ? "#ffffff" : rgb(col)); px(ctx, X - 6, Y - 2, 13, 10, c(OB[0])); px(ctx, X - 5, Y - 1, 11, 8, c(OB[3])); px(ctx, X - 4, Y - 1, 6, 2, c(OB[5])); px(ctx, X + 2, Y + 3, 3, 3, c(OB[1])); }
   }
   function drawPerched(ctx, x, y, t, fl, ph) { const S2 = img("e_owl"), s = 1.25, src = fl ? tinted(S2) : S2; ctx.fillStyle = "rgba(10,12,16,0.3)"; ctx.beginPath(); ctx.ellipse(Math.round(x), Math.round(y), 8, 2.5, 0, 0, TAU); ctx.fill(); const flip = Math.sin(t * 0.7 + ph) > 0.6 ? -1 : 1; ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.scale(flip, 1); ctx.drawImage(src, Math.round((-S2.width * s) / 2), Math.round(-S2.height * s), Math.round(S2.width * s), Math.round(S2.height * s)); ctx.restore(); }
@@ -1074,7 +1105,8 @@
       drawPerched(ctx, x, y, t, fl, e.ph); return;
     }
     ctx.fillStyle = "rgba(10,12,16,0.28)"; ctx.beginPath(); ctx.ellipse(Math.round(x), Math.round(y), 12 - Math.min(6, e.z / 8), 3, 0, 0, TAU); ctx.fill();
-    drawOwlFlight(ctx, x, y - e.z, t, t * (e.state === "swoop" ? 4 : e.state === "glare" ? 12 : 6.5) + e.ph, fl, e.rock && (e.state === "bomb" || e.state === "launch"));
+    e.vxs = (e.vxs || 0) + (((e.x - (e.lxs ?? e.x)) * 60) - (e.vxs || 0)) * 0.1; e.lxs = e.x;
+    drawOwlFlight(ctx, x, y - e.z, t, e, fl, e.rock && (e.state === "bomb" || e.state === "launch"));
     if (e.state === "glare") { telegraph(ctx, x, y - e.z - 44, t); if (g) for (const sg of [-1, 1]) glow(g, x + sg * 4, y - e.z - 25, 8, "255,170,40", 0.6); }
   };
 
