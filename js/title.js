@@ -1,5 +1,6 @@
 // The title screen: shown from the first frame while the island is built (a progress line under the
-// title), then the main menu (Continue, New Game, Load Game, Settings) with three save slots.
+// title), then the main menu (Continue, New Game, Load Game, Test World, Settings) with three save
+// slots. The test world is a sandbox with everything unlocked; it is never saved.
 //
 // The background is a pixel-art sunset sea: layered bands of waves scrolling at different speeds,
 // a low sun with its glitter path, drifting clouds and a distant island. It animates with CSS
@@ -89,6 +90,7 @@
       { k: "continue", label: "Continue", off: !has },
       { k: "new", label: "New Game" },
       { k: "load", label: "Load Game", off: !has },
+      { k: "test", label: "Test World" },
       { k: "settings", label: "Settings" },
     ];
     const m = el.querySelector(".menu"); m.innerHTML = "";
@@ -131,6 +133,7 @@
     if (it.k === "continue") { const n = latest(); start(n, store.get(n)); }
     else if (it.k === "new") buildSlots("new");
     else if (it.k === "load") buildSlots("load");
+    else if (it.k === "test") start(0, null, { test: true });
     else if (it.k === "settings") window.Menu && Menu.toggle(true, "sound");
   }
   function back() { mode = "menu"; el.classList.remove("slotsOpen"); buildMenu(); }
@@ -139,10 +142,10 @@
     el.querySelectorAll(".slot").forEach((b, i) => b.classList.toggle("on", i === slotSel));
     el.querySelector(".hint").textContent = window.TouchPad && TouchPad.enabled ? "Tap to choose" : mode === "slots" ? "Arrows choose · Enter select · Del erase · Esc back" : "Arrows choose · Enter select";
   }
-  function start(n, data) {
+  function start(n, data, opts) {
     Title.slot = n;
     window.Ambience && Ambience.start && Ambience.start();
-    if (window.Game) Game.begin(n, data);
+    if (window.Game) Game.begin(n, data, opts);
     Title.open = false; el.classList.add("gone");
     setTimeout(() => { el.style.display = "none"; }, 1000);
   }

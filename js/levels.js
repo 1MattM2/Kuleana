@@ -14,12 +14,12 @@
 
   // water (zone 2): shallow and medium water can be waded (medium slowly); deep water is the edge of the world
   // (zone 2 land: c = pink coral rock, the atolls' ground; b = basalt flagstones, the thermal cliffs' ground)
-  const VOID = 0, WALL = 1, SOIL = 2, GRASS = 3, SAND = 4, PATH = 5, SUN = 6, PAVE = 7, STAIR = 8, BH = 9, BV = 10, SHAL = 11, MED = 12, DEEP = 13, CORAL = 14, BASALT = 15;
-  const CH = { "#": WALL, " ": VOID, ".": SOIL, ",": GRASS, ":": SAND, "=": PATH, o: SUN, "%": PAVE, S: STAIR, H: BH, V: BV, _: SHAL, "-": MED, "~": DEEP, c: CORAL, b: BASALT };
+  const VOID = 0, WALL = 1, SOIL = 2, GRASS = 3, SAND = 4, PATH = 5, SUN = 6, PAVE = 7, STAIR = 8, BH = 9, BV = 10, SHAL = 11, MED = 12, DEEP = 13, CORAL = 14, BASALT = 15, WOOD = 16;
+  const CH = { "#": WALL, " ": VOID, ".": SOIL, ",": GRASS, ":": SAND, "=": PATH, o: SUN, "%": PAVE, S: STAIR, H: BH, V: BV, _: SHAL, "-": MED, "~": DEEP, c: CORAL, b: BASALT, w: WOOD };
   const walk = (v) => v >= SOIL && v !== DEEP;
   const isWet = (v) => v >= SHAL && v <= DEEP;
   const soft = (v) => v < PATH || v >= SHAL;          // terrain whose borders are drawn organic (not carved)
-  Level.T_ = { VOID, WALL, SOIL, GRASS, SAND, PATH, SUN, PAVE, STAIR, BH, BV, SHAL, MED, DEEP, CORAL, BASALT, walk, isWet };
+  Level.T_ = { VOID, WALL, SOIL, GRASS, SAND, PATH, SUN, PAVE, STAIR, BH, BV, SHAL, MED, DEEP, CORAL, BASALT, WOOD, walk, isWet };
 
   // ------------------------------------------------------------------ level definitions
   const DEFS = {
@@ -598,6 +598,21 @@
           else if (k > CL - 6 && valley && K.noise(x * 0.3, 21) > 0.45) c = mixc(GR[1], HZ[2], 0.35);   // undergrowth at its foot
           lo[li] = c; continue;
         }
+        if (t === WALL && def.indoor) {
+          // indoors (Hale Koa's halls): woven lauhala walls between koa posts, under a dark beamed ceiling
+          const d = down[i];
+          if (d <= FACE && T_(x, y + d) !== VOID) {
+            const post = (x % 96) < 8, wd = ((x + y) >> 2) & 1, we = ((x - y + 400) >> 2) & 1;
+            c = post ? ((x % 96) < 2 ? pk(30, 16, 10) : (x % 96) < 4 ? pk(138, 84, 48) : pk(106, 60, 34)) : wd ^ we ? pk(176, 138, 80) : pk(154, 116, 64);
+            if (!post && (((x + y) & 3) === 0 || ((x - y + 400) & 3) === 0)) c = pk(110, 80, 48);
+            if (d <= 2) c = pk(30, 16, 10); else if (d > FACE - 4) c = pk(58, 34, 20);
+            if (d > 6 && d < 9 && !post) c = pk(138, 42, 26);                                        // a red kapa band along the wall
+          } else {
+            const by = y % 24; c = by < 3 ? pk(74, 42, 24) : by < 4 ? pk(30, 16, 10) : (x % 40) < 4 ? pk(46, 26, 16) : pk(24, 14, 10);
+            if (T_(x - 1, y) !== WALL || T_(x + 1, y) !== WALL) c = pk(14, 8, 6);
+          }
+          out[li] = c; continue;
+        }
         if (t === WALL && def.basalt) {
           // a basalt sea cliff: tall columns with dark joints and broken, staggered ends on the face; on
           // top, flagstones, with ferns and orange lichen in the cracks
@@ -649,7 +664,17 @@
           out[li] = c; continue;
         }
         // ---- walkable ground
-        if (t === CORAL) {
+        if (t === WOOD) {
+          // koa planks, as in Hale Koa: staggered joints, grain, a lit edge, a knot here and there
+          const row = y >> 3, ly = y & 7, off = (row * 37) % 60, px2 = x + off, seg = Math.floor(px2 / 52), lx = px2 - seg * 52;
+          const PLK = [pk(90, 50, 32), pk(108, 60, 36), pk(122, 70, 40), pk(134, 80, 46)];
+          c = PLK[(K.hash2(seg, row, 5) * 4) | 0];
+          if (ly === 7 || lx === 51) c = pk(58, 30, 18); else if (ly === 0) c = pk(154, 96, 56);
+          else if (K.hash2(px2 >> 3, row * 3 + (ly >> 1), 9) > 0.86) c = pk(74, 40, 22);
+          if (K.hash2(seg, row, 9) > 0.82 && Math.abs(lx - 26) < 2 && ly > 2 && ly < 5) c = pk(58, 30, 18);
+          let wall = 0; for (let dd = 1; dd <= 8; dd++) if (T_(x, y - dd) === WALL) { wall = dd; break; }
+          if (wall) c = shade(c, 0.55 + wall * 0.055);
+        } else if (t === CORAL) {
           // pink coral rock: the reef raised into land. Darker and wet where the sea laps it, a sunlit crust
           // just above that, and here and there a living head of brighter coral
           c = pinkT ? pinkT[patch64(x, y, 31)] : SA[3];
@@ -977,8 +1002,10 @@
   };
   Level.flyBlocked = (x, y) => tAt(x, y) === WALL;
   // wading: medium water slows anyone on foot
-  Level.slowAt = (x, y) => { const v = tAt(x, y); return v === MED ? 0.62 : v === SHAL ? 0.93 : 1; };
-  Level.waterAt = (x, y) => isWet(tAt(x, y)) ? tAt(x, y) : 0;
+  // a hall of Hale Koa that the fountains have flooded counts as water (js/dojowing.js runs the flood)
+  const floodAt = (x, y) => { const Fs = Level.cur && Level.cur.floods; if (!Fs) return 0; for (const F of Fs) { if (F.level < 0.55) continue; const [x0, y0, x1, y1] = F.rect; if (x < x0 || y < y0 || x > x1 || y > y1 || !walk(tAt(x, y))) continue; return Math.min(x - x0, x1 - x, y - y0, y1 - y) > 70 ? MED : SHAL; } return 0; };
+  Level.slowAt = (x, y) => { const f = floodAt(x, y); if (f) return f === MED ? 0.8 : 0.93; const v = tAt(x, y); return v === MED ? 0.62 : v === SHAL ? 0.93 : 1; };
+  Level.waterAt = (x, y) => floodAt(x, y) || (isWet(tAt(x, y)) ? tAt(x, y) : 0);
 
   // ------------------------------------------------------------------ co-op scaling
   // Each extra hero adds about half as many creatures again, and each is a little tougher. The extra
@@ -1026,6 +1053,7 @@
     const L = Level.cur, heroes = [P0].concat(others || []);
     updateAir(L, dt, t);
     if (L.def.sea && window.Sea) { Sea.update(L, dt, t, heroes, api); Sea.fish(L, dt, t); }
+    if (L.def.dojo && window.DojoWing) { Level.time = t; DojoWing.update(L, dt); }
     for (const bd of L.birds) { bd.a += Math.sin(t * 0.3 + bd.ph) * 0.15 * dt; bd.x += Math.cos(bd.a) * bd.sp * dt; bd.y += Math.sin(bd.a) * bd.sp * dt * 0.6; if (bd.x < -200) bd.x += L.W + 400; if (bd.x > L.W + 200) bd.x -= L.W + 400; if (bd.y < -200) bd.y += L.H + 400; if (bd.y > L.H + 200) bd.y -= L.H + 400; }
     if (Level.netGuest) { for (const a of L.arenas) if (a.state === "active" && !a.sealT0) { a.sealT0 = 1; a.sealT = t; if (a.frenzy && window.Sea) Sea.frenzyStart(L, a); } else if (a.state !== "active") { if (a.sealT0 && a.frenzy && window.Sea) Sea.frenzyEnd(L); a.sealT0 = 0; } return; }
     for (const a of L.arenas) {
@@ -1129,13 +1157,13 @@
   Level.unlock = (n) => { if (!DEFS[n] || Level.unlocked.has(n)) return; Level.unlocked.add(n); if (Level.onUnlock) Level.onUnlock(n); };
   // the parts of a level the guest needs from the host each tick
   Level.serialize = function (L) {
-    return { pk: L.pickups.map((b) => [Math.round(b.x), Math.round(b.y), b.vy !== undefined ? 1 : 0, b.el || 0, b.shell || 0]), se: L.seals, ar: L.arenas.map((a) => a.state), po: L.portalOpen ? 1 : 0, sh: L.shrineTaken ? 1 : 0, tm: L.timer ? Math.round(L.timer * 10) / 10 : 0, vs: window.Sea ? Sea.serialize(L) : null };
+    return { pk: L.pickups.map((b) => [Math.round(b.x), Math.round(b.y), b.vy !== undefined ? 1 : 0, b.el || 0, b.shell || 0]), se: L.seals, ar: L.arenas.map((a) => a.state), po: L.portalOpen ? 1 : 0, sh: L.shrineTaken ? 1 : 0, tm: L.timer ? Math.round(L.timer * 10) / 10 : 0, vs: window.Sea ? Sea.serialize(L) : null, dw: L.def.dojo && window.DojoWing ? DojoWing.serialize(L) : null };
   };
   Level.applySnap = function (L, S, t) {
     L.pickups = S.pk.map(([x, y, , el, sh]) => ({ x, y, t0: t, el: el || undefined, shell: sh || undefined }));
     L.seals = S.se; S.ar.forEach((st, i) => { if (L.arenas[i]) L.arenas[i].state = st; });
     if (Level.onProgress) Level.onProgress(L);
-    if (S.po) L.portalOpen = true; if (S.sh) L.shrineTaken = true; L.timer = S.tm || 0; if (S.vs && window.Sea) Sea.apply(L, S.vs, t);
+    if (S.po) L.portalOpen = true; if (S.sh) L.shrineTaken = true; L.timer = S.tm || 0; if (S.vs && window.Sea) Sea.apply(L, S.vs, t); if (S.dw && window.DojoWing) DojoWing.apply(L, S.dw);
   };
   function updateAir(L, dt, t) {
     const A2 = L.air;
@@ -1212,6 +1240,8 @@
     }
     // the ledges, walls and paths you walk on
     ctx.drawImage(L.ground, ox, oy, LW, LH, 0, 0, LW, LH);
+    for (const pr of L.props) if (pr.ground && pr.draw) pr.draw(ctx, ox, oy, t);
+    if (L.floods && window.DojoWing) DojoWing.drawFlood(ctx, L, ox, oy, LW, LH, t);
     if (L.water) { Level.camHint = { x: ox + LW / 2, y: oy + LH / 2 }; Water.render(ctx, ox, oy, LW, LH, t, L.water); Sea.drawUnder(ctx, L, ox, oy, LW, LH, t); Sea.drawFish(ctx, L, ox, oy, LW, LH, t); }
     eachBridge(ox, oy, LW, LH, (v, X, Y, tx, ty) => { const tm = L.tm, a = v === BH ? tm.at(tx, ty - 1) !== v : tm.at(tx - 1, ty) !== v, b = v === BH ? tm.at(tx, ty + 1) !== v : tm.at(tx + 1, ty) !== v; ctx.drawImage(bridgeTile(v, (tx * 7 + ty * 3) % 3, a, b), X, Y); });
     for (const v of L.vines) if (v.x > ox - 10 && v.x < ox + LW + 10 && v.y > oy - 60 && v.y < oy + LH + 10) Ruins.drawVine(ctx, v.x - ox, v.y - oy, v.len, t, v.ph);
@@ -1272,7 +1302,7 @@
       ctx.fillStyle = "rgba(6,10,8,0.25)"; ctx.fillRect(Math.round(d.x - ox) - 1, Math.round(d.y - oy), 3, 1);
     }
   };
-  Level.drawables = function () { const L = Level.cur; return L.props.concat(L.npcs); };
+  Level.drawables = function () { const L = Level.cur; return L.props.filter((p) => !p.ground).concat(L.npcs); };
   // shafts of sun spilling in from above, with dust turning in them
   Level.drawLight = function (g, ox, oy, t) {
     const L = Level.cur;

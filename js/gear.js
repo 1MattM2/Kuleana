@@ -127,10 +127,10 @@
   Gear.rerollStock = () => { const pool = Gear.SHOP.filter((it) => !Gear.FIXED.includes(it.id)), shards = pool.filter((it) => it.kind === "shard"), tal = pool.filter((it) => it.kind === "talisman"); const pick = (a, n) => a.slice().sort(() => Math.random() - 0.5).slice(0, n).map((it) => it.id); S.stock = pick(shards, 2).concat(pick(tal, 2)); };
   Gear.shopList = () => { if (!S.stock || !S.stock.length) Gear.rerollStock(); return Gear.SHOP.filter((it) => Gear.FIXED.includes(it.id) || S.stock.includes(it.id)); };
   Gear.soldOut = (it) => (it.kind === "book" ? S.book : it.cap ? (S.items[it.id] || 0) >= it.cap : false);
-  Gear.canBuy = (it) => !Gear.soldOut(it) && Object.entries(it.cost).every(([k, n]) => S.shells[k] >= n);
+  Gear.canBuy = (it) => !Gear.soldOut(it) && (Gear.infinite || Object.entries(it.cost).every(([k, n]) => S.shells[k] >= n));
   Gear.buy = (it) => {
     if (!Gear.canBuy(it)) return false;
-    for (const [k, n] of Object.entries(it.cost)) S.shells[k] -= n;
+    if (!Gear.infinite) for (const [k, n] of Object.entries(it.cost)) S.shells[k] -= n;
     if (it.kind === "shard") S.shards[it.el]++; else if (it.kind === "book") S.book = true; else { S.items[it.id] = (S.items[it.id] || 0) + 1; if (it.kind === "talisman") S.pick = it.id; }
     Gear.changed(); return true;
   };
@@ -162,7 +162,8 @@
   Gear.units = () => Gear.PERISH().reduce((n, id) => n + Gear.count(id), 0);
   // in battle only what's packed can be used; elsewhere, anything you carry
   Gear.battle = false;
-  const takeFrom = (id) => { if (!S.items[id]) return false; if (Gear.battle) { const i = S.pack.indexOf(id); if (i < 0) return false; S.pack.splice(i, 1); } S.items[id]--; return true; };
+  Gear.infinite = false;   // the test world: consumables never run out, and the market asks nothing
+  const takeFrom = (id) => { if (Gear.infinite) return S.items[id] > 0 && (!Gear.battle || S.pack.includes(id)); if (!S.items[id]) return false; if (Gear.battle) { const i = S.pack.indexOf(id); if (i < 0) return false; S.pack.splice(i, 1); } S.items[id]--; return true; };
   const usable = (id) => S.items[id] > 0 && (!Gear.battle || S.pack.includes(id));
   // drink a heal: the tonic first, the salve if there's no tonic or you're nearly out
   Gear.takeHeal = (hp, max) => { const useSalve = usable("salve") && (!usable("tonic") || hp <= 2 || max - hp > 6); const id = useSalve ? "salve" : usable("tonic") ? "tonic" : null; if (!id || !takeFrom(id)) return 0; Gear.changed(); return id === "salve" ? max : 4; };
@@ -203,7 +204,7 @@
   };
 
   // ---------------------------------------------------------------- state
-  const fresh = () => ({ shards: Object.fromEntries(Gear.ORDER.map((k) => [k, 0])), armors: [], worn: null, village: { built: [], rescued: [] }, shells: Object.fromEntries(Object.keys(Gear.SHELLS).map((k) => [k, 0])), charms: { heart: 0, whet: 0, luck: 0 }, items: {}, pick: null, book: false, kills: {}, pack: [], stock: [], beach: null, beachDue: false, clears: {} });
+  const fresh = () => ({ shards: Object.fromEntries(Gear.ORDER.map((k) => [k, 0])), armors: [], worn: null, village: { built: [], rescued: [] }, shells: Object.fromEntries(Object.keys(Gear.SHELLS).map((k) => [k, 0])), charms: { heart: 0, whet: 0, luck: 0 }, items: {}, pick: null, book: false, kills: {}, pack: [], stock: [], beach: null, beachDue: false, clears: {}, dojo: 1 });
   let S = fresh();
   Gear.state = () => S;
   Gear.reset = () => { S = fresh(); Gear.changed(); };
@@ -217,7 +218,7 @@
     if (d.stock) d.stock = d.stock.map((k) => k.replace("magma", "life"));
     return d;
   };
-  Gear.load = (d) => { d = migrate(d); S = fresh(); if (d) { Object.assign(S.shards, d.shards || {}); S.armors = (d.armors || []).filter((k) => Gear.ARMOR[k]); S.worn = Gear.ARMOR[d.worn] ? d.worn : null; S.village = { built: (d.village && d.village.built) || [], rescued: (d.village && d.village.rescued) || [] }; Object.assign(S.shells, d.shells || {}); Object.assign(S.charms, d.charms || {}); S.items = d.items || {}; S.pick = d.pick || null; S.book = !!d.book; S.kills = d.kills || {}; S.pack = d.pack || []; S.stock = d.stock || []; S.beach = d.beach || null; S.beachDue = !!d.beachDue; S.clears = d.clears || {}; } Gear.changed(); };
+  Gear.load = (d) => { d = migrate(d); S = fresh(); if (d) { Object.assign(S.shards, d.shards || {}); S.armors = (d.armors || []).filter((k) => Gear.ARMOR[k]); S.worn = Gear.ARMOR[d.worn] ? d.worn : null; S.village = { built: (d.village && d.village.built) || [], rescued: (d.village && d.village.rescued) || [] }; Object.assign(S.shells, d.shells || {}); Object.assign(S.charms, d.charms || {}); S.items = d.items || {}; S.pick = d.pick || null; S.book = !!d.book; S.kills = d.kills || {}; S.pack = d.pack || []; S.stock = d.stock || []; S.beach = d.beach || null; S.beachDue = !!d.beachDue; S.clears = d.clears || {}; S.dojo = d.dojo || 1; } Gear.changed(); };
   Gear.snapshot = () => JSON.parse(JSON.stringify(S));
   Gear.onChange = null;
   Gear.changed = () => { Gear.onChange && Gear.onChange(); window.Menu && Menu.refresh && Menu.refresh(); };

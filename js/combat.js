@@ -317,6 +317,8 @@
   C.stopFor = stopFor;
   function damage(d, o, ang) {
     const local = C.p === C.local;
+    // a partner in a Duel Hall bout: the hit is theirs to take (they're told over the network)
+    if (d.pvp) { if (local && REAL && !d.dead) { if (C.onPvp) C.onPvp(d, o.dmg * (0.9 + Math.random() * 0.2), ang); impact(d.x, d.y - 20, WEAPONS[C.cur], false); sfx("hit"); } return; }
     if (!local && !REAL) return;                       // a partner's swing seen on the guest: the host decides what it hits
     if (!local || d.net) return softDamage(d, o, ang, local);
     // a guarded blow (a tiki spearman's raised spear): no damage, a ring of sparks, the hit glances off
@@ -393,6 +395,8 @@
   }
   const HIT_EL = { lua: "plasmaHit", heel: "hitFire", maul: "hitLife", storm: "hitStorm", tide: "hitWater", glowtide: "hitWater", stone: "stone", starfall: "hitStar", kakau: "hitTribal" };
   C.addPart = (p) => part(p);
+  const whiteCache = new Map();
+  C.whiteOf = (img) => { let c = whiteCache.get(img); if (c) return c; const [cv, x] = K.canvas(img.width, img.height); x.drawImage(img, 0, 0); x.globalCompositeOperation = "source-in"; x.fillStyle = "#ffffff"; x.fillRect(0, 0, img.width, img.height); whiteCache.set(img, cv); return cv; };
   function part(p) { p.age = 0; p.max = p.life; p.g = p.g || 0; C.parts.push(p); }
   function addFx(f) { f.t0 = f.t0 === undefined ? C.clock : f.t0; C.fx.push(f); return f; }
 
@@ -552,7 +556,8 @@
   C.allUnlocked = false;
   const idOf = (i) => WEAPONS[i] && WEAPONS[i].id, indexOf = (id) => WEAPONS.findIndex((w) => w.id === id);
   C.indexOf = indexOf;
-  C.isOpen = (i) => C.allUnlocked || C.loadout.includes(idOf(i));
+  // in Hale Koa every weapon on the rack (C.openList) can be taken down and swung; elsewhere, your five
+  C.isOpen = (i) => (C.allUnlocked && (!C.openList || C.openList.includes(i))) || C.loadout.includes(idOf(i));
   C.ensureOpen = () => { C.loadout = C.loadout.filter((id) => C.unlocked.has(id)); if (!C.loadout.length) C.loadout = [...C.unlocked].slice(0, C.LOADOUT_MAX); if (!C.isOpen(C.cur)) C.cur = Math.max(0, indexOf(C.loadout[0])); };
   // a new weapon goes into the inventory, and straight into the loadout while there's room
   C.gain = (id) => { if (indexOf(id) < 0) return false; const isNew = !C.unlocked.has(id); C.unlocked.add(id); if (!C.loadout.includes(id) && C.loadout.length < C.LOADOUT_MAX) C.loadout.push(id); return isNew; };

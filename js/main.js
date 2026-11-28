@@ -110,7 +110,7 @@
     if (window.Title && Title.open) return;
     if (e.target && e.target.tagName === "INPUT") return;          // typing a join code
     if (window.Menu && Menu.open) { if (!e.repeat) Menu.key(e); for (const k in keys) keys[k] = false; return; }
-    if (testUI.open) { if (!e.repeat) testKey(e.code); for (const k in keys) keys[k] = false; e.preventDefault(); return; }
+    if (pick.open) { if (!e.repeat) pickKey(e.code); for (const k in keys) keys[k] = false; e.preventDefault(); return; }
     if (invUI.open) { if (!e.repeat && (e.code === "Escape" || e.code === "KeyI")) invUI.open = false; for (const k in keys) keys[k] = false; e.preventDefault(); return; }
     if (e.code === "KeyI" && !e.repeat && !dialog && !globe.open && !loadoutUI.open && !shopUI.open && !forgeUI.open) { invUI.open = true; return; }
     if (shopUI.open) { if (!e.repeat) shopKey(e.code); for (const k in keys) keys[k] = false; e.preventDefault(); return; }
@@ -134,7 +134,7 @@
     if (e.code.startsWith("Arrow") || e.code === "Space" || e.code === "Tab") e.preventDefault();
   });
   addEventListener("keyup", (e) => (keys[e.code] = false));
-  addEventListener("pointerdown", (e) => { if (window.Title && Title.open) return; window.Ambience && Ambience.start(); if (window.Menu && Menu.open) return; if (testUI.open) { testTap(e); return; } if (invUI.open) { invUI.open = false; return; } if (shopUI.open) { shopTap(e); return; } if (forgeUI.open) { forgeTap(e); return; } if (loadoutUI.open) { loadoutTap(e); return; } if (globe.open) { globeTap(e); return; } if (e.pointerType !== "mouse" || player.dead) return; if (e.button === 0 && !dialog && fade.dir === 0) Combat.attack(); if (e.button === 2 && !dialog && fade.dir === 0) startRoll(); });
+  addEventListener("pointerdown", (e) => { if (window.Title && Title.open) return; window.Ambience && Ambience.start(); if (window.Menu && Menu.open) return; if (pick.open) { pickTap(e); return; } if (invUI.open) { invUI.open = false; return; } if (shopUI.open) { shopTap(e); return; } if (forgeUI.open) { forgeTap(e); return; } if (loadoutUI.open) { loadoutTap(e); return; } if (globe.open) { globeTap(e); return; } if (e.pointerType !== "mouse" || player.dead) return; if (e.button === 0 && !dialog && fade.dir === 0) Combat.attack(); if (e.button === 2 && !dialog && fade.dir === 0) startRoll(); });
   addEventListener("contextmenu", (e) => e.preventDefault());
   addEventListener("wheel", (e) => Combat.cycle(e.deltaY > 0 ? 1 : -1), { passive: true });
   addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
@@ -170,6 +170,7 @@
     Combat.shake = Math.min(1, Combat.shake + 0.6); Combat.lastStop = -9; Combat.stopFor(0.06); Combat.flash = 0.3; Combat.flashCol = "255,80,80";
     Combat.loseMomentum(0.35);
     Ambience.sfx && Ambience.sfx("hurt");
+    if (player.hp <= 0 && scene === "level" && Level.cur && Level.cur.def.dojo) { dojoYield(); return true; }
     if (player.hp <= 0) { player.hp = 0; player.dead = true; deathT = time; player.downed = scene === "level" && mateHere(); }
     return true;
   }
@@ -224,11 +225,15 @@
         if (player.dead && player.downed) { player.dead = false; player.downed = false; player.hp = Math.ceil(player.maxHp / 2); player.inv = 2; banner = { title: "REVIVED", sub: (m.by || "A partner") + " got you back up", t0: time }; Ambience.sfx && Ambience.sfx("berry"); }
         break;
       case "sync": if (m.un) for (const n of m.un) Level.unlock(n); if (m.portal) { Level.portalUnlocked = true; if (Level.cur) Level.cur.portalOpen = true; } if (m.gift) grant(m.gift); if (m.heel) { Level.heelTaken = true; Combat.gain(Level.DEFS.highlands.shrine.unlock); if (Level.cur) Level.cur.shrineTaken = true; } break;
+      case "pvp": if (scene === "level" && Level.cur && Level.cur.duelPvp) hurtPlayer(m.n, m.x, m.y, "duel"); break;
+      case "duel": if (scene === "level" && Level.cur && Level.cur.def.dojo === "duel") { Level.cur.duelPvp = true; player.hp = player.maxHp; banner = { title: "DUEL!", sub: "First to fall yields", t0: time }; Ambience.sfx && Ambience.sfx("warcry"); } break;
+      case "duelEnd": if (scene === "level" && Level.cur) { Level.cur.duelPvp = false; player.hp = player.maxHp; banner = { title: m.loser === mySlot() ? "YOU YIELD" : "YOUR PARTNER YIELDS", sub: m.loser === mySlot() ? "Well fought" : "The duel is yours", t0: time }; } break;
       case "act":     // a guest asks the host to do something that changes the shared world
         if (!Net.isHost()) break;
         if (m.k === "go" && (!Level.DEFS[m.to] || m.to === "sanctum" || Level.unlocked.has(m.to) || scene === "level")) goTo(m.to);
         else if (m.k === "talk") { Level.portalUnlocked = true; if (Level.cur) Level.cur.portalOpen = true; Net.send({ t: "sync", portal: 1 }); Ambience.sfx && Ambience.sfx("portal"); }
         else if (m.k === "shrine") takeShrine(false);
+        else if (m.k === "dojo") dojoCall(m.hall, m.key);
         break;
     }
   }
@@ -289,7 +294,7 @@
     // a partner is hit on the host's screen: tell them (their own roll may still save them)
     hurtRemote: (q, d, sx, sy, src) => { if (q.dead || q.hitInv > 0) return false; Net.sendTo(q.slot, { t: "hurt", d, x: sx, y: sy, s: src }); if (q.rolling || q.inv) return false; q.hitInv = 0.9; return true; },
   };
-  let healT = -9, regenT = 0, metMakani = false, metKilo = false;
+  let healT = -9, regenT = 0, metMakani = false;
   // shells washed up on the island's beaches. The tide brings a new lot only after a real expedition
   // (at least halfway through a level): a third of the time the beach is bare; otherwise 1-5 shells,
   // mostly one or two. Each is common 70% of the time, uncommon 25%, rare 5% (kinds split evenly).
@@ -317,7 +322,7 @@
     const n = L.arenas.length, done = L.arenas.filter((a) => a.state === "done").length;
     if (n && done >= Math.ceil(n / 2)) Gear.state().beachDue = true;
     // the land is won: a handful of shells (more and rarer in harder lands; repeat clears pay about half)
-    if (n && done === n && !L.paid && !playtest) {
+    if (n && done === n && !L.paid && !testWorld && !L.def.dojo) {
       L.paid = true; const r = Gear.payout(L.name); if (!r) return;
       const parts = [`${r.nc} common`].concat(r.nu ? [`${r.nu} uncommon`] : []).concat(r.rare ? ["a rare one!"] : []);
       setTimeout(() => { banner = { title: "SHELLS", sub: parts.join(", ") + (r.first ? "" : "  (a repeat clear)"), t0: time }; Ambience.sfx && Ambience.sfx("pickup"); }, 5500);
@@ -387,65 +392,71 @@
     Gear.packTidy(true);
     Ambience.sfx && Ambience.sfx("portal"); goTo(name);
   }
-  // ------------------------------------------------------------------ playtesting
-  // Kilo the Wayfinder, at the island's top-left: pick any level and go with every weapon, every suit and
-  // cloth, full heals and every talisman, shards and shells. It's a sandbox: your real gear and
-  // progress are set aside, nothing is saved while you test, and it all comes back when you land home.
-  const tester = { x: 12.5 * 32, y: 8.6 * 32, name: "Kilo the Wayfinder", lines: ["Aloha! I'm Kilo. I can send you anywhere the sun has touched.", "You'll go with everything: every weapon, every cloth, every talisman. Just to try things out.", "Nothing you do there will be kept, and your own gear will be waiting when you come home."], kind: "npc", tester: true, phase: 1.3, box: [12.5 * 32 - 7, 8.6 * 32 - 5, 12.5 * 32 + 7, 8.6 * 32 + 1] };
-  const testUI = { open: false, sel: 0, hit: [] };
-  let playtest = null;   // the real kit, while a playtest is on
-  const TEST_LEVELS = ["highlands", "canopy", "crown", "isles", "reef", "vents"];
-  function startPlaytest(dest) {
-    if (!playtest) playtest = { gear: Gear.snapshot(), unlocked: [...Combat.unlocked], loadout: [...Combat.loadout], cur: Combat.cur, levels: [...Level.unlocked], portal: Level.portalUnlocked, heel: Level.heelTaken, hp: player.hp };
-    for (const w of Combat.weapons) Combat.unlocked.add(w.id);
+  // ------------------------------------------------------------------ the test world
+  // A sandbox from the main menu: every weapon, suit, cloth and creature, unending heals and talismans,
+  // a free market, everyone rescued and every building up, the whole of Hale Koa (every wing), and a
+  // beach strewn with every kind of shell. Nothing in it is ever saved.
+  let testWorld = false;
+  function beginTestWorld() {
+    testWorld = true; Gear.infinite = true;
     const S = Gear.state();
     for (const k of Object.keys(Gear.ARMOR)) if (!S.armors.includes(k)) S.armors.push(k);
     S.worn = "obsidian";
     S.items = { tonic: 5, salve: 3 }; for (const k of Object.keys(Gear.TALISMANS)) S.items[k] = 3;
-    S.pack = ["salve", "t_star"];
-    for (const k of Gear.ORDER) S.shards[k] = 9;
-    for (const k of Object.keys(Gear.SHELLS)) S.shells[k] = 30;
-    for (const n of TEST_LEVELS) Level.unlocked.add(n);
-    Level.portalUnlocked = true;
-    Gear.changed(); player.hp = player.maxHp;
-    testUI.open = false; openLoadout(dest);
+    S.pack = ["salve", "t_plasma"]; S.pick = "t_plasma";
+    for (const k of Gear.ORDER) S.shards[k] = 99;
+    for (const k of Object.keys(Gear.SHELLS)) S.shells[k] = 99;
+    S.book = true; for (const k of Object.keys(Gear.BEASTS)) S.kills[k] = Math.max(1, S.kills[k] || 0);
+    for (const w of ["vendor", "smith"]) Gear.rescue(w); for (const pl of Gear.PLOTS) Gear.build(pl.id);
+    S.dojo = 4;
+    for (const z of Level.ZONES) for (const n of z.levels) { Level.unlocked.add(n); Level.cleared.add(n); }
+    Level.portalUnlocked = true; Level.heelTaken = true;
+    for (const w of Combat.weapons) Combat.unlocked.add(w.id);
+    Combat.loadout = ["lua", "spear", "maul", "storm", "starfall"]; Combat.cur = Combat.indexOf("lua"); Combat.ensureOpen();
+    // the beach: fifteen shells, at least one of every kind
+    const kinds = Object.keys(Gear.SHELLS), want = kinds.concat(Array.from({ length: 15 - kinds.length }, () => kinds[(Math.random() * kinds.length) | 0]));
+    beach.length = 0;
+    for (let tries = 0; tries < 6000 && beach.length < 15; tries++) { const x = 40 + Math.random() * (World.W - 80), y = 40 + Math.random() * (World.H - 80), i = (y | 0) * World.W + (x | 0); if (World.terr[i] !== World.SAND || World.landDist[i] > 14 || World.landDist[i] < 4 || blockedIsland(x, y)) continue; beach.push({ x: Math.round(x), y: Math.round(y), k: want[beach.length] }); }
+    S.beach = beach.map((b) => ({ x: b.x, y: b.y, k: b.k }));
+    Gear.changed(); applyGear(); player.hp = player.maxHp;
+    banner = { title: "THE TEST WORLD", sub: "Everything is yours. Nothing here is kept.", t0: time + 0.6 };
   }
-  function endPlaytest() {
-    if (!playtest) return;
-    const P2 = playtest; playtest = null;
-    Gear.load(P2.gear); Combat.unlocked = new Set(P2.unlocked); Combat.loadout = P2.loadout; Combat.cur = P2.cur; Combat.ensureOpen();
-    Level.unlocked = new Set(P2.levels); Level.portalUnlocked = P2.portal; Level.heelTaken = P2.heel;
-    applyGear(); player.hp = Math.min(player.maxHp, P2.hp || player.maxHp);
-    banner = { title: "PLAYTEST OVER", sub: "Your own gear is back", t0: time + 0.4 };
+  // ------------------------------------------------------------------ a list to choose from (Hale Koa's lecterns)
+  const pick = { open: false, sel: 0, hit: [], list: [], title: "", sub: "", onPick: null, top: 0 };
+  function openPicker(title, sub, list, onPick) { if (!list.length) { banner = { title, sub: "Nothing to call here yet: meet some creatures out in the world first.", t0: time }; return; } Object.assign(pick, { open: true, sel: 0, top: 0, title, sub, list, onPick }); }
+  function pickChoose(i) { const it = pick.list[i]; pick.open = false; if (it && pick.onPick) pick.onPick(it); }
+  function pickKey(code) {
+    const n = pick.list.length;
+    if (code === "Escape" || code === "KeyQ") pick.open = false;
+    else if (code === "ArrowDown" || code === "KeyS") pick.sel = (pick.sel + 1) % n;
+    else if (code === "ArrowUp" || code === "KeyW") pick.sel = (pick.sel + n - 1) % n;
+    else if (code === "KeyE" || code === "Enter" || code === "KeyJ" || code === "Space") pickChoose(pick.sel);
   }
-  function testKey(code) {
-    const n = TEST_LEVELS.length;
-    if (code === "Escape" || code === "KeyQ") testUI.open = false;
-    else if (code === "ArrowDown" || code === "KeyS") testUI.sel = (testUI.sel + 1) % n;
-    else if (code === "ArrowUp" || code === "KeyW") testUI.sel = (testUI.sel + n - 1) % n;
-    else if (code === "KeyE" || code === "Enter" || code === "KeyJ" || code === "Space") startPlaytest(TEST_LEVELS[testUI.sel]);
-  }
-  function testTap(e) {
+  function pickTap(e) {
     const gx = (e.clientX * (screen.width / innerWidth)) / SCALE, gy = (e.clientY * (screen.height / innerHeight)) / SCALE;
-    for (const h of testUI.hit) if (gx > h.x && gx < h.x + h.w && gy > h.y && gy < h.y + h.h) { if (h.close) testUI.open = false; else if (h.i === testUI.sel) startPlaytest(TEST_LEVELS[h.i]); else testUI.sel = h.i; return; }
+    for (const h of pick.hit) if (gx > h.x && gx < h.x + h.w && gy > h.y && gy < h.y + h.h) { if (h.close) pick.open = false; else if (h.up) pick.sel = Math.max(0, pick.sel - 1); else if (h.down) pick.sel = Math.min(pick.list.length - 1, pick.sel + 1); else if (h.i === pick.sel) pickChoose(h.i); else pick.sel = h.i; return; }
   }
-  function drawTestUI(t) {
-    const u = SCALE, n = TEST_LEVELS.length, RH = 20, pw = Math.min(VW - 16, 300), ph = 50 + n * RH, px0 = Math.round((VW - pw) / 2), py0 = Math.round((VH - ph) / 2);
+  function drawPicker(t) {
+    const u = SCALE, RH = 19, rows = Math.max(3, Math.min(pick.list.length, Math.floor((VH - 70) / RH))), pw = Math.min(VW - 16, 320), ph = 46 + rows * RH, px0 = Math.round((VW - pw) / 2), py0 = Math.round((VH - ph) / 2);
+    if (pick.sel < pick.top) pick.top = pick.sel; if (pick.sel >= pick.top + rows) pick.top = pick.sel - rows + 1;
     const R = (c, x, y, w, h) => { sctx.fillStyle = c; sctx.fillRect(x * u, y * u, w * u, h * u); };
     sctx.fillStyle = "rgba(6,8,14,0.55)"; sctx.fillRect(0, 0, screen.width, screen.height);
-    R("#1a1220", px0, py0, pw, ph); R("#5ab8c8", px0 + 1, py0 + 1, pw - 2, ph - 2); R("#162028", px0 + 2, py0 + 2, pw - 4, ph - 4);
+    R("#1e100a", px0, py0, pw, ph); R("#c8a060", px0 + 1, py0 + 1, pw - 2, ph - 2); R("#2a1a12", px0 + 2, py0 + 2, pw - 4, ph - 4);
     sctx.textBaseline = "top"; sctx.textAlign = "center";
-    sctx.font = `${10 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#9ae8f2"; sctx.fillText("PLAYTEST", (VW / 2) * u, (py0 + 6) * u);
-    sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#a8c8d0"; sctx.fillText("Go anywhere with everything. Nothing is kept.", (VW / 2) * u, (py0 + 19) * u);
-    testUI.hit = [{ x: px0 + pw - 14, y: py0 + 4, w: 10, h: 10, close: 1 }];
-    TEST_LEVELS.forEach((name, i) => {
-      const D = Level.DEFS[name], y = py0 + 32 + i * RH, sel = i === testUI.sel;
-      if (sel) R("rgba(154,232,242,0.16)", px0 + 4, y - 2, pw - 8, RH - 2);
-      sctx.textAlign = "left"; sctx.font = `${7 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = sel ? "#ffffff" : "#e0f0f2"; sctx.fillText(`Zone ${D.zone}, level ${D.level}:  ${D.title}`, (px0 + 10) * u, y * u);
-      sctx.font = `${5 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#88a8b0"; sctx.fillText(D.sub, (px0 + 18) * u, (y + 9) * u);
-      testUI.hit.push({ x: px0 + 4, y: y - 2, w: pw - 8, h: RH - 2, i });
-    });
-    R("#5ab8c8", px0 + pw - 14, py0 + 4, 10, 10); sctx.textAlign = "center"; sctx.font = `${8 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#162028"; sctx.fillText("x", (px0 + pw - 9) * u, (py0 + 4) * u);
+    sctx.font = `${10 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#ffe08a"; sctx.fillText(pick.title, (VW / 2) * u, (py0 + 6) * u);
+    sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#d8c8a8"; sctx.fillText(pick.sub, (VW / 2) * u, (py0 + 19) * u);
+    pick.hit = [{ x: px0 + pw - 14, y: py0 + 4, w: 10, h: 10, close: 1 }];
+    for (let r = 0; r < rows; r++) {
+      const i = pick.top + r, it = pick.list[i]; if (!it) break;
+      const y = py0 + 32 + r * RH, sel = i === pick.sel;
+      if (sel) R("rgba(255,224,138,0.16)", px0 + 4, y - 2, pw - 8, RH - 2);
+      sctx.textAlign = "left"; sctx.font = `${7 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = sel ? "#ffffff" : "#f0e2c8"; sctx.fillText(it.name, (px0 + 10) * u, y * u);
+      sctx.font = `${5 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#a8987c"; const sub = it.sub.length > 78 ? it.sub.slice(0, 76) + "…" : it.sub; sctx.fillText(sub, (px0 + 14) * u, (y + 9) * u);
+      pick.hit.push({ x: px0 + 4, y: y - 2, w: pw - 8, h: RH - 2, i });
+    }
+    if (pick.top > 0) { R("#c8a060", VW / 2 - 6, py0 + 26, 12, 3); pick.hit.push({ x: VW / 2 - 10, y: py0 + 24, w: 20, h: 8, up: 1 }); }
+    if (pick.top + rows < pick.list.length) { R("#c8a060", VW / 2 - 6, py0 + ph - 6, 12, 3); pick.hit.push({ x: VW / 2 - 10, y: py0 + ph - 10, w: 20, h: 8, down: 1 }); }
+    R("#c8a060", px0 + pw - 14, py0 + 4, 10, 10); sctx.textAlign = "center"; sctx.font = `${8 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#2a1a12"; sctx.fillText("x", (px0 + pw - 9) * u, (py0 + 4) * u);
     sctx.textAlign = "left";
   }
   // ------------------------------------------------------------------ the inventory (I)
@@ -815,7 +826,7 @@
       player.moving = true;
       return;
     }
-    if (dialog || globe.open || loadoutUI.open || forgeUI.open || shopUI.open || invUI.open || testUI.open || fade.dir === 1 || Combat.busy) { player.moving = false; player.frame = Combat.busy ? 2 : 0; return; }
+    if (dialog || globe.open || loadoutUI.open || forgeUI.open || shopUI.open || invUI.open || pick.open || fade.dir === 1 || Combat.busy) { player.moving = false; player.frame = Combat.busy ? 2 : 0; return; }
     let ix = 0, iy = 0;
     if (keys.KeyA || keys.ArrowLeft) ix -= 1;
     if (keys.KeyD || keys.ArrowRight) ix += 1;
@@ -956,15 +967,18 @@
         scene = "forge"; player.x = Forge.ENTRY.x; player.y = Forge.ENTRY.y; player.dir = "up";
         banner = { title: "KAMAKA'S FORGE", sub: "Shards become weapons and cloth here", t0: time + 0.3 };
       } else if (fade.to === "dojo") {
-        scene = "dojo"; player.x = Dojo.ENTRY.x; player.y = Dojo.ENTRY.y; player.dir = "up";
-        banner = { title: "HALE KOA", sub: "The Warriors' Training Hut", t0: time + 0.3 };
+        scene = "dojo"; refreshDojo();
+        const side = Dojo.arrive; Dojo.arrive = null;
+        if (side === "west") { player.x = Dojo.WEST.x + 10; player.y = Dojo.WEST.y; player.dir = "side"; }
+        else if (side === "east") { player.x = Dojo.EAST.x - 10; player.y = Dojo.EAST.y; player.dir = "left"; }
+        else { player.x = Dojo.ENTRY.x; player.y = Dojo.ENTRY.y; player.dir = "up"; banner = { title: "HALE KOA", sub: "The Warriors' Training Hut", t0: time + 0.3 }; }
       } else {
-        scene = "island"; endPlaytest(); washShells(); if (fade.from === "level") Gear.rerollStock();   // Makani has new stock each time you come home
+        scene = "island"; washShells(); if (fade.from === "level") Gear.rerollStock();   // Makani has new stock each time you come home
         const back = fade.from === "dojo" ? World.hutDoor : fade.from === "forge" ? Forge.door() : fade.from === "level" ? { x: World.templeDoor.x, y: World.templeDoor.y + 22 } : World.caveMouth;
         player.x = back.x; player.y = back.y + 14; player.dir = "down";
       }
       Combat.setTargets(scene === "dojo" ? Dojo.dummies : scene === "level" ? Level.cur.enemies : []);
-      Combat.allUnlocked = scene === "dojo"; Combat.ensureOpen();
+      Combat.allUnlocked = scene === "dojo"; Combat.openList = scene === "dojo" ? Dojo.rackList : null; Combat.ensureOpen();
       parts.length = 0;
       Ambience.setScene && Ambience.setScene(scene === "level" ? Level.cur.def.amb || Level.cur.name : scene);
     } else if (fade.dir === -1 && fade.a <= 0) { fade.a = 0; fade.dir = 0; Game.save(); }
@@ -983,13 +997,22 @@
     if (scene === "level") { levelInteract(); pressedE = false; return; }
     if (scene === "dojo") {
       if (player.y > Dojo.H - 8) goTo("island");
+      const side = Dojo.sideAt(player.x, player.y);
+      if (side) { Dojo.leaving = side; goTo(side === "west" ? "dojo_duel" : "dojo_wing"); pressedE = false; return; }
       rackHover = Dojo.rackIndexAt(player.x, player.y);
+      const stand = rackHover < 0 ? Dojo.standAt(player.x, player.y) : null;
       if (rackHover >= 0) prompt = { x: Dojo.rackPos.x + Dojo.rackSlots[rackHover], y: Dojo.rackPos.y + 50 };
+      else if (stand) prompt = { x: stand.x, y: stand.y - 6 };
       if (pressedE && rackHover >= 0) {
-        // the rack lends any weapon to practise with here; only the ones you've earned leave with you
+        // the rack holds what you've earned (all of it in the test world): take any down to practise with
         const w = Combat.weapons[rackHover];
         Combat.select(rackHover);
-        if (!Combat.unlocked.has(w.id)) banner = { title: w.name.toUpperCase(), sub: "Practice only. " + w.unlock, t0: time };
+        if (!Combat.loadout.includes(w.id)) banner = { title: w.name.toUpperCase(), sub: "From the rack: yours to practise with here", t0: time };
+      } else if (pressedE && stand) {
+        // an armour stand: put on a suit you own (a bare stand is one you haven't won yet)
+        const A = Gear.ARMOR[stand.id];
+        if (stand.owned) { Gear.state().worn = stand.id; Gear.changed(); refreshDojo(); banner = { title: A.name.toUpperCase(), sub: A.desc, t0: time }; Ambience.sfx && Ambience.sfx("equip"); }
+        else banner = { title: A.name.toUpperCase(), sub: "Not yours yet. " + (A.src ? "Won in " + A.src + "." : "Woven at the forge from three " + Gear.ELEMENTS[A.el].name.toLowerCase() + " shards."), t0: time };
       }
       pressedE = false;
       return;
@@ -1031,7 +1054,6 @@
     else if (FD && Math.hypot(player.x - FD.x, player.y - FD.y) < 32) prompt = { x: FD.x, y: FD.y - 44 };
     if (pressedE) {
       if (dialog) advanceDialog();
-      else if (best && best.tester) dialog = { name: best.name, lines: metKilo ? ["Where to?"] : best.lines, i: 0, start: performance.now(), onEnd: () => { metKilo = true; testUI.open = true; testUI.sel = 0; } };
       else if (best) dialog = { name: best.name, lines: best.vendor && metMakani ? ["What'll it be? Shells are good here."] : best.lines, i: 0, start: performance.now(), onEnd: best.vendor ? () => { metMakani = true; openShop(); } : null };
       else if (stallNear) dialog = { name: "An empty stall", lines: ["Dust on the counter, the awning torn.", "Its keeper, Makani, was carried off toward the burning crown of the highlands."], i: 0, start: performance.now() };
       else if (nearCave) goTo("cave");
@@ -1055,7 +1077,9 @@
   function levelInteract() {
     const L = Level.cur, T = 32;
     if (dialog) { if (pressedE) advanceDialog(); return; }
-    for (const ex of L.def.exits || []) if (player.x > ex.x0 * T && player.x < ex.x1 * T && player.y > ex.y0 * T) { goTo(ex.to); return; }
+    for (const ex of L.def.exits || []) if (player.x > ex.x0 * T && player.x < ex.x1 * T && player.y > ex.y0 * T) { if (ex.side) Dojo.arrive = ex.side; goTo(ex.to); return; }
+    // Hale Koa's lecterns: call a creature, a boss, or a challenger
+    for (const lc of L.lecterns || []) if (Math.hypot(player.x - lc.x, player.y - lc.y - 10) < 30) { prompt = { x: lc.x, y: lc.y - 44 }; if (pressedE) openLectern(lc.hall); return; }
     let near = null, bd = 42;
     for (const n of L.npcs) { const d = Math.hypot(n.x - player.x, n.y - player.y); if (d < bd) { bd = d; near = n; } }
     if (near) { prompt = { x: near.x, y: near.y - 36 }; if (pressedE) {
@@ -1071,6 +1095,80 @@
       takeShrine(true);
     } } }
   }
+  // ------------------------------------------------------------------ Hale Koa: the hall and its wings
+  // the rack holds the weapons you've earned (everything in the test world); the stands every suit,
+  // dressed if it's yours; the side doorways open as the hut grows (Gear dojo phase, 4 in the test world)
+  function refreshDojo() {
+    const list = Combat.weapons.map((w, i) => i).filter((i) => testWorld || Combat.unlocked.has(Combat.weapons[i].id));
+    Dojo.refresh(list, Gear.state().dojo || 1, Gear.state().armors);
+  }
+  function openLectern(hall) {
+    const L = Level.cur, test = testWorld, mates = matesHere().length > 0;
+    if (hall !== "duel" && (Gear.state().dojo || 1) < L.def.halls[hall].phase) { banner = { title: "NOT YET", sub: "This hall of Hale Koa isn't finished", t0: time }; return; }
+    const title = hall === "duel" ? "THE DUEL HALL" : hall === "bosses" ? "THE BOSS HALL" : "THE CREATURE HALL";
+    const sub = hall === "duel" ? "Who will you face?" : hall === "bosses" ? "Call a great beast" : "Call a creature you have met";
+    openPicker(title, sub, DojoWing.list(hall, test, mates), (it) => dojoCall(hall, it.key));
+  }
+  // calling is the host's to do (it changes the shared world); a guest asks
+  function dojoCall(hall, key) {
+    if (window.Net && Net.isGuest()) { Net.send({ t: "act", k: "dojo", hall, key }); return; }
+    const L = Level.cur; if (!L || !L.def.dojo) return;
+    if (hall === "duel") {
+      if (key === "pvp") { startPvp(); return; }
+      for (const e of L.enemies) if (!e.dead) { e.dead = true; e.gone = true; }
+      const who = key.slice(5), c = DojoWing.CHALLENGERS.find((q) => q.id === who);
+      DojoWing.makeDuelist(L, who, 5 * 32, 7.4 * 32);
+      L.banner = { title: c.name.toUpperCase(), sub: "steps into the ring", t0: time };
+      return;
+    }
+    const entry = DojoWing.list(hall, true, false).find((q) => q.key === key); if (!entry) return;
+    DojoWing.call(L, hall, entry, { sfx: (k) => Ambience.sfx && Ambience.sfx(k) });
+    if (!L.banner || L.banner.t0 < time - 0.1) L.banner = { title: entry.name.toUpperCase(), sub: hall === "bosses" ? "The great beast is called" : "The creature is called", t0: time };
+  }
+  // duels between heroes: only ever here, in the Duel Hall. A hit from a partner lands on you as a
+  // blow scaled down to hearts; the first to fall yields, and both are made whole again.
+  const pvp = { proxies: new Map(), hitT: {} };
+  const toAll = (m) => { onNet(m, mySlot()); if (window.Net && Net.active()) for (const q of matesHere()) deliver(q.slot, m); };
+  function startPvp() { if (!matesHere().length) { banner = { title: "NO ONE TO DUEL", sub: "Bring a partner into the Duel Hall", t0: time }; return; } toAll({ t: "duel", on: 1 }); }
+  function pvpTargets() {
+    const L = Level.cur; if (!L || !L.duelPvp) { pvp.proxies.clear(); return null; }
+    const out = [];
+    for (const q of matesHere()) { let d = pvp.proxies.get(q.slot); if (!d) { d = { pvp: true, slot: q.slot, hp: 1e9, max: 1e9, r: 8, dead: false, ang: 0, angV: 0 }; pvp.proxies.set(q.slot, d); } d.x = q.x; d.y = q.y; d.dead = !!q.dead; out.push(d); }
+    return out;
+  }
+  Combat.onPvp = (d, dmg) => { if (time - (pvp.hitT[d.slot] || -9) < 0.25) return; pvp.hitT[d.slot] = time; deliver(d.slot, { t: "pvp", n: Math.max(1, Math.round(dmg / 12)), x: player.x, y: player.y, from: mySlot() }); };
+  // brought down in Hale Koa: you yield. Nobody dies here.
+  function dojoYield() {
+    player.hp = player.maxHp; player.inv = 1.6; player.dead = false; player.downed = false;
+    const L = Level.cur;
+    if (L && L.duelPvp) { toAll({ t: "duelEnd", loser: mySlot() }); return; }
+    if (L && !(window.Net && Net.isGuest())) for (const e of L.enemies) if (!e.dead) { e.dead = true; e.gone = true; }
+    banner = { title: "YOU YIELD", sub: "Back on your feet. Call again when you're ready.", t0: time };
+  }
+  DojoWing.drawDuelist = (ctx, e, x, y, t, fl) => {
+    const C = DojoWing.DUEL[e.who] || DojoWing.DUEL.makani;
+    const art = e.who === "kamaka" ? Forge.smith : e.who === "kahu" ? (duelKeeper || (duelKeeper = Ruins.keeper()))[0] : heroFrames.merchant;
+    const f = e.face || 1, bob = e.moving ? Math.abs(Math.sin(t * 12)) : 0, X = Math.round(x), Y = Math.round(y - bob);
+    ctx.fillStyle = "rgba(10,12,16,0.3)"; ctx.beginPath(); ctx.ellipse(X, Math.round(y), 8, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+    const wi = Combat.indexOf(C.weapon), spr = Combat.weapons[wi] && Combat.weapons[wi].spr;
+    // the weapon: raised back on the wind-up, swept on the strike, whirled on a spin, crossed on guard
+    let a = -Math.PI / 2 + 0.5 * f;
+    if (e.state === "wind" || e.state === "windSlam" || e.state === "windSpin") a = (e.aim || 0) + Math.PI * 0.85 * f;
+    else if (e.state === "strike" || e.state === "slam") a = (e.aim || 0) - 1 * f + Math.min(1, e.st / 0.12) * 2 * f;
+    else if (e.state === "spin") a = t * 30;
+    else if (e.state === "guard") a = f > 0 ? -0.2 : Math.PI + 0.2;
+    const hx = X + f * 6, hy = Y - 13, back = Math.sin(a) < -0.3;
+    const drawW = () => { if (!spr) return; ctx.save(); ctx.translate(hx, hy); ctx.rotate(a); ctx.drawImage(fl ? Combat.whiteOf(spr.c) : spr.c, -spr.gx, -spr.gy); ctx.restore(); };
+    if (back) drawW();
+    ctx.save(); ctx.translate(X, Y); if (e.state === "roll") ctx.rotate((e.st / 0.32) * Math.PI * 2 * f); ctx.scale(f, 1);
+    ctx.drawImage(fl ? Combat.whiteOf(art) : art, -12, -31); ctx.restore();
+    if (!back) drawW();
+    if (e.state === "strike" || e.state === "spin") { ctx.strokeStyle = "rgba(255,248,220,0.85)"; ctx.lineWidth = 2; ctx.beginPath(); if (e.state === "spin") ctx.ellipse(X, Y - 10, C.reach, C.reach * 0.55, 0, 0, Math.PI * 2); else ctx.arc(X, Y - 10, C.reach * 0.9, (e.aim || 0) - 0.9, (e.aim || 0) + 0.9); ctx.stroke(); }
+    if (e.state === "wind" || e.state === "windSlam" || e.state === "windSpin") { ctx.fillStyle = "#ffe08a"; ctx.fillRect(X - 1, Y - 40, 3, 3); }
+    if (e.state === "guard") { ctx.fillStyle = "#e8f0ff"; ctx.fillRect(X + f * 10, Y - 20, 1, 10); }
+  };
+  let duelKeeper = null;
+  Enemies.ON_DEATH.duelist = (e) => { const c = DojoWing.CHALLENGERS.find((q) => q.id === e.who); if (Level.cur) Level.cur.banner = { title: (c ? c.name.split(" ")[0] : "THE CHALLENGER").toUpperCase() + " YIELDS", sub: "Well fought", t0: time }; };
   // the Shrine of Kū gives the Newa (the war club); in co-op both heroes take it up
   function takeShrine(here) {
     const L = Level.cur, sh = L.def.shrine; if (!sh) return;
@@ -1141,8 +1239,7 @@
   let hintTimer = 12, bannerT = 0;
 
   function drawNPC(ctx, n, ox, oy, t) {
-    const img = n.tester ? kiloArt() : heroFrames.merchant;
-    if (n.tester) { const mx = Math.round(n.x - ox), my = Math.round(n.y - oy - 42 + Math.sin(t * 3) * 2); ctx.fillStyle = "#162028"; ctx.fillRect(mx - 4, my - 4, 9, 11); ctx.fillStyle = "#9ae8f2"; ctx.fillRect(mx - 3, my - 3, 7, 9); ctx.fillStyle = "#162028"; ctx.fillRect(mx - 1, my - 2, 3, 1); ctx.fillRect(mx + 1, my - 1, 1, 2); ctx.fillRect(mx, my + 1, 1, 1); ctx.fillRect(mx, my + 3, 1, 1); }
+    const img = heroFrames.merchant;
     const x = Math.round(n.x) - 12 - ox, y = Math.round(n.y) - 31 - oy;
     const breath = Math.sin(t * 2.2 + n.phase) > 0.2 ? 1 : 0;
     ctx.drawImage(img, 0, 22, 24, 10, x, y + 22, 24, 10);
@@ -1155,9 +1252,6 @@
     }
   }
 
-  // Kilo: the market folk's figure in a sky-blue traveller's cloak
-  let kiloImg = null;
-  function kiloArt() { if (kiloImg) return kiloImg; const P2 = Object.assign({}, C.MERCHANT_PAL, { v: [60, 150, 176], V: [34, 96, 120], a: [230, 236, 230], A: [170, 186, 190], c: [255, 255, 250] }); const [c, x] = K.canvas(24, 32); K.pixmap(x, C.MERCHANT, P2, 0, 0); kiloImg = c; return c; }
   // Wooden plank bridge: deck + back rope rail (behind the hero) and a front rail object.
   const WOOD = { hi: "#d8a462", light: "#cc965c", mid: "#a87042", dark: "#7e502e", out: "#3c2418", gap: "#342016", rope: "#e0c890", ropeD: "#b09060", nail: "#4a3428" };
   function makeBridge(b) {
@@ -1654,7 +1748,7 @@
     if (forgeUI.open) drawForgeUI(t);
     if (shopUI.open) drawShop(t);
     if (invUI.open) drawInventory(t);
-    if (testUI.open) drawTestUI(t);
+    if (pick.open) drawPicker(t);
     if (fade.a > 0) { sctx.fillStyle = `rgba(2,3,8,${Math.min(1, fade.a)})`; sctx.fillRect(0, 0, screen.width, screen.height); }
   }
 
@@ -1816,6 +1910,7 @@
     else {
       updatePlayer(gdt); Combat.update(gdt, player, tryMove);
       if (scene === "level" && fade.dir !== 1) {
+        if (Level.cur.def.dojo) { const pt = pvpTargets(); Combat.setTargets(pt ? Level.cur.enemies.concat(pt) : Level.cur.enemies); }
         if (Level.netGuest && window.Net && Net.isGuest()) { Enemies.netUpdate(gdt, time, Level.cur); Level.update(gdt, time, player, levelApi, []); }
         else { const others = matesHere(); Enemies.update(gdt, time, player, Level.cur, levelApi, others); Level.update(gdt, time, player, levelApi, others); }
         if (Level.cur.banner) { banner = { title: Level.cur.banner.title, sub: Level.cur.banner.sub || "", t0: time }; if (window.Net && Net.isHost()) Net.send({ t: "banner", title: banner.title, sub: banner.sub }); Level.cur.banner = null; }
@@ -1884,7 +1979,6 @@
     buildVignette();
     DEFAULT_WEAPONS = [...Combat.unlocked];
     console.log("world built in", Math.round(performance.now() - t0), "ms");
-    World.npcs.push(tester); Props.objects.push(tester); Props.colliders.push(tester.box);
     player.x = World.START.x; player.y = World.START.y;
     addEventListener("resize", resize);
     requestAnimationFrame((n) => { last = n; frame(n); });
@@ -1895,16 +1989,16 @@
   const placeName = () => scene === "level" ? (Level.cur.name === "sanctum" ? "Sun Gate Sanctum" : Level.cur.def.title.replace(/\b\w+/g, (w) => w[0] + w.slice(1).toLowerCase())) : scene === "cave" ? "Ana ʻŌlino, the Sea Cave" : scene === "dojo" ? "Hale Koa" : "The Sunward Shore";
   const Game = (window.Game = {
     snapshot() {
-      return { v: 1, t: Date.now(), play: playT, where: scene === "level" ? Level.cur.name : "island", x: Math.round(scene === "island" ? player.x : World.START.x), y: Math.round(scene === "island" ? player.y : World.START.y),
+      return { v: 1, t: Date.now(), play: playT, where: scene === "level" && !Level.cur.def.dojo ? Level.cur.name : "island", x: Math.round(scene === "island" ? player.x : World.START.x), y: Math.round(scene === "island" ? player.y : World.START.y),
         unlocked: [...Level.unlocked], cleared: Level.cleared.size, clearedList: [...Level.cleared], heel: !!Level.heelTaken, portal: !!Level.portalUnlocked, weapons: [...Combat.unlocked], loadout: [...Combat.loadout], cur: Combat.cur, gear: Gear.snapshot(), place: placeName() };
     },
-    save() { if (!slot || !window.Title || fade.dir !== 0 || playtest) return; Title.store.set(slot, Game.snapshot()); saveT = time; },
-    begin(n, d) {
+    save() { if (!slot || !window.Title || fade.dir !== 0 || testWorld) return; Title.store.set(slot, Game.snapshot()); saveT = time; },
+    begin(n, d, opts) {
       slot = n; playT = d ? d.play || 0 : 0; saveT = time;
       Level.unlocked = new Set(d ? d.unlocked : ["highlands"]); Level.cleared = new Set(d ? d.clearedList || [] : []);
       Level.heelTaken = d ? !!d.heel : false; Level.portalUnlocked = d ? !!d.portal : false; Level.dest = null;
       Combat.unlocked = new Set(d ? d.weapons : DEFAULT_WEAPONS); Combat.loadout = (d && d.loadout ? d.loadout : [...Combat.unlocked]).slice(0, Combat.LOADOUT_MAX); Combat.cur = d ? d.cur || 0 : 0; Combat.ensureOpen();
-      playtest = null; Gear.load(d && d.gear); applyGear(); metMakani = false; metKilo = false;
+      testWorld = false; Gear.infinite = false; Gear.load(d && d.gear); applyGear(); metMakani = false;
       if (!d || !d.gear || !d.gear.beach) rollBeach(); else washShells();
       player.hp = player.maxHp; player.dead = false; player.downed = false;
       scene = "island"; player.x = d ? d.x : World.START.x; player.y = d ? d.y : World.START.y; player.dir = "down";
@@ -1912,9 +2006,10 @@
       Ambience.setScene && Ambience.setScene("island");
       if (d && d.where !== "island" && Level.DEFS[d.where]) { fade.a = 1; fade.dir = 1; fade.to = d.where; fade.from = "load"; }
       else { fade.a = 1; fade.dir = -1; banner = { title: "KULEANA", sub: d ? "Welcome back" : "The Sunward Shore", t0: time + 0.6 }; hintTimer = 12; }
+      if (opts && opts.test) { beginTestWorld(); return; }
       if (!d) setTimeout(() => Game.save(), 500);
     },
-    quit() { endPlaytest(); Game.save(); if (window.Net && Net.active()) Net.leave(); window.Title && Title.show(); },
+    quit() { Game.save(); testWorld = false; Gear.infinite = false; if (window.Net && Net.active()) Net.leave(); window.Title && Title.show(); },
   });
   // the armour you wear sets your hearts and the combat bonuses
   function applyGear() { const st = Gear.stats(); player.maxHp = 10 + st.hp; player.hp = Math.min(player.hp, player.maxHp); Gear.applyCombat(); }
