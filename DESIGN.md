@@ -26,7 +26,7 @@ elemental weapon usually arrives about half a zone after you first meet its elem
 | Element | Creatures | Weapon | Usually forged |
 |---|---|---|---|
 | Tribal | tiki spearmen, darters, brutes, fire-dancers | Kākau Bands | late Zone 1 |
-| Fire | fire-dancers, fire geckos, wisps, the hive, thermal sharks | Ahi Staff | late Zone 1 |
+| Fire | fire-dancers, fire geckos, wisps, the hive, thermal sharks | Ember Heel | late Zone 1 |
 | Life | vine-lashers, bush snakes, the hydra | Ola Maul | Zone 1 to 2 |
 | Water | crabs, sharks, the spider crab | Tidecutter | Zone 2 |
 | Storm | stingrays, the Storm Ray | Stormcaller | late Zone 2 |
@@ -46,7 +46,7 @@ step with the creatures' health (`hpMul`: Zone 1 1.0, Zone 2 1.25 to 1.55, and o
 | When | Weapons | Damage/s (target) |
 |---|---|---|
 | Start | ʻIhe, Pāhoa | 48 |
-| Zone 1 | Newa 54; Kākau, Ahi Staff 64; Ola Maul, Ember Heel 67 | |
+| Zone 1 | Newa 54; Kākau 64; Ola Maul, Ember Heel 67 | |
 | Zone 2 | Leiomano 64; Tidecutter, Stormcaller 74 | |
 | Zone 3 | Koa Blade 77; Glowtide 86 | |
 | Zone 4 | Makau Kaula 90; Mako Fangs 99 | |

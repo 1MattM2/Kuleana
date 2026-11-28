@@ -148,7 +148,7 @@ with the weapon to fill its Surge diamonds; the next combo finisher becomes the 
   weapon's power fits when it's earned (`DESIGN.md`).
 - **Specials:** elemental weapons charge their special from the damage you deal (dummies count), then the next
   combo finisher unleashes it: Kākau (The Awakening), Stormcaller (Tempest), Glowtide (Glowing Maelstrom),
-  Starfall (The Heavens), Ahi Staff (Wheel of Pele), Ember Heel (Pele's Stride), Ola Maul (Wildwood), Tidecutter
+  Starfall (The Heavens), Ember Heel (Pele's Stride), Ola Maul (Wildwood), Tidecutter
   (Riptide), Mako Fangs (Blood Frenzy), Pele's Grip (Earthshaker), Koʻi-Lua (Nā Lā Māhoe, the Twin Suns).
 - **Shards:** creatures sometimes drop a shard of their element (tribal: tikis; fire: fire-dancers, fire geckos,
   wisps, thermal sharks; life: vines, snakes, the hydra; water: crabs, sharks; storm: rays). Three make that

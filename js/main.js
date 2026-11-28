@@ -2069,7 +2069,7 @@
       slot = n; playT = d ? d.play || 0 : 0; saveT = time;
       Level.unlocked = new Set(d ? d.unlocked : ["highlands"]); Level.cleared = new Set(d ? d.clearedList || [] : []);
       Level.heelTaken = d ? !!d.heel : false; Level.portalUnlocked = d ? !!d.portal : false; Level.dest = null;
-      Combat.unlocked = new Set(d ? d.weapons : DEFAULT_WEAPONS); Combat.loadout = (d && d.loadout ? d.loadout : [...Combat.unlocked]).slice(0, Combat.LOADOUT_MAX); Combat.cur = d ? d.cur || 0 : 0; Combat.ensureOpen();
+      Combat.unlocked = new Set((d ? d.weapons : DEFAULT_WEAPONS).map((w) => (w === "firestaff" ? "heel" : w))); /* (the Ahi Staff is gone: saves that had it get the Ember Heel) */ Combat.loadout = [...new Set((d && d.loadout ? d.loadout.map((w) => (w === "firestaff" ? "heel" : w)) : [...Combat.unlocked]))].slice(0, Combat.LOADOUT_MAX); Combat.cur = d ? d.cur || 0 : 0; Combat.ensureOpen();
       testWorld = false; Gear.infinite = false; Gear.load(d && d.gear); applyGear(); metMakani = false;
       if (!d || !d.gear || !d.gear.beach) rollBeach(); else washShells();
       player.hp = player.maxHp; player.dead = false; player.downed = false;

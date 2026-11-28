@@ -15,7 +15,7 @@
   // ---------------------------------------------------------------- elements
   Gear.ELEMENTS = {
     tribal: { name: "Tribal", col: "#f2b45e", glow: "242,180,94", weapon: "kakau", cloth: "cloth_tribal" },
-    fire: { name: "Fire", col: "#ff8a3a", glow: "255,138,58", weapon: "firestaff", cloth: "cloth_fire" },
+    fire: { name: "Fire", col: "#ff8a3a", glow: "255,138,58", weapon: "heel", cloth: "cloth_fire" },
     water: { name: "Water", col: "#5ab8ff", glow: "90,184,255", weapon: "tide", cloth: "cloth_water" },
     glow: { name: "Glowing water", col: "#5af2e8", glow: "90,242,232", weapon: "glowtide", cloth: "cloth_glow" },
     blood: { name: "Blood", col: "#ff5a6a", glow: "255,90,106", weapon: "fangs", cloth: "cloth_blood" },
@@ -86,7 +86,7 @@
   // things cost common shells, strong ones want an uncommon shell too, the best a rare one.
   Gear.TALISMANS = {
     // each unleashes its element's weapon special, grander: wider (where the special is small) and harder
-    t_fire: { name: "Ahi talisman", el: "fire", weapon: "firestaff", r: 1.5, desc: "Unleashes the Wheel of Pele, grander." },
+    t_fire: { name: "Ahi talisman", el: "fire", weapon: "heel", r: 1.3, desc: "Unleashes Pele's Stride, grander." },
     t_storm: { name: "Uila talisman", el: "storm", weapon: "storm", r: 1, desc: "Unleashes the Tempest (already vast), harder." },
     t_water: { name: "Kai talisman", el: "water", weapon: "tide", r: 1.5, desc: "Unleashes the Riptide, grander." },
     t_life: { name: "Ola talisman", el: "life", weapon: "maul", r: 1.5, desc: "Unleashes the Wildwood, grander." },
