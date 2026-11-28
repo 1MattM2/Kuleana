@@ -108,7 +108,7 @@ def clean_frame(box, OW, OH):
         BRUTE_PAL = np.unique(cols, axis=0)
     im = Image.fromarray(box.astype(np.uint8), "RGBA")
     rgb = Image.blend(im.convert("RGB").filter(ImageFilter.MedianFilter(3)), im.convert("RGB").filter(ImageFilter.MedianFilter(5)), 0.5)
-    al = im.getchannel("A").point(lambda v: 255 if v > 0 else 0).filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3))
+    al = im.getchannel("A").point(lambda v: 255 if v > 0 else 0).filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.MinFilter(3))   # (closed, not grown: true size)
     # the colour under newly grown edge pixels: the nearest real pixel's
     src_rgb = np.array(rgb).astype(np.int32); a0 = np.array(im.getchannel("A")) > 0; a1 = np.array(al) > 0
     grow = a1 & ~a0
@@ -164,14 +164,26 @@ def clean_frame(box, OW, OH):
         for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             yy, xx = cy + dy, cx + dx
             if 0 <= yy < OH and 0 <= xx < OW and not op[yy, xx] and not outside[yy, xx]: outside[yy, xx] = True; q.append((yy, xx))
-    filled = ~op & ~outside
+    # only pinholes (a pixel or two) are filled; real gaps between limbs and body stay open
+    filled = np.zeros_like(op); seen2 = outside.copy()
+    for y in range(OH):
+        for x in range(OW):
+            if op[y, x] or seen2[y, x]: continue
+            comp = [(y, x)]; seen2[y, x] = True; q = deque([(y, x)])
+            while q:
+                cy, cx = q.popleft()
+                for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    yy, xx = cy + dy, cx + dx
+                    if 0 <= yy < OH and 0 <= xx < OW and not op[yy, xx] and not seen2[yy, xx]: seen2[yy, xx] = True; q.append((yy, xx)); comp.append((yy, xx))
+            if len(comp) <= 2:
+                for (yy, xx) in comp: filled[yy, xx] = True
     DARK = BRUTE_PAL[((BRUTE_PAL).sum(1)).argmin()]
     out[filled, :3] = DARK; out[filled, 3] = 255
     # a uniform 1px outline in the sprite's darkest colour
     # sel-out: the outermost pixels of the figure darkened to a deep tint of their own colour (no added ring)
     op = out[..., 3] > 0; pad_ = np.pad(op, 1)
     rim = op & ~(pad_[:-2, 1:-1] & pad_[2:, 1:-1] & pad_[1:-1, :-2] & pad_[1:-1, 2:])
-    out[rim, :3] = (out[rim, :3] * 0.55 + DARK * 0.3).astype(np.int32)
+    out[rim, :3] = (out[rim, :3] * 0.7 + DARK * 0.2).astype(np.int32)   # (a light sel-out: the concept has its own outline)
     return out
 
 def brute_anim():
