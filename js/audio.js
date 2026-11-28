@@ -542,6 +542,9 @@
       case "geyser":    noiseLayer(brownB, "lowpass", t, 1.3, 300, 900, 0.8, 0.05, 1.0); noiseLayer(white, "bandpass", t + 0.05, 1.2, 1800, 3200, 0.8, 0.1, 0.5); bubbles(t, 0.9, 30, 200, 600, 0.3); break;
       case "zap":       arc(t, 0.3, 0.9, 1400, 3000); zapChirp(t, 0.16, 2400, 120, 0.25); break;
       case "screech":   oscLayer("sawtooth", t, 1400, 2200, 0.35, 0.02, 0.06); noiseLayer(white, "bandpass", t, 0.4, 3000, 4500, 3, 0.02, 0.35); break;
+      // the forge: the anvil's ring under Kamaka's hammer (soft, it repeats), and the hiss of a quench
+      case "clank":     impact(t, 0.35); steel(t, 1580 * r, 0.16, 0.12); steel(t + 0.004, 2390 * r, 0.1, 0.06); break;
+      case "steam":     noiseLayer(white, "highpass", t, 1.1, 2600, 1800, 0.7, 0.04, 0.45); noiseLayer(white, "bandpass", t, 0.5, 5200, 4200, 2, 0.01, 0.2); bubbles(t, 0.4, 6, 400, 900, 0.15); break;
       case "pop":       bubbles(t, 0.08, 3, 700, 1600, 0.35); noiseLayer(white, "bandpass", t, 0.03, 2400, 1800, 2, 0.001, 0.3); break;
       case "splash":    splash(t, 0.9); bubbles(t + 0.05, 0.3, 12, 300, 900, 0.3); break;
       case "clack":     knock(t, 0.7); noiseLayer(white, "bandpass", t, 0.04, 3500, 3500, 4, 0.001, 0.5); break;

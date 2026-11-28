@@ -558,13 +558,13 @@
   const costText = (c) => Object.entries(c.shells).map(([k, n]) => `${n} ${k}`).join(", ") + ` + ${c.shards[1]} ${Gear.ELEMENTS[c.shards[0]].name.toLowerCase()} shard${c.shards[1] > 1 ? "s" : ""}`;
   function temperDo(i) {
     const it = upList()[i]; if (!it) return;
-    if (Gear.upgrade(it.kind, it.id)) { forgeUI.msg = `Kamaka works the ${it.name}: +${Gear.upLevel(it.kind, it.id)}.`; forgeUI.msgT = time; Ambience.sfx && Ambience.sfx("stone"); for (let k = 0; k < 24; k++) Forge.sparks.push({ x: Forge.ANVIL.x, y: Forge.ANVIL.y - 15, vx: (Math.random() - 0.5) * 160, vy: -60 - Math.random() * 120, t: 0 }); }
+    if (Gear.upgrade(it.kind, it.id)) { forgeUI.msg = `Kamaka works the ${it.name}: +${Gear.upLevel(it.kind, it.id)}.`; forgeUI.msgT = time; Forge.forgeWork && Forge.forgeWork(it.col); Ambience.sfx && Ambience.sfx("stone"); for (let k = 0; k < 24; k++) Forge.sparks.push({ x: Forge.ANVIL.x, y: Forge.ANVIL.y - 15, vx: (Math.random() - 0.5) * 160, vy: -60 - Math.random() * 120, t: 0 }); }
     else { const c = Gear.upCost(it.kind, it.id); forgeUI.msg = c ? `That needs ${costText(c)}.` : "It can't be bettered now."; forgeUI.msgT = time; Ambience.sfx && Ambience.sfx("guard"); }
   }
   function openForgeUI() { forgeUI.open = true; forgeUI.msg = ""; Ambience.sfx && Ambience.sfx("equip"); }
   function forgeDo(row, col) {
     const el = Gear.ORDER[row], E = Gear.ELEMENTS[el], kind = col ? "cloth" : "weapon";
-    if (Gear.craft(el, kind)) { const name = kind === "weapon" ? Combat.weapons.find((w) => w.id === E.weapon).name : Gear.ARMOR[E.cloth].name; forgeUI.msg = `Kamaka hands you the ${name}.`; forgeUI.msgT = time; Ambience.sfx && Ambience.sfx("pickup"); for (let k = 0; k < 20; k++) Forge.sparks.push({ x: Forge.ANVIL.x, y: Forge.ANVIL.y - 15, vx: (Math.random() - 0.5) * 160, vy: -60 - Math.random() * 100, life: 0.7 }); Game.save(); }
+    if (Gear.craft(el, kind)) { const name = kind === "weapon" ? Combat.weapons.find((w) => w.id === E.weapon).name : Gear.ARMOR[E.cloth].name; forgeUI.msg = `Kamaka hands you the ${name}.`; forgeUI.msgT = time; Forge.forgeWork && Forge.forgeWork(E.col); Ambience.sfx && Ambience.sfx("pickup"); for (let k = 0; k < 20; k++) Forge.sparks.push({ x: Forge.ANVIL.x, y: Forge.ANVIL.y - 15, vx: (Math.random() - 0.5) * 160, vy: -60 - Math.random() * 100, life: 0.7 }); Game.save(); }
     else { const have = Gear.state().shards[el]; forgeUI.msg = (kind === "weapon" ? Combat.unlocked.has(E.weapon) : Gear.hasArmor(E.cloth)) ? "You already have that." : `You need ${Gear.COST} ${E.name.toLowerCase()} shards (you have ${have}).`; forgeUI.msgT = time; Ambience.sfx && Ambience.sfx("guard"); }
   }
   function forgeKey(code) {
@@ -1200,7 +1200,7 @@
     const drawW = () => { if (!spr) return; ctx.save(); ctx.translate(hx, hy); ctx.rotate(a); ctx.drawImage(fl ? Combat.whiteOf(spr.c) : spr.c, -spr.gx, -spr.gy); ctx.restore(); };
     if (back) drawW();
     ctx.save(); ctx.translate(X, Y); if (e.state === "roll") ctx.rotate((e.st / 0.32) * Math.PI * 2 * f); ctx.scale(f, 1);
-    ctx.drawImage(fl ? Combat.whiteOf(art) : art, -12, -31); ctx.restore();
+    ctx.drawImage(fl ? Combat.whiteOf(art) : art, -Math.round(art.width / 2), -art.height + 1); ctx.restore();
     if (!back) drawW();
     if (e.state === "strike" || e.state === "spin") { ctx.strokeStyle = "rgba(255,248,220,0.85)"; ctx.lineWidth = 2; ctx.beginPath(); if (e.state === "spin") ctx.ellipse(X, Y - 10, C.reach, C.reach * 0.55, 0, 0, Math.PI * 2); else ctx.arc(X, Y - 10, C.reach * 0.9, (e.aim || 0) - 0.9, (e.aim || 0) + 0.9); ctx.stroke(); }
     if (e.state === "wind" || e.state === "windSlam" || e.state === "windSpin" || e.state === "windLunge") { ctx.fillStyle = e.state === "windLunge" ? "#ff8a5a" : "#ffe08a"; ctx.fillRect(X - 1, Y - 40, 3, 3); }

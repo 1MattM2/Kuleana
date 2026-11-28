@@ -13,160 +13,379 @@
   F.FLOOR_TOP = 3.3 * T;
   F.ANVIL = { x: 9 * T, y: 6.2 * T };
   F.FURNACE = { x: 9 * T, y: 3.1 * T };
-  F.STAND = { x: 15.2 * T, y: 5.2 * T };
-  F.TROUGH = { x: 3.4 * T, y: 6.4 * T };
-  F.SMITH = { x: 10.6 * T, y: 6.6 * T };
+  F.STAND = { x: 15.2 * T, y: 5.4 * T };
+  F.TROUGH = { x: 3.6 * T, y: 6.5 * T };
+  F.SMITH = { x: 9 * T + 31, y: 6.0 * T };
+  F.GRIND = { x: 13.6 * T, y: 8.3 * T };
+  F.COAL = { x: 2.6 * T, y: 4.4 * T };
+  F.BENCH = { x: 5.4 * T, y: 4.7 * T };
+  F.WOOD = { x: 2.4 * T, y: 8.9 * T };
+  F.BARREL = { x: 6.2 * T, y: 6.9 * T };
   const rect = (c, col, x, y, w, h) => { c.fillStyle = col; c.fillRect(x, y, w, h); };
   const OB = () => PAL.R.obsidian, FI = () => PAL.R.fire, KO = () => PAL.R.koa;
   const css = (c) => PAL.css(c);
 
   // ---------------------------------------------------------------- the room
+  // Everything here is drawn from the master palette (tools/palette.py): obsidian for the lava stone, bark for
+  // stone warmed by the furnace, koa for timber and leather, lauhala for baskets and the mat, kapa for cloth,
+  // steel for iron, fire for flame and heat, skin for Kamaka. Gradients are 4x4 ordered dither (PAL.bayer),
+  // outlines are the darkest step of what they wrap, and the light comes from the upper left (and, in here,
+  // from the furnace).
+  const P = () => PAL.R, pkc = (c) => PAL.pk(c), B = (x, y) => PAL.bayer(x, y);
+  // fitted stones: a jittered grid of seeds, nearest seed per pixel; returns [cell id, edge, lit edge, shadow edge]
+  function stones(cw, ch, salt) {
+    const seed = (gx, gy) => [gx * cw + K.hash2(gx, gy, salt) * cw * 0.8 + cw * 0.1, gy * ch + K.hash2(gx, gy, salt + 1) * ch * 0.8 + ch * 0.1];
+    const cell = (x, y) => { const gx = Math.floor(x / cw), gy = Math.floor(y / ch); let b = 1e9, b2 = 1e9, id = 0, cx0 = 0, cy0 = 0; for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const [sx, sy] = seed(gx + i, gy + j), d = (x - sx) ** 2 + ((y - sy) * cw / ch) ** 2; if (d < b) { b2 = b; b = d; id = (gx + i) * 7919 + (gy + j); cx0 = sx; cy0 = sy; } else if (d < b2) b2 = d; } return [id, Math.sqrt(b2) - Math.sqrt(b), cx0, cy0]; };
+    return (x, y) => { const [id, gap, sx, sy] = cell(x, y), up = cell(x - 1, y - 1)[0], dn = cell(x + 1, y + 1)[0]; return [id, gap < 1.3, up !== id, dn !== id, (x - sx) / cw, (y - sy) / ch, sx, sy]; };
+  }
   function bakeRoom() {
-    const [cv, c] = K.canvas(W, H), O = OB();
-    // basalt flagstones, irregular, with ash in the joints and the furnace's glow warming the near ones
+    const [cv, c] = K.canvas(W, H), im = c.createImageData(W, H), d = new Uint32Array(im.data.buffer), R = P();
+    const O = R.obsidian.map(pkc), BK = R.bark.map(pkc), SO = R.soil.map(pkc), KO = R.koa.map(pkc), LH = R.lauhala.map(pkc), FI = R.fire.map(pkc);
+    const floor = stones(19, 14, 11), wall = stones(14, 10, 23), wallH = Math.round(F.FLOOR_TOP), doorY = H - 0.7 * T;
+    const FX = F.FURNACE.x, FY = F.FURNACE.y + 30;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      const cx = Math.floor((x + (Math.floor(y / 22) % 2) * 13) / 26), cy = Math.floor(y / 22), lx = (x + (cy % 2) * 13) % 26, ly = y % 22;
-      const v = K.hash2(cx, cy, 5), joint = lx === 0 || ly === 0, lit = lx === 1 || ly === 1;
-      let col = joint ? [40, 34, 40] : lit ? O[4] : v > 0.66 ? O[3] : v > 0.33 ? O[2] : [52, 46, 60];
-      const heat = Math.max(0, 1 - Math.hypot(x - F.FURNACE.x, (y - F.FURNACE.y) * 1.3) / 150);
-      if (!joint && heat > 0) col = [col[0] + (255 - col[0]) * heat * 0.25, col[1] + (120 - col[1]) * heat * 0.18, col[2] * (1 - heat * 0.3)];
-      if (joint && K.hash2(x, y, 3) > 0.7) col = [70, 62, 66];
-      if (!joint && K.hash2(x >> 1, y >> 1, 9) > 0.9985) col = FI()[2];      // a fallen ember
-      c.fillStyle = `rgb(${col[0] | 0},${col[1] | 0},${col[2] | 0})`; c.fillRect(x, y, 1, 1);
+      let col;
+      if (y < wallH) {
+        // the back wall: fitted lava stones, a koa beam along the top and the wall's foot in shadow
+        // (rounded cobbles: each lit on its upper left, shadowed lower right)
+        const [id, edge, lit, sh, ux, uy, sx0, sy0] = wall(x, y), v = K.hash2(id, 1, 3), sheat = Math.max(0, 1 - Math.hypot(sx0 - FX, (sy0 - FY) * 1.25) / 190), ramp = sheat > K.hash2(id, 8, 8) * 0.9 + 0.1 ? BK : O;
+        let ix = v > 0.66 ? 3 : v > 0.33 ? 2 : 1;
+        const bump = -ux - uy; if (bump > 0.35) ix += 1; else if (bump < -0.45) ix -= 1;
+        if (edge) ix = 0; else if (lit) ix += 1; else if (sh) ix -= 1;
+        if (!edge && K.hash2(x >> 1, y >> 1, id & 255) > 0.93) ix -= 1;        // pitted, vesicular rock
+        col = ramp[Math.max(0, Math.min(ramp.length - 1, ix))];
+        if (y < 9) col = y === 0 || y === 8 ? KO[0] : y < 3 ? KO[4] : (x + (y << 2)) % 23 === 0 ? KO[1] : KO[3];
+        else if (y > wallH - 4) col = y === wallH - 1 ? O[0] : O[1];
+      } else if (x < 12 || x >= W - 12) {
+        // the side walls, seen end on
+        const v = K.hash2(x >> 2, y >> 3, 4); col = x === 11 || x === W - 12 ? O[0] : v > 0.5 ? O[2] : O[1];
+      } else if (y >= doorY) {
+        col = x > F.DOOR.x0 && x < F.DOOR.x1 ? (y === Math.ceil(doorY) ? O[4] : O[3]) : y === Math.ceil(doorY) ? O[0] : O[2];
+      } else {
+        // the floor: basalt flagstones, lit on their upper-left edges, the furnace's warmth across them
+        // (a stone takes the furnace's warmth whole, nearer stones more often: no speckle)
+        const [id, edge, lit, sh, , , sx0, sy0] = floor(x, y), v = K.hash2(id, 2, 5), sheat = Math.max(0, 1 - Math.hypot(sx0 - FX, (sy0 - FY) * 1.25) / 200), ramp = sheat > K.hash2(id, 8, 8) * 0.9 + 0.1 ? BK : O;
+        let ix = v > 0.75 ? 3 : 2;
+        if (edge) ix = 0; else if (lit) ix += 1; else if (sh) ix -= 1;
+        col = ramp[Math.max(0, Math.min(ramp.length - 1, ix))];
+        if (edge && K.hash2(x, y, 7) > 0.8) col = SO[2];                         // ash in the joints
+        if (!edge && K.hash2(x >> 1, y >> 1, 9) > 0.9975) col = FI[2];          // a fallen ember
+        // scorched stone round the anvil
+        const sc = Math.hypot(x - F.ANVIL.x, (y - F.ANVIL.y) * 1.6);
+        if (sc < 40 && !edge && (40 - sc) / 40 > B(x, y) * 0.8 + 0.35) col = sc < 22 ? SO[1] : SO[2];
+        // the woven lauhala mat inside the door
+        if (x > F.DOOR.x0 - 16 && x < F.DOOR.x1 + 16 && y > doorY - 30 && y < doorY - 4) {
+          const mx = x - F.DOOR.x0 + 16, my = y - doorY + 30, cell = ((mx >> 2) + (my >> 2)) & 1, s2 = cell ? mx & 3 : my & 3;
+          col = mx < 1 || my < 1 || mx > F.DOOR.x1 - F.DOOR.x0 + 30 || my > 24 ? LH[0] : s2 === 0 ? LH[1] : cell ? LH[3] : LH[2];
+        }
+      }
+      d[y * W + x] = col;
     }
-    // back wall: obsidian blocks with mortar lit by the furnace
-    const wallH = Math.round(F.FLOOR_TOP);
-    for (let y = 0; y < wallH; y++) for (let x = 0; x < W; x++) {
-      const row = Math.floor(y / 10), bx = Math.floor((x + (row % 2) * 9) / 18), lx = (x + (row % 2) * 9) % 18, ly = y % 10, v = K.hash2(bx, row, 8);
-      let col = lx === 0 || ly === 0 ? [26, 20, 28] : ly === 1 ? O[3] : v > 0.5 ? O[2] : O[1];
-      if ((lx === 0 || ly === 0) && Math.abs(x - F.FURNACE.x) < 90) col = [120 - Math.abs(x - F.FURNACE.x), 50, 30];
-      c.fillStyle = PAL.css(col.length === 3 && col.every((q) => typeof q === "number") ? col : col); c.fillRect(x, y, 1, 1);
-    }
-    rect(c, css(O[0]), 0, wallH - 2, W, 3);
-    // the wall's lower edge: a koa beam
-    rect(c, css(KO()[1]), 0, wallH, W, 3); rect(c, css(KO()[3]), 0, wallH, W, 1);
-    // side walls
-    for (const sx of [0, W - 14]) for (let y = wallH; y < H; y++) for (let x = 0; x < 14; x++) { const v = K.hash2((sx + x) >> 3, y >> 3, 4); c.fillStyle = css(x === (sx ? 0 : 13) ? O[0] : v > 0.5 ? O[2] : O[1]); c.fillRect(sx + x, y, 1, 1); }
-    // doorway: a step of basalt out into the daylight
-    const fy = H - 0.7 * T;
-    rect(c, css(O[0]), 0, fy - 2, F.DOOR.x0, 3); rect(c, css(O[0]), F.DOOR.x1, fy - 2, W - F.DOOR.x1, 3);
-    for (let x = 0; x < W; x += 6) { if (x + 6 > F.DOOR.x0 && x < F.DOOR.x1) continue; rect(c, css(O[2]), x, fy, 6, H - fy); rect(c, css(O[3]), x + 1, fy, 4, 1); }
-    const g = c.createLinearGradient(0, H, 0, H - 3 * T); g.addColorStop(0, "rgba(255,240,200,0.35)"); g.addColorStop(1, "rgba(255,240,200,0)");
+    c.putImageData(im, 0, 0);
+    // daylight falling in through the door
+    const g = c.createLinearGradient(0, H, 0, H - 3 * T); g.addColorStop(0, "rgba(255,240,200,0.28)"); g.addColorStop(1, "rgba(255,240,200,0)");
     c.fillStyle = g; c.beginPath(); c.moveTo(F.DOOR.x0, H); c.lineTo(F.DOOR.x1, H); c.lineTo(F.DOOR.x1 + 30, H - 3 * T); c.lineTo(F.DOOR.x0 - 30, H - 3 * T); c.fill();
-    // tools hung on the wall: tongs, hammers, a rasp
-    const tools = [[60, 30, "tongs"], [76, 30, "hammer"], [92, 30, "hammer2"], [440, 30, "tongs"], [456, 30, "rasp"]];
+    // koa posts in the corners of the back wall
+    for (const px0 of [12, W - 20]) { rect(c, css(R.koa[0]), px0, 0, 8, wallH); rect(c, css(R.koa[3]), px0 + 1, 0, 6, wallH); rect(c, css(R.koa[4]), px0 + 1, 0, 2, wallH); }
+    // tools hung on pegs beside the furnace: tongs, two hammers, a rasp, a fuller
+    const ST = R.steel.map((q) => css(q));
+    const tools = [[208, 24, "tongs"], [218, 26, "hammer"], [372, 24, "hammer2"], [382, 22, "tongs"], [392, 26, "rasp"]];
     for (const [x, y, k] of tools) {
-      rect(c, css(O[0]), x, y - 6, 2, 2);
-      if (k === "tongs") { for (let i = 0; i < 26; i++) { rect(c, "#5a5a64", x - 2 + (i > 18 ? (i - 18) * 0.3 : 0), y - 4 + i, 1, 1); rect(c, "#8a8a96", x + 2 - (i > 18 ? (i - 18) * 0.3 : 0), y - 4 + i, 1, 1); } }
-      else if (k === "rasp") { rect(c, "#4a4a54", x, y - 4, 3, 22); for (let i = 0; i < 20; i += 2) rect(c, "#9a9aa6", x, y - 4 + i, 3, 1); rect(c, css(KO()[2]), x, y + 18, 3, 8); }
-      else { rect(c, css(KO()[2]), x, y - 4, 2, 22); rect(c, css(KO()[4]), x, y - 4, 1, 22); rect(c, "#3a3a44", x - 4, y + 16, 10, 6); rect(c, "#7a7a86", x - 4, y + 16, 10, 1); }
+      rect(c, css(R.koa[1]), x - 1, y - 7, 3, 3);
+      if (k === "tongs") for (let i2 = 0; i2 < 28; i2++) { const sp = i2 > 20 ? (i2 - 20) * 0.35 : 0; rect(c, ST[0], x - 2 - sp, y - 4 + i2, 1, 1); rect(c, ST[1], x + 2 + sp, y - 4 + i2, 1, 1); }
+      else if (k === "rasp") { rect(c, ST[0], x - 1, y - 4, 4, 22); for (let i2 = 0; i2 < 20; i2 += 2) rect(c, ST[1], x, y - 4 + i2, 2, 1); rect(c, css(R.koa[2]), x - 1, y + 18, 4, 8); }
+      else { rect(c, css(R.koa[2]), x, y - 4, 2, 24); rect(c, css(R.koa[4]), x, y - 4, 1, 24); rect(c, ST[0], x - 4, y + 18, 10, 7); rect(c, ST[1], x - 3, y + 19, 8, 1); rect(c, ST[2], x - 3, y + 19, 3, 1); }
     }
-    // the coal heap
-    for (let k = 0; k < 140; k++) { const a = K.hash2(k, 1, 2) * Math.PI, r = K.hash2(k, 2, 3) * 18, x = 80 + Math.cos(a) * r * 1.4, y = 4.6 * T - Math.sin(a) * r * 0.8 + 10; rect(c, K.hash2(k, 3, 4) > 0.8 ? "#4a4450" : K.hash2(k, 4, 5) > 0.97 ? css(FI()[2]) : "#18141c", x, y, 2, 2); }
+    // the coal heap, black and glinting
+    c.fillStyle = "rgba(6,4,10,0.55)"; c.beginPath(); c.ellipse(F.COAL.x, F.COAL.y + 13, 38, 9, 0, 0, Math.PI * 2); c.fill();
+    const lumps = [];
+    for (let k = 0; k < 160; k++) { const a = K.hash2(k, 1, 2) * Math.PI, r = Math.sqrt(K.hash2(k, 2, 3)), x = F.COAL.x + Math.cos(a) * r * 34, y = F.COAL.y + 12 - Math.sin(a) * r * 22; lumps.push([x, y, K.hash2(k, 5, 6) > 0.5 ? 4 : 3, k]); }
+    lumps.sort((p2, q) => p2[1] - q[1]);
+    for (const [x, y, sz, k] of lumps) { rect(c, css(R.obsidian[0]), Math.round(x) - 1, Math.round(y) - 1, sz + 2, sz + 1); rect(c, css(R.obsidian[1]), Math.round(x), Math.round(y), sz, sz - 1); rect(c, css(R.obsidian[K.hash2(k, 3, 4) > 0.5 ? 4 : 3]), Math.round(x), Math.round(y), sz - 1, 1); if (K.hash2(k, 3, 4) > 0.9) rect(c, css(R.obsidian[6]), Math.round(x), Math.round(y), 1, 1); }
+    // a koa workbench: tongs, a file and a half-finished blade laid out, a woven crate of ore beside it
+    { const bx = F.BENCH.x, by = F.BENCH.y, KO = R.koa;
+      c.fillStyle = "rgba(6,4,10,0.45)"; c.fillRect(bx - 30, by - 2, 62, 5);
+      for (const lx of [-27, 25]) { rect(c, css(KO[0]), bx + lx, by - 14, 4, 14); rect(c, css(KO[2]), bx + lx + 1, by - 14, 2, 13); }
+      rect(c, css(KO[0]), bx - 31, by - 22, 64, 9); rect(c, css(KO[3]), bx - 30, by - 21, 62, 6); rect(c, css(KO[5]), bx - 30, by - 21, 62, 1); for (let k = -30; k < 32; k += 9) rect(c, css(KO[2]), bx + k, by - 20, 1, 5);
+      rect(c, css(R.steel[0]), bx - 22, by - 24, 16, 2); rect(c, css(R.steel[2]), bx - 22, by - 24, 14, 1); rect(c, css(KO[1]), bx - 6, by - 24, 5, 2);       // the blade
+      rect(c, css(R.steel[1]), bx + 4, by - 25, 10, 2); rect(c, css(R.steel[1]), bx + 6, by - 23, 9, 1);                                                     // the tongs
+      rect(c, css(R.steel[0]), bx + 18, by - 26, 2, 4); rect(c, css(KO[3]), bx + 18, by - 29, 2, 3);                                                         // a chisel
+      const LHr = R.lauhala; for (let y = 0; y < 10; y++) for (let x = 0; x < 14; x++) rect(c, css(x === 0 || x === 13 || y === 9 ? LHr[0] : y === 0 ? LHr[4] : (x + (y >> 1)) & 1 ? LHr[2] : LHr[3]), bx + 36 + x, by - 10 + y, 1, 1);
+      for (let k = 0; k < 6; k++) rect(c, css(k % 2 ? R.stone[3] : R.stone[2]), bx + 38 + k * 2, by - 12 - (k % 3), 3, 3); }
+    // split koa firewood stacked against the wall, end grain out
+    { const wx = F.WOOD.x, wy = F.WOOD.y, BK = R.bark, KO = R.koa;
+      c.fillStyle = "rgba(6,4,10,0.45)"; c.fillRect(wx - 30, wy - 2, 62, 5);
+      for (let row = 0; row < 4; row++) for (let k = 0; k < 6 - row; k++) { const lx = wx - 26 + k * 10 + row * 5, ly = wy - 8 - row * 8; for (let y = -4; y <= 4; y++) for (let x = -4; x <= 4; x++) { const rr = Math.hypot(x, y * 1.05); if (rr > 4.6) continue; c.fillStyle = css(rr > 3.8 ? BK[0] : rr > 3 ? BK[2] : (Math.round(rr) % 2) ? KO[4] : KO[3]); c.fillRect(lx + x, ly + y, 1, 1); } c.fillStyle = css(KO[5]); c.fillRect(lx - 2, ly - 2, 1, 1); } }
+    // a water barrel of koa staves bound with cord
+    { const bx = F.BARREL.x, by = F.BARREL.y, KO = R.koa, WR = R.water;
+      c.fillStyle = "rgba(6,4,10,0.45)"; c.beginPath(); c.ellipse(bx, by + 1, 13, 4, 0, 0, Math.PI * 2); c.fill();
+      for (let y = 0; y < 20; y++) for (let x = -11; x <= 11; x++) { const hw = 10 + Math.sin((y / 20) * Math.PI) * 1.5; if (Math.abs(x) > hw) continue; const band = y === 4 || y === 15; c.fillStyle = css(Math.abs(x) > hw - 1 ? KO[0] : band ? R.lauhala[1] : (x + 12) % 5 === 0 ? KO[1] : x < -3 ? KO[4] : KO[3]); c.fillRect(bx + x, by - 20 + y, 1, 1); }
+      for (let x = -9; x <= 9; x++) { c.fillStyle = css(Math.abs(x) > 8 ? KO[1] : x < -4 ? WR[3] : WR[2]); c.fillRect(bx + x, by - 21, 1, 2); } c.fillStyle = css(KO[0]); c.fillRect(bx - 10, by - 22, 21, 1); }
+    rect(c, css(R.koa[2]), F.COAL.x + 26, F.COAL.y - 14, 2, 26); rect(c, css(R.steel[1]), F.COAL.x + 23, F.COAL.y + 10, 8, 6); rect(c, css(R.steel[2]), F.COAL.x + 23, F.COAL.y + 10, 8, 1);   // a shovel
     return cv;
   }
-  // the furnace: a squat dome of basalt with an arched mouth of magma, a chimney, and bellows
+  // the furnace: a great dome of fitted lava stone, its arched mouth ringed with voussoirs, a chimney stack
+  // rising to the rafters; the fire inside is painted live
   function bakeFurnace() {
-    const w = 96, h = 92, [cv, c] = K.canvas(w, h), O = OB();
+    const w = 128, h = 132, [cv, c] = K.canvas(w, h), im = c.createImageData(w, h), d = new Uint32Array(im.data.buffer), R = P();
+    const O = R.obsidian.map(pkc), BK = R.bark.map(pkc), st = stones(12, 9, 41), my = h - 26, mr = 22;
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const dx = (x + 0.5 - w / 2) / 44, dy = (y + 0.5 - h + 4) / 56;
-      if (y < 30) { if (Math.abs(x - w / 2) < 11 - y * 0.06) { const v = K.hash2(x >> 2, y >> 2, 3); c.fillStyle = css(Math.abs(x - w / 2) > 9 - y * 0.06 ? O[0] : v > 0.5 ? O[3] : O[2]); c.fillRect(x, y, 1, 1); } continue; }
-      if (dx * dx + dy * dy > 1) continue;
-      const row = Math.floor(y / 8), bx = Math.floor((x + (row % 2) * 6) / 12), mortar = y % 8 === 0 || (x + (row % 2) * 6) % 12 === 0;
-      const lit = -dx * 0.6 - dy * 0.5;
-      c.fillStyle = css(dx * dx + dy * dy > 0.92 ? O[0] : mortar ? O[1] : lit > 0.4 ? O[4] : lit > 0 ? O[3] : K.hash2(bx, row, 2) > 0.5 ? O[2] : O[1]); c.fillRect(x, y, 1, 1);
+      const cx = x + 0.5 - w / 2;
+      // the chimney stack
+      if (y < 44) { if (Math.abs(cx) > 13) continue; const [id, edge, lit] = st(x, y), v = K.hash2(id, 3, 1); let ix = edge ? 0 : lit ? 4 : v > 0.5 ? 3 : 2; if (Math.abs(cx) > 12) ix = 0; else if (cx < -9 && !edge) ix += 1; d[y * w + x] = O[Math.min(6, ix)]; continue; }
+      const dx = cx / 62, dy = (y + 0.5 - h + 2) / 88, rr = dx * dx + dy * dy;
+      if (rr > 1 || y > h - 2) continue;
+      const nz = Math.sqrt(Math.max(0, 1 - rr)), lightv = -dx * 0.55 - dy * 0.45 + nz * 0.5;
+      const [id, edge, lit, sh] = st(x, y), v = K.hash2(id, 5, 2), heat = Math.max(0, 1 - Math.hypot(cx, y - my) / 46);
+      const ramp = heat > B(x, y) + 0.45 ? BK : O;
+      let ix = (lightv > 0.55 ? 4 : lightv > 0.3 ? 3 : lightv > 0.05 ? 2 : 1) + (v > 0.7 ? 1 : v < 0.2 ? -1 : 0);
+      if (edge) ix = Math.max(0, ix - 3); else if (lit) ix += 1; else if (sh) ix -= 1;
+      if (rr > 0.94) ix = 0;
+      d[y * w + x] = ramp[Math.max(0, Math.min(ramp.length - 1, ix))];
     }
-    // the mouth (filled live each frame), its arch of fitted stones
-    for (let a = 0; a <= Math.PI; a += 0.02) { const x = w / 2 + Math.cos(a) * 19, y = h - 22 - Math.sin(a) * 19; c.fillStyle = css(O[4]); c.fillRect(Math.round(x), Math.round(y), 2, 2); }
-    c.clearRect(w / 2 - 17, h - 22, 34, 20);
-    for (let a = 0; a <= Math.PI; a += 0.02) for (let r = 0; r < 17; r++) { const x = w / 2 + Math.cos(a) * r, y = h - 22 - Math.sin(a) * r; c.clearRect(Math.round(x), Math.round(y), 1, 1); }
-    return { img: cv, w, h, mx: w / 2, my: h - 22 };
+    c.putImageData(im, 0, 0);
+    // the arch: voussoirs radiating round the mouth, then the mouth itself cut out (the fire shows through)
+    for (let a = 0; a <= Math.PI; a += 0.012) for (let r = mr; r < mr + 6; r++) { const x = Math.round(w / 2 + Math.cos(a) * r), y = Math.round(my - Math.sin(a) * r), seg = Math.floor(a / (Math.PI / 9)); c.fillStyle = css(r === mr + 5 || Math.abs(a - (seg + 0.5) * Math.PI / 9) > Math.PI / 9 * 0.44 ? R.obsidian[0] : r < mr + 2 ? R.bark[5] : seg % 2 ? R.bark[3] : R.bark[4]); c.fillRect(x, y, 1, 1); }
+    for (let a = 0; a <= Math.PI; a += 0.01) for (let r = 0; r < mr; r += 0.5) c.clearRect(Math.round(w / 2 + Math.cos(a) * r), Math.round(my - Math.sin(a) * r), 1, 1);
+    c.clearRect(w / 2 - mr + 1, my, mr * 2 - 1, h - my);
+    // a hearth step of dressed stone in front of the mouth
+    for (let x = w / 2 - mr - 8; x < w / 2 + mr + 8; x++) { c.fillStyle = css(x === w / 2 - mr - 8 || x === w / 2 + mr + 7 ? R.obsidian[0] : R.obsidian[4]); c.fillRect(x, h - 6, 1, 1); c.fillStyle = css(R.obsidian[2]); c.fillRect(x, h - 5, 1, 4); }
+    return { img: cv, w, h, mx: w / 2, my, mr };
   }
-  // the smith: the market folk's figure in a leather apron, a dark headwrap and soot
-  function smithArt() {
-    const C = window.CHARART, P = Object.assign({}, C.MERCHANT_PAL, { a: [70, 62, 70], A: [44, 38, 46], c: [110, 100, 110], v: [120, 76, 44], V: [80, 48, 28], s: [150, 96, 62], S: [112, 70, 46], k: [178, 120, 84] });
-    const [c, x] = K.canvas(24, 32); K.pixmap(x, C.MERCHANT, P, 0, 0); return c;
+
+  // ---------------------------------------------------------------- Kamaka
+  // Rasterised per pixel from smooth shapes (STYLE.md section 3) and shaded with the master ramps, so his
+  // hammer arm can swing through any angle: a broad, burly smith in a koa-leather apron over a red kapa malo,
+  // kākau bands round his arms, cloth wraps at his wrists, a thick black beard and his hair in a topknot tied
+  // with red kapa. Light from the upper left, and from the furnace.
+  const KW = 68, KH = 56;
+  function capsule(px, py, ax, ay, bx, by, r0, r1) {
+    const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1, u = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2)), cx = ax + dx * u, cy = ay + dy * u, r = r0 + (r1 - r0) * u, dd = Math.hypot(px - cx, py - cy);
+    return dd < r ? { u, nx: (px - cx) / r, ny: (py - cy) / r } : null;
   }
+  function shadeIx(nx, ny, n) { const nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny)), l = -nx * 0.55 - ny * 0.6 + nz * 0.6; return Math.max(0, Math.min(n - 1, Math.round(l * (n - 1) * 0.95 + 0.2))); }
+  F.drawKamaka = function (ctx, X, Y, pose) {
+    const R = P(), SK = R.skin, KO = R.koa, OB = R.obsidian, KP = R.kapa, STL = R.steel;
+    const a1 = pose.arm, breath = pose.breath || 0, look = pose.look || 0, effort = pose.effort || 0;
+    const cx = 36, oyK = 6, img = new Array(KW * KH).fill(null);
+    const set = (x, y, c) => { if (x >= 0 && y >= 0 && x < KW && y < KH) img[y * KW + x] = c; };
+    // the hammer arm: shoulder, elbow, hand and the hammer itself, from the pose
+    const sh = [cx - 9, 23], ua = a1, la = a1 + (pose.bend ?? -0.5), el = [sh[0] + Math.cos(ua) * 7, sh[1] + Math.sin(ua) * 7], hd = [el[0] + Math.cos(la) * 7, el[1] + Math.sin(la) * 7];
+    const hh = [hd[0] + Math.cos(la) * 11, hd[1] + Math.sin(la) * 11];
+    for (let y = 0; y < KH; y++) for (let x = 0; x < KW; x++) {
+      const px = x + 0.5, py = y + 0.5 - oyK;
+      let col = null, q;
+      // legs and feet
+      for (const s of [-1, 1]) if ((q = capsule(px, py, cx + s * 3.6, 36, cx + s * 4.4, 46, 3, 2.6))) col = SK[1 + shadeIx(q.nx, q.ny, 3)];
+      for (const s of [-1, 1]) if (Math.abs(px - (cx + s * 4.6)) < 3.2 && py > 45.5 && py < 48) col = py < 46.5 ? KO[3] : KO[1];
+      // the malo
+      if (py > 32 && py < 38 && Math.abs(px - cx) < 9 - (py - 32) * 0.3) col = py < 33.5 ? KP[3] : (Math.floor(px) + Math.floor(py)) % 4 === 0 ? KP[3] : px < cx ? KP[2] : KP[1];
+      // the torso: a broad chest
+      { const ex = (px - cx) / 10.5, ey = (py - 28) / (8.5 + breath * 0.4), rr = ex * ex + ey * ey; if (rr < 1) col = SK[shadeIx(ex * 0.9, ey * 0.6, 4)]; }
+      // his far arm, hanging, with the kākau bands
+      if ((q = capsule(px, py, cx + 9.5, 23, cx + 12, 31, 3.4, 2.9)) || (q = capsule(px, py, cx + 12, 31, cx + 11.4, 37.5, 2.9, 2.5))) col = SK[shadeIx(q.nx, q.ny, 4)];
+      if ((q = capsule(px, py, cx + 9.5, 23, cx + 12, 31, 3.4, 2.9)) && q.u > 0.35 && q.u < 0.62 && (Math.floor(py) % 2 === 0 || q.u < 0.42)) col = OB[1];
+      if ((q = capsule(px, py, cx + 12, 31, cx + 11.4, 37.5, 2.9, 2.5)) && q.u > 0.6 && q.u < 0.86) col = KP[3 - (Math.floor(py) % 2)];
+      // the apron: koa leather from the chest to the knees, stitched, a strap round the neck, a pocket
+      { const top = 24.5, bot = 42, hw = 7 + (py - top) * 0.12; if (py > top && py < bot && Math.abs(px - cx) < hw) { const e = Math.abs(px - cx) > hw - 1 || py > bot - 1; col = e ? KO[1] : (Math.floor(px) + Math.floor(py * 0.5)) % 7 === 0 ? KO[2] : px < cx - 2 ? KO[4] : KO[3]; if (!e && Math.abs(Math.abs(px - cx) - (hw - 2)) < 0.5 && Math.floor(py) % 2) col = KO[5]; if (py > 33 && py < 37.5 && px > cx + 0.5 && px < cx + 5.5) col = py < 34 ? KO[1] : KO[2]; } }
+      for (const s of [-1, 1]) if (Math.abs(px - (cx + s * (5 - (py - 18) * 0.15))) < 0.8 && py > 18 && py < 25) col = KO[1];
+      // the head: big and round, the beard thick and black, the hair in a topknot tied with kapa
+      { const hx = cx + look, ex = (px - hx) / 8, ey = (py - 12) / 8.4, rr = ex * ex + ey * ey;
+        if (rr < 1) {
+          col = SK[shadeIx(ex * 0.8, ey * 0.7, 4)];
+          if (ey < -0.28 + Math.abs(ex) * 0.25) col = OB[shadeIx(ex, ey, 4) + 1];                 // hair
+          if (ey > 0.12 && (Math.abs(ex) > 0.55 - (ey - 0.12) * 0.4 || ey > 0.45)) col = OB[shadeIx(ex, ey, 3) + (K.hash2(Math.floor(px), Math.floor(py), 7) > 0.75 ? 2 : 1)];   // beard
+        }
+        // the topknot and its tie
+        { const tx = (px - hx) / 3.4, ty = (py - 2.6) / 3; if (tx * tx + ty * ty < 1) col = OB[shadeIx(tx, ty, 4) + 1]; if (py > 4.6 && py < 6 && Math.abs(px - hx) < 2.2) col = KP[2]; }
+      }
+      // the hammer arm and the hammer
+      if ((q = capsule(px, py, hd[0], hd[1], hh[0], hh[1], 0.9, 0.9))) col = KO[q.u > 0.1 ? 3 : 2];
+      { const nx = Math.cos(la), ny = Math.sin(la), lx = (px - hh[0]) * nx + (py - hh[1]) * ny, ly = -(px - hh[0]) * ny + (py - hh[1]) * nx; if (Math.abs(lx) < 2.2 && Math.abs(ly) < 4.2) col = STL[ly < -2.5 ? 2 : lx < -0.8 ? 1 : 0]; }
+      if ((q = capsule(px, py, sh[0], sh[1], el[0], el[1], 3.5, 3)) || (q = capsule(px, py, el[0], el[1], hd[0], hd[1], 3, 2.6))) { col = SK[shadeIx(q.nx, q.ny, 4)]; }
+      if ((q = capsule(px, py, sh[0], sh[1], el[0], el[1], 3.5, 3)) && q.u > 0.35 && q.u < 0.62 && (Math.floor(px + py) % 2 === 0 || q.u < 0.42)) col = OB[1];
+      if ((q = capsule(px, py, el[0], el[1], hd[0], hd[1], 3, 2.6)) && q.u > 0.62 && q.u < 0.9) col = KP[3 - (Math.floor(px) % 2)];
+      if (col !== null) set(x, y, col);
+    }
+    // the face: eyes under heavy brows (shut tight on the blow), the nose, a grin in the beard
+    const hx = Math.round(cx + look), F2 = (x, y, c) => set(hx + x, y + oyK, c);
+    for (const s of [-1, 1]) {
+      if (effort > 0.5) { F2(s * 3 - 1, 12, SK[0]); F2(s * 3, 12, SK[0]); }
+      else { F2(s * 3, 11, [22, 16, 22]); F2(s * 3, 12, [22, 16, 22]); F2(s * 3 + (s < 0 ? 0 : -1), 11, [236, 230, 214]); }
+      F2(s * 3 - 1, 9 + (effort > 0.5 ? 1 : 0), OB[0]); F2(s * 3, 9, OB[0]); F2(s * 3 + 1, 9 + (effort > 0.5 ? 0 : 1), OB[0]);
+    }
+    F2(0, 14, SK[1]); F2(-1, 14, SK[1]);
+    for (let x = -2; x <= 2; x++) F2(x, 16, effort > 0.5 ? [236, 230, 214] : x === -2 || x === 2 ? OB[1] : [110, 52, 46]);
+    // soot on the cheek and the brow
+    F2(5, 13, SK[1]); F2(-5, 8, OB[2]);
+    // outline: the darkest step of whatever it wraps (INK where that is skin)
+    const out = img.slice();
+    for (let y = 0; y < KH; y++) for (let x = 0; x < KW; x++) {
+      if (img[y * KW + x]) continue;
+      let nb = null; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < KW && yy < KH && img[yy * KW + xx]) nb = img[yy * KW + xx]; }
+      if (nb) out[y * KW + x] = [Math.round(nb[0] * 0.3 + 10), Math.round(nb[1] * 0.25 + 6), Math.round(nb[2] * 0.3 + 12)];
+    }
+    for (let y = 0; y < KH; y++) for (let x = 0; x < KW; x++) { const c = out[y * KW + x]; if (!c) continue; ctx.fillStyle = `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})`; ctx.fillRect(Math.round(X - cx) + x, Math.round(Y - KH + 2) + y, 1, 1); }
+    return { hammer: [X - cx + hh[0], Y - KH + 2 + oyK + hh[1]] };
+  };
+  // a still Kamaka (his hammer at rest on his shoulder), for the Duel Hall
+  function smithArt() { const [c, x] = K.canvas(KW, KH); F.drawKamaka(x, 36, KH - 2, { arm: 4.3, bend: 0.9 }); return c; }
+
   F.build = function () {
     F.ground = bakeRoom(); F.furnace = bakeFurnace(); F.smith = smithArt();
-    F.sparks = []; F.steam = [];
+    F.sparks = []; F.steam = []; F.work = 0; F.workCol = null; F.quench = 0;
   };
+  // Kamaka sets to work: called when he forges, weaves or tempers something for you. He hammers fast for a
+  // while, the sparks fly in the colour of the element, and then he quenches it in a burst of steam.
+  F.forgeWork = function (col) { F.work = 1.8; F.workCol = col || null; };
   F.solidAt = function (x, y) {
     if (y > H - 0.7 * T) return !(x > F.DOOR.x0 + 4 && x < F.DOOR.x1 - 4) || y > H + 30;
     if (x < 0.5 * T || x > W - 0.5 * T || y < F.FLOOR_TOP + 4) return true;
-    if (Math.abs(x - F.FURNACE.x) < 48 && y < F.FURNACE.y + 26) return true;                     // the furnace
-    if (Math.abs(x - F.ANVIL.x) < 12 && Math.abs(y - F.ANVIL.y) < 6) return true;                 // the anvil
-    if (Math.abs(x - F.TROUGH.x) < 22 && Math.abs(y - F.TROUGH.y) < 7) return true;              // the trough
+    if (Math.abs(x - F.FURNACE.x) < 60 && y < F.FURNACE.y + 32) return true;                     // the furnace and its hearth
+    if (Math.abs(x - F.ANVIL.x) < 13 && Math.abs(y - F.ANVIL.y) < 6) return true;                 // the anvil
+    if (Math.abs(x - F.TROUGH.x) < 24 && Math.abs(y - F.TROUGH.y) < 8) return true;              // the trough
     if (Math.abs(x - F.STAND.x) < 9 && Math.abs(y - F.STAND.y) < 5) return true;                  // the armour stand
-    if (Math.abs(x - F.SMITH.x) < 7 && Math.abs(y - F.SMITH.y) < 5) return true;
-    if (x < 3.6 * T && y < 4.8 * T + 10 && x > 1.2 * T) return true;                              // the coal heap
+    if (Math.abs(x - F.SMITH.x) < 8 && Math.abs(y - F.SMITH.y) < 5) return true;
+    if (Math.abs(x - F.GRIND.x) < 16 && Math.abs(y - F.GRIND.y) < 6) return true;                 // the grindstone
+    if (Math.abs(x - F.COAL.x) < 36 && y < F.COAL.y + 18) return true;                            // the coal heap
+    if (x > F.BENCH.x - 32 && x < F.BENCH.x + 52 && y < F.BENCH.y + 2) return true;               // the workbench
+    if (Math.abs(x - F.WOOD.x) < 32 && y > F.WOOD.y - 36 && y < F.WOOD.y + 2) return true;         // the woodpile
+    if (Math.abs(x - F.BARREL.x) < 12 && Math.abs(y - F.BARREL.y + 2) < 5) return true;           // the barrel
     return false;
   };
   F.near = function (x, y) {
-    if (Math.hypot(x - F.SMITH.x, y - F.SMITH.y) < 30 || Math.hypot(x - F.ANVIL.x, y - F.ANVIL.y) < 26) return "smith";
+    if (Math.hypot(x - F.SMITH.x, y - F.SMITH.y) < 32 || Math.hypot(x - F.ANVIL.x, y - F.ANVIL.y) < 26) return "smith";
     if (Math.hypot(x - F.STAND.x, y - F.STAND.y) < 26) return "stand";
     return null;
   };
 
   // ---------------------------------------------------------------- drawing
+  let chalk = new Map();
+  const chalkOf = (img) => { let c = chalk.get(img); if (c) return c; const [cv, x] = K.canvas(img.width, img.height); x.drawImage(img, 0, 0); x.globalCompositeOperation = "source-in"; x.fillStyle = "#e8e0d0"; x.fillRect(0, 0, img.width, img.height); chalk.set(img, cv); return cv; };
   F.render = function (actx, bctx, g, ox, oy, LW, LH, t, py) {
-    const O = OB(), Fi = FI();
+    const R = P(), Fi = R.fire, dt = 1 / 60;
     actx.fillStyle = "#0c0808"; actx.fillRect(0, 0, LW, LH);
     actx.drawImage(F.ground, ox, oy, LW, LH, 0, 0, LW, LH);
-    // the furnace and its living mouth
-    const fu = F.furnace, fx = Math.round(F.FURNACE.x - fu.w / 2 - ox), fy = Math.round(F.FURNACE.y + 26 - fu.h - oy);
-    for (let y = 0; y < 20; y++) for (let x = -17; x <= 17; x++) {
-      if (y > 0 && Math.hypot(x, 20 - y) > 18) continue;
-      const n = K.noise(x * 0.2 + t * 1.5, y * 0.25 - t * 2), v = n + (y / 20) * 0.5;
-      actx.fillStyle = css(v > 1.05 ? Fi[4] : v > 0.85 ? Fi[3] : v > 0.6 ? Fi[2] : Fi[1]); actx.fillRect(fx + fu.mx + x, fy + fu.my - 20 + y + 1, 1, 1);
+    if (F.work > 0) F.work -= dt;
+    // ---- the furnace: live fire in the mouth, then the stone over it
+    const fu = F.furnace, fx = Math.round(F.FURNACE.x - fu.w / 2 - ox), fy = Math.round(F.FURNACE.y + 32 - fu.h - oy), roar = 1 + (F.work > 0 ? 0.25 : 0) + 0.12 * Math.sin(t * 3.1);
+    for (let y = 0; y < fu.mr + 26; y++) for (let x = -fu.mr; x <= fu.mr; x++) {
+      const yy = y - fu.mr, inside = yy >= 0 ? Math.abs(x) < fu.mr : Math.hypot(x, yy) < fu.mr; if (!inside) continue;
+      const n = K.noise(x * 0.18 + t * 0.9, y * 0.16 - t * 2.6), u = y / (fu.mr + 26), v = n * 0.75 + u * 0.75 * roar - Math.abs(x) / fu.mr * 0.25 + B(x, y) * 0.12;
+      actx.fillStyle = css(v > 1.0 ? Fi[4] : v > 0.78 ? Fi[3] : v > 0.55 ? Fi[2] : v > 0.35 ? Fi[1] : Fi[0]); actx.fillRect(fx + fu.mx + x, fy + fu.my - fu.mr + y, 1, 1);
     }
     actx.drawImage(fu.img, fx, fy);
-    // smoke from the chimney, and the bellows breathing
-    for (let k = 0; k < 5; k++) { const u = (t * 0.35 + k / 5) % 1, r = 3 + u * 9; actx.fillStyle = `rgba(60,56,64,${0.5 * (1 - u)})`; actx.fillRect(Math.round(fx + fu.w / 2 - r + Math.sin(u * 5 + k) * 4), Math.round(fy - u * 36), Math.round(r * 2), Math.round(r)); }
-    const bp = 0.5 + 0.5 * Math.sin(t * 2.4), bx = fx + fu.w + 2, by = fy + fu.h - 22;
-    actx.fillStyle = css(KO()[1]); actx.fillRect(bx, by + 6 - bp * 4, 22, 3 + bp * 8); actx.fillStyle = css(KO()[3]); actx.fillRect(bx, by + 6 - bp * 4, 22, 1);
-    actx.fillStyle = "#6a4a30"; actx.fillRect(bx + 2, by + 7 - bp * 4, 18, 1 + bp * 7); actx.fillStyle = css(KO()[0]); actx.fillRect(bx - 8, by + 9, 10, 2); actx.fillRect(bx + 22, by + 6, 8, 2);
-    if (g) { Level.glowAt(g, F.FURNACE.x - ox, F.FURNACE.y + 10 - oy, 150, "255,120,40", 0.5 + 0.1 * Math.sin(t * 7)); Level.glowAt(g, F.ANVIL.x - ox, F.ANVIL.y - 8 - oy, 40, "255,170,80", 0.25); }
-    // the weapons you have forged, hung on the wall
-    let wx = 3.4 * T;
-    for (const k of Gear.ORDER) { const E = Gear.ELEMENTS[k]; if (!Combat.unlocked.has(E.weapon)) continue; const w = Combat.weapons.find((q) => q.id === E.weapon); if (!w) continue; actx.fillStyle = css(O[0]); actx.fillRect(Math.round(wx - ox), Math.round(14 - oy), 30, 30); actx.drawImage(w.icon, Math.round(wx + 1 - ox), Math.round(15 - oy)); wx += 34; }
-    // the trough, steaming
-    const tx = Math.round(F.TROUGH.x - ox), ty = Math.round(F.TROUGH.y - oy);
-    actx.fillStyle = css(KO()[0]); actx.fillRect(tx - 22, ty - 10, 44, 14); actx.fillStyle = css(KO()[2]); actx.fillRect(tx - 21, ty - 9, 42, 1);
-    actx.fillStyle = "#1a4a6a"; actx.fillRect(tx - 19, ty - 7, 38, 8); actx.fillStyle = "#3a7aa0"; actx.fillRect(tx - 19 + ((t * 8) % 30 | 0), ty - 6, 6, 1);
+    // glowing coals heaped on the hearth, and flame tongues licking out over the arch
+    for (let k = 0; k < 26; k++) { const cxk = fx + fu.mx - 18 + ((k * 37) % 36), cyk = fy + fu.h - 10 - ((k * 13) % 5), hot = Math.sin(t * 3 + k * 1.7) > 0.2; actx.fillStyle = css(hot ? Fi[3] : Fi[1]); actx.fillRect(cxk, cyk, 2, 2); if (hot && k % 3 === 0) { actx.fillStyle = css(Fi[4]); actx.fillRect(cxk, cyk, 1, 1); } }
+    for (let k = 0; k < 4; k++) { const ph = (t * 1.3 + k * 0.27) % 1, lx = fx + fu.mx + Math.sin(k * 2.1 + t) * 10, ly = fy + fu.my - fu.mr + 2 - ph * 14; actx.fillStyle = `rgba(255,${180 - ph * 120 | 0},60,${(1 - ph) * 0.8})`; actx.fillRect(Math.round(lx), Math.round(ly), 2, 3); }
+    // smoke rolling up the chimney
+    for (let k = 0; k < 6; k++) { const u = (t * 0.3 + k / 6) % 1, r = 3 + u * 9; actx.fillStyle = `rgba(56,52,64,${0.45 * (1 - u)})`; actx.fillRect(Math.round(fx + fu.w / 2 - r + Math.sin(u * 5 + k) * 3), Math.round(fy - u * 30), Math.round(r * 2), Math.round(r)); }
+    // ---- the bellows: two koa boards and a red leather bag between, breathing into the fire
+    { const pump = 0.5 + 0.5 * Math.sin(t * (F.work > 0 ? 4.4 : 2.2)), bx = fx + fu.w - 6, by = fy + fu.h - 46, len = 38, open = 3 + pump * 9;
+      const KO = R.koa, KP = R.kapa;
+      actx.fillStyle = css(KO[0]); actx.fillRect(bx - 1, by + 18 - 1, len + 2, 5); actx.fillStyle = css(KO[3]); actx.fillRect(bx, by + 18, len, 3); actx.fillStyle = css(KO[4]); actx.fillRect(bx, by + 18, len, 1);
+      for (let x = 0; x < len - 6; x++) { const hgt = open * (1 - x / (len * 1.2)), fold = Math.floor(x / 4) % 2; for (let y = 0; y < hgt; y++) { actx.fillStyle = css(y < 1 ? KP[0] : fold ? KP[1] : KP[2]); actx.fillRect(bx + 3 + x, Math.round(by + 18 - y), 1, 1); } }
+      const topY = Math.round(by + 18 - open - 3); actx.fillStyle = css(KO[0]); actx.fillRect(bx - 1, topY - 1, len + 2, 5); actx.fillStyle = css(KO[3]); actx.fillRect(bx, topY, len, 3); actx.fillStyle = css(KO[5]); actx.fillRect(bx, topY, len, 1);
+      actx.fillStyle = css(KO[2]); actx.fillRect(bx + len, topY - 4, 3, 8);                                     // the handle
+      actx.fillStyle = css(R.steel[1]); actx.fillRect(bx - 8, by + 15, 9, 3); actx.fillStyle = css(R.steel[2]); actx.fillRect(bx - 8, by + 15, 9, 1);   // the nozzle
+      if (pump < 0.08 && !F.puffed) { F.puffed = true; for (let k = 0; k < 5; k++) F.sparks.push({ x: F.FURNACE.x + 20 + Math.random() * 8, y: F.FURNACE.y + 12, vx: -20 - Math.random() * 30, vy: -30 - Math.random() * 40, life: 0.6, g: 60 }); } else if (pump > 0.2) F.puffed = false;
+    }
+    // ---- the racks of forged weapons on the wall: the element weapons you've made hang in their places;
+    // the ones still to be made are only chalk outlines
+    let slot = 0;
+    for (const k of Gear.ORDER) {
+      const E = Gear.ELEMENTS[k], w = Combat.weapons.find((q) => q.id === E.weapon); if (!w || !w.icon) continue;
+      const rx = slot < 5 ? 26 + slot * 32 : 406 + (slot - 5) * 32, ry = 30, X = Math.round(rx - ox), Y = Math.round(ry - oy), have = Combat.unlocked.has(E.weapon);
+      actx.fillStyle = css(R.koa[1]); actx.fillRect(X + 12, Y - 2, 4, 3); actx.fillStyle = css(R.koa[4]); actx.fillRect(X + 13, Y - 2, 2, 1);
+      if (have) { actx.drawImage(w.icon, X, Y); if (g) Level.glowAt(g, X + 14, Y + 14, 16, E.glow, 0.12 + 0.05 * Math.sin(t * 2 + slot)); }
+      else { actx.globalAlpha = 0.22; actx.drawImage(chalkOf(w.icon), X, Y); actx.globalAlpha = 1; }
+      slot++;
+    }
+    // the plank shelf under each rack
+    for (const [x0, n] of [[22, 5], [402, 4]]) { const X = Math.round(x0 - ox), Y = Math.round(62 - oy); actx.fillStyle = css(R.koa[0]); actx.fillRect(X, Y, n * 32 + 4, 4); actx.fillStyle = css(R.koa[3]); actx.fillRect(X, Y, n * 32 + 4, 2); actx.fillStyle = css(R.koa[5]); actx.fillRect(X, Y, n * 32 + 4, 1); }
+    // ---- woven baskets of shards along the wall's foot: one for each element you hold, the shards glowing
+    { let bi = 0; const S = Gear.state();
+      for (const k of Gear.ORDER) {
+        const n = (S.shards && S.shards[k]) || 0, E = Gear.ELEMENTS[k]; if (!n) continue;
+        const bx = Math.round((C_BASKETS[bi] || 0) - ox), by = Math.round(F.FLOOR_TOP + 14 - oy), LHr = R.lauhala; bi++; if (bi > C_BASKETS.length) break;
+        // the shards heaped in it
+        const show = Math.min(5, n);
+        for (let s2 = 0; s2 < show; s2++) { const sx2 = bx - 5 + s2 * 2.4, sh = 4 + ((s2 * 7) % 3); actx.fillStyle = E.col; actx.fillRect(Math.round(sx2), by - 6 - sh, 2, sh + 1); actx.fillStyle = "#ffffff"; actx.fillRect(Math.round(sx2), by - 6 - sh, 1, 1); }
+        for (let y = 0; y < 8; y++) for (let x = -7; x <= 7; x++) { const w2 = 7 - y * 0.25; if (Math.abs(x) > w2) continue; actx.fillStyle = css(y === 0 ? LHr[4] : Math.abs(x) > w2 - 1 || y === 7 ? LHr[0] : ((x + 8 + (y >> 1)) & 1) ? LHr[2] : LHr[3]); actx.fillRect(bx + x, by - 7 + y, 1, 1); }
+        if (g) Level.glowAt(g, bx, by - 10, 16, E.glow, 0.32 + 0.1 * Math.sin(t * 2.3 + bi));
+      }
+    }
+    // ---- light: the furnace, its mouth pulsing, the coals
+    if (g) { Level.glowAt(g, F.FURNACE.x - ox, F.FURNACE.y + 16 - oy, 190, "255,120,40", 0.42 + 0.08 * Math.sin(t * 5.3) + (F.work > 0 ? 0.08 : 0)); Level.glowAt(g, F.FURNACE.x - ox, F.FURNACE.y + 20 - oy, 46, "255,200,110", 0.6); Level.glowAt(g, F.COAL.x - ox, F.COAL.y + 6 - oy, 30, "255,110,50", 0.12); }
+    // ---- the trough of quenching water, koa staves bound with cord
+    const tx = Math.round(F.TROUGH.x - ox), ty = Math.round(F.TROUGH.y - oy), WR = R.water;
+    actx.fillStyle = css(R.koa[0]); actx.fillRect(tx - 24, ty - 12, 48, 16); actx.fillStyle = css(R.koa[3]); actx.fillRect(tx - 23, ty - 11, 46, 2); actx.fillStyle = css(R.koa[2]); actx.fillRect(tx - 23, ty - 1, 46, 4);
+    for (let k = -22; k <= 22; k += 6) { actx.fillStyle = css(R.koa[1]); actx.fillRect(tx + k, ty - 1, 1, 4); }
+    for (let y = 0; y < 8; y++) for (let x = -21; x <= 21; x++) { const ph = Math.sin(x * 0.45 + t * 2.4 + y) + Math.sin(x * 0.2 - t * 1.3); actx.fillStyle = css(ph > 1.3 ? WR[4] : y < 2 ? WR[1] : ph > 0.4 ? WR[3] : WR[2]); actx.fillRect(tx + x, ty - 9 + y, 1, 1); }
+    // ---- the y-sorted things: the anvil, Kamaka, the armour stand, the grindstone
     const draws = [];
-    // the anvil on its stump
-    draws.push({ y: F.ANVIL.y, f: (c) => { const ax = Math.round(F.ANVIL.x - ox), ay = Math.round(F.ANVIL.y - oy); c.fillStyle = css(KO()[1]); c.fillRect(ax - 7, ay - 8, 14, 9); c.fillStyle = css(KO()[3]); c.fillRect(ax - 7, ay - 8, 14, 1); c.fillStyle = "#1c1c24"; c.fillRect(ax - 11, ay - 15, 22, 7); c.fillRect(ax - 5, ay - 9, 10, 2); c.fillStyle = "#5a5a68"; c.fillRect(ax - 11, ay - 15, 22, 2); c.fillStyle = "#8a8a98"; c.fillRect(ax - 10, ay - 15, 16, 1); c.fillStyle = "#1c1c24"; c.fillRect(ax + 11, ay - 14, 5, 3); } });
-    // Kamaka at the anvil, his hammer rising and falling; sparks on each blow
-    const beat = (t * 1.4) % 1, strike = beat < 0.12;
-    if (strike && !F.struck) { F.struck = true; for (let k = 0; k < 14; k++) F.sparks.push({ x: F.ANVIL.x - 2, y: F.ANVIL.y - 15, vx: (Math.random() - 0.5) * 120, vy: -40 - Math.random() * 90, life: 0.5 + Math.random() * 0.3 }); window.Ambience && Ambience.sfx && Math.random() < 0.6 && Ambience.sfx("clack"); }
-    if (!strike) F.struck = false;
-    draws.push({ y: F.SMITH.y, f: (c) => {
-      const sx = Math.round(F.SMITH.x - ox), sy = Math.round(F.SMITH.y - oy);
-      c.drawImage(F.smith, sx - 12, sy - 31);
-      const a = strike ? 0.3 : -1.6 + Math.sin(beat * Math.PI) * 0.4, hx = sx - 6, hy = sy - 16;
-      for (let s = 0; s < 12; s++) { c.fillStyle = css(KO()[s % 2 ? 2 : 3]); c.fillRect(Math.round(hx + Math.cos(Math.PI + a) * s * 0.9), Math.round(hy + Math.sin(Math.PI + a) * s * 0.9), 1, 1); }
-      c.fillStyle = "#2a2a34"; c.fillRect(Math.round(hx + Math.cos(Math.PI + a) * 11) - 2, Math.round(hy + Math.sin(Math.PI + a) * 11) - 2, 5, 4);
+    draws.push({ y: F.ANVIL.y, f: (c) => {
+      const ax = Math.round(F.ANVIL.x - ox), ay = Math.round(F.ANVIL.y - oy), BK = R.bark, ST = R.steel;
+      // the stump: rings on its top, bark down its sides
+      for (let y = 0; y < 12; y++) for (let x = -10; x <= 10; x++) { if (Math.abs(x) > 10 - (y < 2 ? 1 : 0)) continue; c.fillStyle = css(y < 4 ? (Math.round(Math.hypot(x, (y - 2) * 3)) % 3 === 0 ? BK[2] : BK[4]) : Math.abs(x) > 8 ? BK[0] : (x + y * 3) % 5 === 0 ? BK[1] : x < -3 ? BK[3] : BK[2]); c.fillRect(ax + x, ay - 11 + y, 1, 1); }
+      // the anvil: a waisted iron block with a horn to the left
+      const top = ay - 19;
+      c.fillStyle = css(ST[0]); c.fillRect(ax - 9, top - 1, 19, 6); c.fillRect(ax - 4, top + 4, 9, 5); c.fillRect(ax - 7, top + 8, 15, 3); c.fillRect(ax - 15, top, 6, 3);
+      c.fillStyle = css(ST[1]); c.fillRect(ax - 8, top, 17, 4); c.fillRect(ax - 3, top + 4, 7, 4); c.fillRect(ax - 6, top + 8, 13, 2); c.fillRect(ax - 14, top + 1, 6, 1);
+      c.fillStyle = css(ST[2]); c.fillRect(ax - 8, top, 17, 1); c.fillRect(ax - 14, top + 1, 2, 1);
+      // the workpiece, glowing
+      const hot = F.work > 0 ? 1 : 0.55 + 0.25 * Math.sin(t * 1.7), col = F.work > 0 && F.workCol ? F.workCol : css(Fi[hot > 0.7 ? 4 : 3]);
+      c.fillStyle = col; c.fillRect(ax - 4, top - 2, 9, 2); c.fillStyle = css(Fi[4]); c.fillRect(ax - 2, top - 2, 3, 1);
+      if (g) Level.glowAt(g, ax, top - 2, 26, F.work > 0 && F.workCol ? hexRgb(F.workCol) : "255,170,80", 0.25 + hot * 0.25);
     } });
+    // Kamaka: hammering at the anvil (faster while he works for you), pausing to look up when you come near
+    const near = Math.hypot(F.SMITH.x - (F.lastPx || 0), F.SMITH.y - py) < 0, fast = F.work > 0, rate = fast ? 2.6 : 1.05;
+    F.beat = (F.beat || 0) + dt * rate; const beat = F.beat % 1;
+    let arm, effort = 0;
+    if (beat < 0.55) { const u = beat / 0.55; arm = 3.0 + Math.sin(u * Math.PI / 2) * 1.45; }          // the hammer rising up over his shoulder
+    else if (beat < 0.64) { const u = (beat - 0.55) / 0.09; arm = 4.45 - u * u * 1.45; effort = 1; }   // and coming down on the work
+    else { arm = 3.0 + Math.sin((beat - 0.64) * 30) * 0.03 * (1 - beat); effort = beat < 0.72 ? 1 : 0; }
+    const strike = beat >= 0.63 && beat < 0.7;
+    if (strike && !F.struck) {
+      F.struck = true; const col = fast && F.workCol ? F.workCol : null;
+      for (let k = 0; k < (fast ? 26 : 14); k++) F.sparks.push({ x: F.ANVIL.x - 1, y: F.ANVIL.y - 21, vx: (Math.random() - 0.5) * 150, vy: -50 - Math.random() * 100, life: 0.45 + Math.random() * 0.35, col });
+      window.Ambience && Ambience.sfx && Ambience.sfx("clank");
+    }
+    if (!strike) F.struck = false;
+    if (fast && F.work < 0.1 && !F.quenched) { F.quenched = true; F.quench = 1; window.Ambience && Ambience.sfx && Ambience.sfx("steam"); } else if (F.work > 0.5) F.quenched = false;
+    if (F.quench > 0) F.quench -= dt * 0.8;
+    void near;
+    draws.push({ y: F.SMITH.y, f: (c) => { F.drawKamaka(c, Math.round(F.SMITH.x - ox), Math.round(F.SMITH.y - oy), { arm, bend: -0.45 + Math.max(0, arm - 3.4) * 0.9, breath: Math.sin(t * 1.8), effort }); } });
     // the armour stand, wearing what you wear
     draws.push({ y: F.STAND.y, f: (c) => {
-      const sx = Math.round(F.STAND.x - ox), sy = Math.round(F.STAND.y - oy), a = Gear.worn();
-      c.fillStyle = css(KO()[1]); c.fillRect(sx - 1, sy - 28, 3, 28); c.fillRect(sx - 7, sy - 1, 15, 2);
+      const sx = Math.round(F.STAND.x - ox), sy = Math.round(F.STAND.y - oy), a = Gear.worn(), KO = R.koa;
+      c.fillStyle = css(KO[0]); c.fillRect(sx - 2, sy - 30, 5, 30); c.fillRect(sx - 9, sy - 2, 19, 3); c.fillStyle = css(KO[3]); c.fillRect(sx - 1, sy - 30, 2, 29); c.fillRect(sx - 8, sy - 2, 17, 1);
+      c.fillStyle = css(KO[0]); c.fillRect(sx - 11, sy - 27, 23, 3); c.fillStyle = css(KO[4]); c.fillRect(sx - 10, sy - 27, 21, 1);
       const v = a ? a.pal.v : [60, 50, 50], V = a ? a.pal.V : [40, 34, 34], l = a ? a.pal.l : [80, 70, 70];
-      c.fillStyle = PAL.css(V); c.fillRect(sx - 7, sy - 26, 15, 13); c.fillStyle = PAL.css(v); c.fillRect(sx - 6, sy - 25, 13, 11); c.fillStyle = PAL.css(l); c.fillRect(sx - 6, sy - 25, 4, 11);
-      c.fillStyle = css(KO()[3]); c.fillRect(sx - 3, sy - 31, 7, 5);
+      c.fillStyle = PAL.css([V[0] * 0.6, V[1] * 0.6, V[2] * 0.6]); c.fillRect(sx - 9, sy - 26, 19, 16); c.fillStyle = PAL.css(V); c.fillRect(sx - 8, sy - 25, 17, 14); c.fillStyle = PAL.css(v); c.fillRect(sx - 7, sy - 25, 14, 12); c.fillStyle = PAL.css(l); c.fillRect(sx - 7, sy - 25, 4, 12);
+      c.fillStyle = css(KO[3]); c.fillRect(sx - 3, sy - 33, 7, 6); c.fillStyle = css(KO[5]); c.fillRect(sx - 3, sy - 33, 3, 2);
     } });
-    for (const d of draws.sort((p, q) => p.y - q.y)) d.f(d.y < py ? actx : bctx);
-    // sparks and steam
-    const dt = 1 / 60;
-    for (const s of F.sparks) { s.vy += 260 * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt; bctx.fillStyle = s.life > 0.3 ? "#fff4b8" : "#ff9a3a"; bctx.fillRect(Math.round(s.x - ox), Math.round(s.y - oy), 1, 1); if (g) Level.glowAt(g, s.x - ox, s.y - oy, 5, "255,180,80", 0.6); }
-    F.sparks = F.sparks.filter((s) => s.life > 0 && s.y < F.ANVIL.y + 6);
-    for (let k = 0; k < 4; k++) { const u = (t * 0.4 + k / 4) % 1; bctx.fillStyle = `rgba(230,236,240,${0.45 * (1 - u)})`; bctx.fillRect(Math.round(tx - 12 + k * 7 + Math.sin(u * 6 + k) * 3), Math.round(ty - 10 - u * 26), 4 + u * 6, 3 + u * 3); }
-    // the room's warm dark
-    const gr = actx.createRadialGradient(F.FURNACE.x - ox, F.FURNACE.y + 40 - oy, 40, F.FURNACE.x - ox, F.FURNACE.y + 40 - oy, W * 0.75);
-    gr.addColorStop(0, "rgba(255,120,40,0.06)"); gr.addColorStop(1, "rgba(10,4,4,0.5)");
+    // the grindstone: a stone wheel turning slowly in its koa frame, a trough of water beneath
+    draws.push({ y: F.GRIND.y, f: (c) => {
+      const gx = Math.round(F.GRIND.x - ox), gy = Math.round(F.GRIND.y - oy), SR = R.stone, KO = R.koa, a0 = t * 1.4;
+      c.fillStyle = css(KO[0]); c.fillRect(gx - 15, gy - 6, 31, 7); c.fillStyle = css(KO[3]); c.fillRect(gx - 14, gy - 5, 29, 2);
+      c.fillStyle = css(R.water[2]); c.fillRect(gx - 9, gy - 4, 19, 2);
+      for (let y = -11; y <= 11; y++) for (let x = -4; x <= 4; x++) { const rr = Math.hypot(x * 2.6, y); if (rr > 11.5) continue; const ang = Math.atan2(y, x * 2.6) + a0, mark = Math.cos(ang * 6) > 0.85 && rr > 5; c.fillStyle = css(rr > 10.5 ? SR[1] : mark ? SR[2] : x < 0 ? SR[4] : SR[3]); c.fillRect(gx + x, gy - 16 + y, 1, 1); }
+      c.fillStyle = css(KO[1]); c.fillRect(gx - 12, gy - 18, 2, 14); c.fillRect(gx + 11, gy - 18, 2, 14); c.fillRect(gx - 12, gy - 17, 25, 2); c.fillStyle = css(KO[4]); c.fillRect(gx - 12, gy - 17, 25, 1);
+    } });
+    for (const d of draws.sort((p2, q) => p2.y - q.y)) d.f(d.y < py ? actx : bctx);
+    // ---- sparks, steam from the trough after a quench, and the room's warm dark
+    for (const s of F.sparks) { s.vy += (s.g ?? 260) * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt; bctx.fillStyle = s.col ? (s.life > 0.3 ? "#ffffff" : s.col) : s.life > 0.3 ? css(Fi[4]) : css(Fi[3]); bctx.fillRect(Math.round(s.x - ox), Math.round(s.y - oy), 1, 1); if (g) Level.glowAt(g, s.x - ox, s.y - oy, 5, s.col ? hexRgb(s.col) : "255,170,60", 0.5); }
+    F.sparks = F.sparks.filter((s) => s.life > 0 && s.y < F.ANVIL.y + 10);
+    const steam = 4 + Math.round(F.quench * 10);
+    for (let k = 0; k < steam; k++) { const u = (t * (0.4 + F.quench * 0.6) + k / steam) % 1; bctx.fillStyle = `rgba(230,236,240,${(0.35 + F.quench * 0.4) * (1 - u)})`; bctx.fillRect(Math.round(tx - 16 + ((k * 9) % 32) + Math.sin(u * 6 + k) * 3), Math.round(ty - 11 - u * (26 + F.quench * 20)), Math.round(4 + u * 6), Math.round(3 + u * 3)); }
+    const gr = actx.createRadialGradient(F.FURNACE.x - ox, F.FURNACE.y + 50 - oy, 50, F.FURNACE.x - ox, F.FURNACE.y + 50 - oy, W * 0.72);
+    gr.addColorStop(0, "rgba(255,120,40,0.05)"); gr.addColorStop(1, "rgba(12,4,6,0.52)");
     bctx.fillStyle = gr; bctx.fillRect(0, 0, LW, LH);
   };
+  // where the shard baskets stand along the wall, right of the bellows
+  const C_BASKETS = [400, 416, 432, 448, 464, 480, 496, 512, 528];
+  const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`; };
 
   // ---------------------------------------------------------------- on the island
   // The building: obsidian block walls, a roof of charred thatch, a stone chimney breathing smoke and
