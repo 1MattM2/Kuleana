@@ -886,7 +886,7 @@
       case "gate": {
         const key = p.big ? "big" : "small", G = gateArt[key] || (gateArt[key] = Ruins.gate(!!p.big)), big = !!p.big;
         o.draw = (ctx, ox, oy, t, g) => {
-          const X = Math.round(x - G.W / 2 - ox), Y = Math.round(y - G.H - oy + 8), open = big ? L.portalOpen : true;
+          const X = Math.round(x - G.W / 2 - ox), Y = Math.round(y - G.H - oy + 8), open = big ? L.portalOpen : !Level.gateShut(L, x, y);
           ctx.drawImage(G.art, X, Y);
           ctx.drawImage(G.disc.draw(t, open), X + Math.round(G.cx - G.Rr), Y + Math.round(G.cy - G.Rr));
           if (g) {
@@ -1129,7 +1129,7 @@
       if (a.state === "active" && a.live.filter((e) => !e.dead).length === 0 && t > a.next) {
         a.wave++;
         if (a.wave >= a.waves.length) {
-          finishArena(a, L, t, api);
+          Level.heroes = heroes; finishArena(a, L, t, api);
           rewards(heroes, P0, L, t);
         } else {
           a.live = coopRoster(withCover(a.waves[a.wave]), L).map((s) => { const [sx2, sy2] = arenaSpot(a, L, s.e, s.x, s.y, heroes), e = Enemies.spawn(s.e, sx2, sy2, s.tribe || 0, L); e.enter = s.enter || "leap"; e.introT = 0.9; e.alerted = true; L.enemies.push(e); return e; }).filter(Boolean);
@@ -1141,10 +1141,10 @@
     for (const b of L.pickups) {
       if (b.vy !== undefined) { b.vy += 220 * dt; b.y += b.vy * dt; if (b.vy > 0 && t - b.t0 > 0.3) { delete b.vy; onGround(b); } }
       // picked up from a generous reach, and drawn the last few pixels toward the hero
-      for (const q of heroes) { const dd = Math.hypot(q.x - b.x, q.y - 8 - b.y); if (!b.got && !q.dead && dd < 40 && dd > 1 && b.vy === undefined) { const k = Math.min(1, dt * 6); b.x += (q.x - b.x) * k; b.y += (q.y - 8 - b.y) * k; } }
-      for (const q of heroes) if (!b.got && !q.dead && Math.hypot(q.x - b.x, q.y - 8 - b.y) < 26) { b.got = true; if (b.el) api.shard(b.el, q); else if (b.shell) api.shell(b.shell, q); else { api.heal(2, q); api.sfx("berry"); } }
+      for (const q of heroes) { const dd = Math.hypot(q.x - b.x, q.y - 8 - b.y); if (!b.got && !b.reward && !q.dead && dd < 40 && dd > 1 && b.vy === undefined) { const k = Math.min(1, dt * 6); b.x += (q.x - b.x) * k; b.y += (q.y - 8 - b.y) * k; } }
+      for (const q of heroes) if (!b.got && !q.dead && (!b.reward || (b.vy === undefined && t - b.t0 > 1)) && Math.hypot(q.x - b.x, q.y - 8 - b.y) < 26) { b.got = true; if (b.reward) { Level.onReward && Level.onReward(b.reward); api.sfx("pickup"); } else if (b.el) api.shard(b.el, q); else if (b.shell) api.shell(b.shell, q); else { api.heal(2, q); api.sfx("berry"); } }
     }
-    L.pickups = L.pickups.filter((b) => !b.got && (b.beach || t - b.t0 < (b.el || b.shell ? 90 : 40)));
+    L.pickups = L.pickups.filter((b) => !b.got && (b.beach || b.reward || t - b.t0 < (b.el || b.shell ? 90 : 40)));
   };
   function rewards(heroes, P0, L, t) {
     const Pc = heroes.find((q) => !q.dead) || P0, nb = 3 + 2 * (heroes.length - 1);
@@ -1158,8 +1158,26 @@
     if (a.unlocks || a.final) { Level.cleared.add(L.name); if (Level.onUnlock) Level.onUnlock(); }
     if (a.unlocks && !Level.unlocked.has(a.unlocks)) { Level.unlock(a.unlocks); L.banner = { title: "THE WAY IS OPEN", sub: "A new land glows on Kahu Lā's globe", t0: t }; }
     if (a.final) L.banner = { title: a.zoneDone || "ZONE 1 CLEARED", sub: a.zoneSub || "The Volcanic Highlands are at peace", t0: t };
-    if (a.reward && Level.onReward) Level.onReward(a.reward);
+    // the land's reward (a weapon, armour, or a captive to free) appears where the fight ended, to be taken
+    if (a.reward && !Level.rewardOwned(a.reward)) { const q = (Level.heroes && Level.heroes.find((h) => !h.dead)) || { x: (a.rect[0] + a.rect[2]) / 2 * T, y: (a.rect[1] + a.rect[3]) / 2 * T }, cx = (a.rect[0] + a.rect[2] + 1) / 2 * T, cy = (a.rect[1] + a.rect[3] + 1) / 2 * T, ang = Math.atan2(cy - q.y, cx - q.x) || -Math.PI / 2; L.pickups.push({ reward: a.reward, x: q.x + Math.cos(ang) * 56, y: q.y + Math.sin(ang) * 40, t0: t, vy: -70 }); L.banner = { title: a.final ? L.banner.title : "THE FIGHT IS WON", sub: "Take your reward, and the way opens", t0: t }; }
   }
+  Level.rewardOwned = (r) => r.startsWith("armor:") ? Gear.hasArmor(r.slice(6)) : r.startsWith("rescue:") ? Gear.rescued(r.slice(7)) : Combat.unlocked.has(r);
+  // A land is finished when its key fights are won (the boss, the one that opens the next land, any with a
+  // reward), its reward has been taken and any shrine gift collected. Until then its far portal stays shut.
+  Level.complete = (L) => {
+    if (!L || !L.arenas) return true;
+    if (L.arenas.some((a) => (a.final || a.unlocks || a.reward) && a.state !== "done")) return false;
+    if (L.pickups.some((b) => b.reward && !b.got)) return false;
+    const sh = L.def.shrine; if (sh && !L.shrineTaken && !Combat.unlocked.has(sh.unlock)) return false;
+    return true;
+  };
+  // the way out: the land's gate furthest from where you arrive
+  Level.isExitGate = (L, gx, gy) => {
+    const gs = L.def.gates || []; if (!gs.length) return false;
+    const sp = L.def.spawn || { x: 0, y: 0 }, far = gs.reduce((b, g) => (!b || Math.hypot(g.x - sp.x, g.y - sp.y) > Math.hypot(b.x - sp.x, b.y - sp.y) ? g : b), null);
+    return Math.hypot(gx / T - far.x, gy / T - far.y) < 2.5;
+  };
+  Level.gateShut = (L, gx, gy) => Level.isExitGate(L, gx, gy) && !Level.complete(L);
   // a stampede: herds of geckos thunder across the arena from every side while smaller waves press
   // in. Hold out until the dust settles.
   // Where a wave's creature actually comes in: always inside the sealed arena, on ground that suits it
@@ -1225,7 +1243,7 @@
       for (const e of L.enemies) if (!e.dead && (e.type === "runner" || a.live.includes(e))) { e.dead = true; e.gone = true; if (!a.frenzy) Enemies.death(e); }
       if (a.frenzy && window.Sea) Sea.frenzyEnd(L);
       a.live = []; L.timer = 0;
-      finishArena(a, L, t, api); rewards(heroes, heroes[0], L, t);
+      Level.heroes = heroes; finishArena(a, L, t, api); rewards(heroes, heroes[0], L, t);
     }
   }
   // ------------------------------------------------------------------ zones and progress
@@ -1328,9 +1346,23 @@
     if (L.water) { Level.camHint = { x: ox + LW / 2, y: oy + LH / 2 }; Water.render(ctx, ox, oy, LW, LH, t, L.water); Sea.drawUnder(ctx, L, ox, oy, LW, LH, t); Sea.drawFish(ctx, L, ox, oy, LW, LH, t); Sea.drawCrabs(ctx, L, ox, oy, LW, LH); }
     eachBridge(ox, oy, LW, LH, (v, X, Y, tx, ty) => { const tm = L.tm, a = v === BH ? tm.at(tx, ty - 1) !== v : tm.at(tx - 1, ty) !== v, b = v === BH ? tm.at(tx, ty + 1) !== v : tm.at(tx + 1, ty) !== v; ctx.drawImage(bridgeTile(v, (tx * 7 + ty * 3) % 3, a, b), X, Y); });
     for (const v of L.vines) if (v.x > ox - 10 && v.x < ox + LW + 10 && v.y > oy - 60 && v.y < oy + LH + 10) Ruins.drawVine(ctx, v.x - ox, v.y - oy, v.len, t, v.ph);
-    for (const b of L.pickups) { const bob = b.vy === undefined ? Math.round(Math.sin(t * 3 + b.x) * 1.5) : 0; if (b.el) drawShard(ctx, b, b.x - ox, b.y - oy + bob, t); else if (b.shell) { ctx.drawImage(Gear.shellArt(b.shell), Math.round(b.x - 8 - ox), Math.round(b.y - 12 - oy + bob)); if (Math.sin(t * 3 + b.x) > 0.85) { ctx.fillStyle = "#ffffff"; ctx.fillRect(Math.round(b.x + 3 - ox), Math.round(b.y - 11 - oy + bob), 1, 1); } } else ctx.drawImage(Ruins.berry, Math.round(b.x - 4 - ox), Math.round(b.y - 6 - oy + bob)); }
+    for (const b of L.pickups) if (b.reward) drawReward(ctx, b, b.x - ox, b.y - oy, t);
+    for (const b of L.pickups) { if (b.reward) continue; const bob = b.vy === undefined ? Math.round(Math.sin(t * 3 + b.x) * 1.5) : 0; if (b.el) drawShard(ctx, b, b.x - ox, b.y - oy + bob, t); else if (b.shell) { ctx.drawImage(Gear.shellArt(b.shell), Math.round(b.x - 8 - ox), Math.round(b.y - 12 - oy + bob)); if (Math.sin(t * 3 + b.x) > 0.85) { ctx.fillStyle = "#ffffff"; ctx.fillRect(Math.round(b.x + 3 - ox), Math.round(b.y - 11 - oy + bob), 1, 1); } } else ctx.drawImage(Ruins.berry, Math.round(b.x - 4 - ox), Math.round(b.y - 6 - oy + bob)); }
   };
   // an elemental shard: a faceted crystal in its element's colour, turning and glinting
+  // a reward floating over the ground in a column of sunlight: the weapon itself, the armour on a little
+  // stand, or for a captive a carved key to their bonds
+  function drawReward(ctx, b, x, y, t) {
+    const X = Math.round(x), bob = b.vy === undefined ? Math.round(Math.sin(t * 2.4) * 2) : 0, Y = Math.round(y) - 12 + bob;
+    ctx.fillStyle = "rgba(255,230,150,0.18)"; ctx.fillRect(X - 9, Y - 40, 18, 52); ctx.fillStyle = "rgba(255,240,190,0.22)"; ctx.fillRect(X - 4, Y - 46, 8, 58);
+    ctx.fillStyle = "rgba(10,12,16,0.3)"; ctx.fillRect(X - 8, Math.round(y) + 2, 16, 3);
+    const r = b.reward;
+    if (r.startsWith("armor:")) { const A = Gear.ARMOR[r.slice(6)], v = A ? A.pal.v : [160, 120, 80], V = A ? A.pal.V : [110, 80, 50], l = A ? A.pal.l : [200, 160, 110], c = (q) => `rgb(${q[0]},${q[1]},${q[2]})`;
+      ctx.fillStyle = "#2a1a14"; ctx.fillRect(X - 9, Y - 10, 18, 17); ctx.fillStyle = c(V); ctx.fillRect(X - 8, Y - 9, 16, 15); ctx.fillStyle = c(v); ctx.fillRect(X - 7, Y - 9, 13, 13); ctx.fillStyle = c(l); ctx.fillRect(X - 7, Y - 9, 4, 13); ctx.fillStyle = "#2a1a14"; ctx.fillRect(X - 2, Y - 9, 3, 4); }
+    else if (r.startsWith("rescue:")) { ctx.fillStyle = "#2a1a14"; ctx.fillRect(X - 3, Y - 13, 7, 22); ctx.fillStyle = "#ffd27a"; ctx.fillRect(X - 2, Y - 12, 5, 7); ctx.fillStyle = "#2a1a14"; ctx.fillRect(X - 1, Y - 10, 3, 3); ctx.fillStyle = "#e8b04a"; ctx.fillRect(X - 1, Y - 5, 3, 12); ctx.fillRect(X + 2, Y + 2, 3, 2); ctx.fillRect(X + 2, Y + 5, 2, 2); }
+    else { const w = Combat.weapons.find((q) => q.id === r); if (w && w.icon) ctx.drawImage(w.icon, X - 14, Y - 16); }
+    if (Math.sin(t * 5) > 0.7) { ctx.fillStyle = "#ffffff"; ctx.fillRect(X + 6, Y - 14, 1, 1); }
+  }
   function drawShard(ctx, b, x, y, t) {
     const X = Math.round(x), Y = Math.round(y - 4);
     if (window.ItemArt) { ctx.fillStyle = "rgba(10,12,16,0.3)"; ctx.fillRect(X - 4, Math.round(y + 3), 9, 2); ctx.drawImage(ItemArt.shard(b.el, 16), X - 8, Y - 10); if (Math.sin(t * 5 + b.y) > 0.8) { ctx.fillStyle = "#ffffff"; ctx.fillRect(X + 4, Y - 9, 1, 1); } return; }
@@ -1397,7 +1429,8 @@
       g.fillStyle = gr; g.beginPath(); g.moveTo(x - nx * w * 0.35, y - ny * w * 0.35); g.lineTo(x + nx * w * 0.35, y + ny * w * 0.35); g.lineTo(x + dx * L2 + nx * w * 0.6, y + dy * L2 + ny * w * 0.6); g.lineTo(x + dx * L2 - nx * w * 0.6, y + dy * L2 - ny * w * 0.6); g.fill();
       for (let k = 0; k < 16; k++) { const u = ((k * 0.137 + t * 0.03) % 1), v = Math.sin(k * 7.1 + t * 0.4) * 0.45, px = x + dx * L2 * u + nx * w * v * (0.35 + u * 0.25), py = y + dy * L2 * u + ny * w * v * (0.35 + u * 0.25); g.fillStyle = `rgba(255,245,210,${0.55 * (1 - u)})`; g.fillRect(Math.round(px), Math.round(py), 1, 1); }
     }
-    for (const b of L.pickups) glowAt(g, b.x - ox, b.y - oy - 4, b.el ? 22 : 14, b.el ? Gear.ELEMENTS[b.el].glow : b.shell ? "255,240,210" : "255,120,110", b.el ? 0.6 : b.shell ? 0.25 : 0.45);
+    for (const b of L.pickups) if (b.reward) glowAt(g, b.x - ox, b.y - oy - 14, 46, "255,220,140", 0.55 + 0.15 * Math.sin(t * 2));
+    for (const b of L.pickups) if (!b.reward) glowAt(g, b.x - ox, b.y - oy - 4, b.el ? 22 : 14, b.el ? Gear.ELEMENTS[b.el].glow : b.shell ? "255,240,210" : "255,120,110", b.el ? 0.6 : b.shell ? 0.25 : 0.45);
     for (const m of L.air.motes) { const x = m.x - ox, y = m.y - oy; if (x < -10 || x > 490 || y < -10 || y > 280) continue; if (Math.sin(t * (m.ember ? 6 : 1.7) + m.ph) > (m.ember ? -0.4 : 0.1)) glowAt(g, x + (m.ember ? 0 : Math.sin(t * 0.4 * m.sp + m.ph) * 10), y, m.ember ? 6 : 5, m.ember ? "255,140,60" : "255,230,140", m.ember ? 0.5 : 0.35); }
     for (const [ex, ey] of L.embers) { if (ex < ox - 30 || ex > ox + 510 || ey < oy - 30 || ey > oy + 300) continue; glowAt(g, ex - ox, ey - oy, 18, "255,110,40", 0.16 + 0.1 * Math.sin(t * 1.3 + ex * 0.1)); }
   };

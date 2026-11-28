@@ -1143,8 +1143,8 @@
     for (const gte of L.def.gates || []) {
       const gx = gte.x * T, gy = gte.y * T; if (Math.hypot(player.x - gx, player.y - gy) >= 26) continue;
       // a gate that only opens once the land's guardian has fallen
-      const shut = gte.needs === "final" && !(L.arenas || []).some((a) => a.final && a.state === "done");
-      if (shut) { if (!L.gateWarnT || time - L.gateWarnT > 4) { L.gateWarnT = time; L.banner = { title: "THE WAY IS SEALED", sub: "Kai-Uila still rules these waters", t0: time }; } continue; }
+      const shut = Level.gateShut(L, gx, gy);
+      if (shut) { if (!L.gateWarnT || time - L.gateWarnT > 4) { L.gateWarnT = time; const pend = L.pickups.some((b) => b.reward && !b.got) || (L.def.shrine && !L.shrineTaken && !Combat.unlocked.has(L.def.shrine.unlock)); L.banner = { title: "THE WAY IS SEALED", sub: pend ? "Take your reward first" : "This land's fight isn't over", t0: time }; } continue; }
       prompt = { x: gx, y: gy - 60 }; if (pressedE) { Ambience.sfx && Ambience.sfx("portal"); goTo(gte.to); }
     }
     const sh = L.def.shrine;
