@@ -137,7 +137,7 @@ def clean_frame(box, OW, OH):
     dd = ((px_[:, None, :] - BRUTE_PAL[None, :, :]) ** 2 * np.array([3, 4, 2])).sum(2)
     out[op, :3] = BRUTE_PAL[dd.argmin(1)]
     # drop specks of fewer than 4 pixels, fill enclosed gaps
-    op = out[..., 3] > 0; seen = np.zeros_like(op)
+    op = out[..., 3] > 0; seen = np.zeros_like(op); comps_all = []
     for y in range(OH):
         for x in range(OW):
             if not op[y, x] or seen[y, x]: continue
@@ -147,7 +147,13 @@ def clean_frame(box, OW, OH):
                 for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                     yy, xx = cy + dy, cx + dx
                     if 0 <= yy < OH and 0 <= xx < OW and op[yy, xx] and not seen[yy, xx]: seen[yy, xx] = True; q.append((yy, xx)); comp.append((yy, xx))
-            if len(comp) < 4:
+            comps_all.append(comp)
+    # only the figure itself: anything not joined to his body (the concept's flying rubble, a stray chunk)
+    # is dropped, so nothing floats beside him; the game throws its own debris on a ground strike
+    if comps_all:
+        main = max(comps_all, key=len)
+        for comp in comps_all:
+            if comp is not main:
                 for (yy, xx) in comp: out[yy, xx] = 0
     op = out[..., 3] > 0; outside = np.zeros_like(op); q = deque()
     for y in range(OH):
@@ -171,30 +177,38 @@ def clean_frame(box, OW, OH):
 def brute_anim():
     src = np.array(Image.open(os.path.join(SRC, "Brute_concept_animation.webp")).convert("RGBA")).astype(np.int32)
     r, g, b = src[..., 0], src[..., 1], src[..., 2]
-    # the navy ground: only where it is connected to the open background (dark shading inside his body stays)
-    near = (b >= r) & (src[..., :3].max(2) < 80)
-    bgm = np.zeros_like(near); q = deque()
+    # the navy ground. The concept shades the brute with near-black navy too, so a loose "dark and bluish" key
+    # ate his torso shadow and wrists (that's what left hands floating). Instead: flood from the sheet's edges
+    # through the exact background navy and the faint grid-line blues only; his dark outline stops the fill.
+    # Large pockets of pure background enclosed between a limb and the body are cleared as well.
+    r, g, b = src[..., 0], src[..., 1], src[..., 2]
+    BGC = (r <= 10) & (g >= 5) & (g <= 16) & (b >= 18) & (b <= 34)
+    near = BGC | ((b >= 30) & (b - r >= 14) & (b - g >= 8) & (src[..., :3].max(2) < 110))
     H0, W0 = near.shape
-    for x in range(W0):
-        for y in (0, H0 - 1):
-            if near[y, x] and not bgm[y, x]: bgm[y, x] = True; q.append((y, x))
+    bgm = np.zeros_like(near); q = deque()
     for y in range(H0):
         for x in (0, W0 - 1):
             if near[y, x] and not bgm[y, x]: bgm[y, x] = True; q.append((y, x))
-    # (the grid lines split the sheet: seed from them too)
-    for gx in [int(i * 1376 / 6) for i in range(1, 6)]:
-        for y in range(H0):
-            for x in range(max(0, gx - 3), min(W0, gx + 3)):
-                if near[y, x] and not bgm[y, x]: bgm[y, x] = True; q.append((y, x))
-    for gy in (246, 512):
-        for x in range(W0):
-            for y in range(gy - 3, gy + 3):
-                if near[y, x] and not bgm[y, x]: bgm[y, x] = True; q.append((y, x))
+    for x in range(W0):
+        for y in (0, H0 - 1):
+            if near[y, x] and not bgm[y, x]: bgm[y, x] = True; q.append((y, x))
     while q:
         y, x = q.popleft()
         for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             yy, xx = y + dy, x + dx
             if 0 <= yy < H0 and 0 <= xx < W0 and near[yy, xx] and not bgm[yy, xx]: bgm[yy, xx] = True; q.append((yy, xx))
+    seen = bgm.copy()
+    for y0_ in range(H0):
+        for x0_ in range(W0):
+            if not BGC[y0_, x0_] or seen[y0_, x0_]: continue
+            comp = [(y0_, x0_)]; seen[y0_, x0_] = True; q = deque([(y0_, x0_)])
+            while q:
+                y, x = q.popleft()
+                for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    yy, xx = y + dy, x + dx
+                    if 0 <= yy < H0 and 0 <= xx < W0 and BGC[yy, xx] and not seen[yy, xx]: seen[yy, xx] = True; q.append((yy, xx)); comp.append((yy, xx))
+            if len(comp) > 260:
+                for (y, x) in comp: bgm[y, x] = True
     src[bgm, 3] = 0
     cw, rows = 1376 / 6, [(0, 244), (250, 510), (518, 768)]   # (clear of the grid lines between rows)
     BW, BH, OW, OH = 236, 266, 70, 79   # (room for raised fists and swung arms: nothing cut off)
