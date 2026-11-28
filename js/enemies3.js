@@ -354,7 +354,7 @@
   };
 
   // ================================================================== Tiki brute (the concept's carved giant)
-  ST.brute = { hp: 260, r: 14, mat: "wood", kb: 10, noStun: true, big: 10, barY: 66, colors: [css(R().koa[4]), css(R().koa[2]), css(R().palm[3])] };
+  ST.brute = { hp: 221, r: 14, mat: "wood", kb: 10, noStun: true, big: 10, barY: 66, colors: [css(R().koa[4]), css(R().koa[2]), css(R().palm[3])] };
   E.SETUP.brute = (e) => {
     e.hitSet = {}; e.cd = rnd(1, 2);
     // like the spearmen, he guards: stone fists raised before him turn blows from the front

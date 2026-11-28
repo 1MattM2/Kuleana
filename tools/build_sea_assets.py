@@ -107,8 +107,8 @@ def clean_frame(box, OW, OH):
         cols = bs[bs[..., 3] > 0][:, :3]
         BRUTE_PAL = np.unique(cols, axis=0)
     im = Image.fromarray(box.astype(np.uint8), "RGBA")
-    rgb = im.convert("RGB").filter(ImageFilter.MedianFilter(5))
-    al = im.getchannel("A").point(lambda v: 255 if v > 0 else 0).filter(ImageFilter.MaxFilter(5))
+    rgb = im.convert("RGB").filter(ImageFilter.MedianFilter(3))
+    al = im.getchannel("A").point(lambda v: 255 if v > 0 else 0).filter(ImageFilter.MaxFilter(3))
     # the colour under newly grown edge pixels: the nearest real pixel's
     src_rgb = np.array(rgb).astype(np.int32); a0 = np.array(im.getchannel("A")) > 0; a1 = np.array(al) > 0
     grow = a1 & ~a0
@@ -127,7 +127,9 @@ def clean_frame(box, OW, OH):
             m = a1[y0:y1, x0:x1]
             if m.mean() < 0.42: continue
             blk = src_rgb[y0:y1, x0:x1][m]
-            c = np.median(blk, axis=0)
+            # the block's most common colour (crisp, keeps the carving's contrast) rather than its median
+            q = (blk // 12) * 12; keys, cnt = np.unique(q, axis=0, return_counts=True); best = keys[cnt.argmax()]
+            c = blk[(np.abs(q - best).sum(1) == 0)].mean(0)
             out[y, x, :3] = c; out[y, x, 3] = 255
     # snap to the brute's palette (by brightness-weighted distance)
     op = out[..., 3] > 0
@@ -160,9 +162,10 @@ def clean_frame(box, OW, OH):
     DARK = BRUTE_PAL[((BRUTE_PAL).sum(1)).argmin()]
     out[filled, :3] = DARK; out[filled, 3] = 255
     # a uniform 1px outline in the sprite's darkest colour
+    # sel-out: the outermost pixels of the figure darkened to a deep tint of their own colour (no added ring)
     op = out[..., 3] > 0; pad_ = np.pad(op, 1)
-    edge = ~op & (pad_[:-2, 1:-1] | pad_[2:, 1:-1] | pad_[1:-1, :-2] | pad_[1:-1, 2:])
-    out[edge, :3] = DARK; out[edge, 3] = 255
+    rim = op & ~(pad_[:-2, 1:-1] & pad_[2:, 1:-1] & pad_[1:-1, :-2] & pad_[1:-1, 2:])
+    out[rim, :3] = (out[rim, :3] * 0.45 + DARK * 0.3).astype(np.int32)
     return out
 
 def brute_anim():
