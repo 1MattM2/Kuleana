@@ -59,7 +59,7 @@
       #menu .mn-table{width:100%;border-collapse:collapse}
       #menu .mn-dim{color:#a89880;font-size:13px}
       #menu .mn-beast{padding:5px 0;border-bottom:1px solid #2e2234;font-size:14px}
-      #menu .mn-bookwrap{max-height:52vh;overflow:auto}
+      #menu .mn-bookwrap{max-height:72vh;overflow:auto}
       #menu .mn-gear{display:flex;flex-direction:column;gap:5px;margin-top:6px}
       #menu .mn-armor{display:flex;align-items:center;gap:8px;text-align:left;background:#1a1220;border:1px solid #4a3a50;color:#f4e6c8;padding:6px 8px;font:inherit;cursor:pointer}
       #menu .mn-armor.on{border-color:#f2d070;background:#2a1e30}

@@ -227,8 +227,9 @@
   };
   Gear.renderBook = (el) => {
     if (!S.book) { el.innerHTML = '<p class="mn-dim">Makani sells a bestiary, the Moʻolelo of Beasts, for a Triton\'s trumpet and a Nicobar triton.</p>'; return; }
-    el.innerHTML = Object.entries(Gear.BEASTS).map(([k, [name, elx, desc]]) => { const n = S.kills[k] || 0, E = Gear.ELEMENTS[elx]; return n ? `<div class="mn-beast"><b>${name}</b> <span style="color:${E ? E.col : "#ccc"}">${E ? E.name : ""}</span> <span class="mn-dim">beaten ${n}</span><br><span class="mn-dim">${desc}</span></div>` : `<div class="mn-beast mn-dim">??? <span>not yet met</span></div>`; }).join("");
+    window.Bestiary.render(el);   // the list, and the chosen creature alive in its own ground (js/bestiary.js)
   };
+
 
   // ---------------------------------------------------------------- state
   const fresh = () => ({ shards: Object.fromEntries(Gear.ORDER.map((k) => [k, 0])), armors: [], worn: null, village: { built: [], rescued: [] }, shells: Object.fromEntries(Object.keys(Gear.SHELLS).map((k) => [k, 0])), charms: { heart: 0, whet: 0, luck: 0 }, items: {}, pick: null, book: false, kills: {}, pack: [], stock: [], beach: null, beachDue: false, clears: {}, dojo: 1, up: {}, armUp: {} });
