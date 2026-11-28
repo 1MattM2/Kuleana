@@ -256,10 +256,10 @@
 
   // ================================================================== Lau-Poʻo, the Many-Headed
   function addHead(e, k, n) {
-    const phi = -Math.PI / 2 + ((k - (n - 1) / 2) * 0.62), h = { ax: Math.cos(phi) * 15, ay: Math.sin(phi) * 6 - 18, phi, x: e.x + Math.cos(phi) * 30, y: e.y - 44, state: "sway", st: rnd(0, 1), next: rnd(0.4, 1.2), aim: 0, reach: 0, ph: Math.random() * 6, hitSet: {}, grow: 0 };
+    const phi = -Math.PI / 2 + ((k - (n - 1) / 2) * 0.62), h = { ax: Math.cos(phi) * 7, ay: Math.sin(phi) * 3 - 30, phi, x: e.x + Math.cos(phi) * 30, y: e.y - 44, state: "sway", st: rnd(0, 1), next: rnd(0.4, 1.2), aim: 0, reach: 0, ph: Math.random() * 6, hitSet: {}, grow: 0 };
     e.heads.push(h); return h;
   }
-  function layoutHeads(e) { const n = e.heads.length; e.heads.forEach((h, k) => { h.phi = -Math.PI / 2 + (k - (n - 1) / 2) * (n > 3 ? 0.5 : 0.62); h.ax = Math.cos(h.phi) * 16; h.ay = Math.sin(h.phi) * 6 - 18; }); }
+  function layoutHeads(e) { const n = e.heads.length; e.heads.forEach((h, k) => { h.phi = -Math.PI / 2 + (k - (n - 1) / 2) * (n > 3 ? 0.5 : 0.62); h.ax = Math.cos(h.phi) * 7; h.ay = Math.sin(h.phi) * 3 - 30; }); }
   E.SETUP.hydra = (e) => { e.heads = []; for (let k = 0; k < 3; k++) addHead(e, k, 3); e.S = Surface(300, 240); e.grown = 3; };
   AI.hydra = function (e, dt, t, P, L, api, d) {
     if (!e.announced && e.alerted) { e.announced = true; L.banner = { title: e.name, t0: t }; sfx(api, "vineBurst"); }
@@ -338,13 +338,53 @@
       if (open > 0.3 && u > 0 && u < 11 && Math.abs(v) < gap * 0.5 + 0.8) put(x, y, HIB[u < 4 ? 0 : 1]);
     }
   }
+  // Lau-Poʻo as a giant plant: gnarled roots gripping the ground, a fat ribbed stalk that breathes,
+  // a crown of sun petals where the vine necks spring out, and huge split monstera leaves fanned around
+  // its foot (the far ones behind the stalk, the near ones in front), with a few blooms among them.
+  const HY_LEAVES = [[-2.75, 40, 15], [-2.05, 34, 13], [-1.15, 30, 12], [-0.35, 40, 15], [0.45, 42, 16], [1.2, 30, 12], [2.0, 40, 15], [2.7, 36, 14]];
+  const HY_ROOTS = [-2.9, -2.2, -0.9, -0.2, 0.6, 1.4, 2.3, 3.0];
   E.DRAW.hydra = function (e, ctx, ox, oy, t, g, introY, fl) {
-    const S = e.S, W = S.w, H = S.h, cx = W / 2, cy = 170, FERN = P8("fern"), PALM = P8("palm"), SUN = P8("sun"), HIB = P8("hibiscus"), CREAM = PAL.pk(R().kapa[3]);
+    const S = e.S, W = S.w, H = S.h, cx = W / 2, cy = 170, FERN = P8("fern"), PALM = P8("palm"), SUN = P8("sun"), HIB = P8("hibiscus"), KO = P8("koa"), CREAM = PAL.pk(R().kapa[3]);
     begin(S);
     const put = (x, y, c) => { x |= 0; y |= 0; if (x >= 0 && y >= 0 && x < W && y < H) { S.d[y * W + x] = fl ? WHITE : c; mark(S, x, y); } };
-    const lx = (wx) => wx - e.x + cx, ly = (wy) => wy - e.y + cy + introY;
-    ctx.fillStyle = "rgba(10,12,16,0.35)"; ctx.beginPath(); ctx.ellipse(Math.round(e.x - ox), Math.round(e.y - oy), 34, 8, 0, 0, TAU); ctx.fill();
-    // necks behind the mound first: thick stems arching up from the leaves to each head
+    const lx = (wx) => wx - e.x + cx, ly = (wy) => wy - e.y + cy + introY, gy = cy + introY;
+    ctx.fillStyle = "rgba(10,12,16,0.35)"; ctx.beginPath(); ctx.ellipse(Math.round(e.x - ox), Math.round(e.y - oy), 50, 11, 0, 0, TAU); ctx.fill();
+    const quiver = e.state === "windSurge" ? Math.sin(t * 40) * 0.05 : 0, breathe = 1 + Math.sin(t * 2.1 + e.ph) * 0.035;
+    // one great split leaf lying out from the stalk's foot, arching up and drooping at its tip
+    const leaf = (a0, len, wid, k) => {
+      const a = a0 + Math.sin(t * 1.2 + k * 1.7) * 0.05 + (K.W ? K.W.x * 0.04 : 0) + quiver;
+      const dx = Math.cos(a), dy = Math.sin(a) * 0.55, nx = -Math.sin(a), ny = Math.cos(a) * 0.55, bx = cx + dx * 9, by = gy - 5 + Math.sin(a) * 4;
+      for (let u = 0; u < len; u += 0.5) {
+        const f = u / len, w = wid * Math.pow(Math.sin(Math.PI * Math.min(0.999, (u + 3) / (len + 3))), 0.75) * (f < 0.12 ? 0.35 + (f / 0.12) * 0.65 : 1), lift = Math.sin(f * Math.PI) * 7 - f * f * 3;
+        for (let v = -w; v <= w; v += 0.5) {
+          const fv = Math.abs(v) / w;
+          if (f > 0.22 && fv > 0.68 && ((u * 0.21 + (v < 0 ? 0.5 : 0)) % 1) < 0.13) continue;                       // the splits along the edge
+          if (f > 0.3 && f < 0.86 && fv > 0.36 && fv < 0.56 && ((u * 0.21 + 0.25 + (v < 0 ? 0.5 : 0)) % 1) < 0.1) continue;   // the holes inside
+          const lit = (v < 0 ? 0.35 : -0.1) + (1 - fv) * 0.3 - f * 0.15;
+          let c = fv < 0.07 ? PALM[2] : fv > 0.9 ? PALM[1] : ((u - fv * w * 0.9) * 0.42 % 1 + 1) % 1 < 0.12 ? PALM[3] : lit > 0.42 ? PALM[5] : lit > 0.12 ? PALM[4] : PALM[3];
+          put(bx + dx * u + nx * v, by + dy * u + ny * v - lift, c);
+        }
+      }
+      if (k === 3 || k === 6) { const u = len * 0.62, px = bx + dx * u, py = by + dy * u - Math.sin(0.62 * Math.PI) * 7; for (let q = 0; q < 5; q++) { const aa = q * 1.256 + t * 0.2; for (let r = 1; r < 3.5; r += 0.5) put(px + Math.cos(aa) * r, py + Math.sin(aa) * r * 0.7, r > 2.6 ? HIB[2] : HIB[3]); } put(px, py, SUN[5]); put(px + 1, py, SUN[4]); }
+    };
+    const back = HY_LEAVES.filter(([a]) => Math.sin(a) < 0.2), front = HY_LEAVES.filter(([a]) => Math.sin(a) >= 0.2);
+    back.forEach(([a, l, w]) => leaf(a, l, w, HY_LEAVES.findIndex((q) => q[0] === a)));
+    // gnarled roots clawing out over the ground
+    HY_ROOTS.forEach((a, k) => {
+      const rl = 30 + (k % 3) * 8, ex2 = Math.cos(a), ey2 = Math.sin(a) * 0.38;
+      for (let u = 0; u < rl; u += 0.5) { const f = u / rl, wob = Math.sin(u * 0.4 + k * 2) * 1.6, th = 3.4 * (1 - f) + 0.6, px = cx + ex2 * (7 + u) - ey2 * wob, py = gy - 2 + ey2 * (7 + u) + wob * 0.4; for (let o = -th; o <= th; o += 0.5) put(px, py + o * 0.6, o < -th * 0.4 ? KO[3] : o > th * 0.4 ? KO[1] : KO[2]); }
+    });
+    // the stalk: fat, ribbed, swelling as it breathes, lit from the left
+    const SH = 32, top = gy - SH;
+    for (let y = top; y < gy; y++) {
+      const sv = (gy - y) / SH, hw = (9 + 7 * Math.sin(sv * Math.PI * 0.85) - sv * 2.5) * breathe;
+      for (let x = Math.floor(cx - hw); x <= Math.ceil(cx + hw); x++) {
+        const d = (x + 0.5 - cx) / hw; if (Math.abs(d) > 1) continue;
+        const lit = -d * 0.8 + 0.22 - (1 - sv) * 0.12, rib = ((d * 2.6 + 10) % 1) < 0.14;
+        put(x, y, rib ? FERN[2] : Math.abs(d) > 0.9 ? FERN[1] : lit > 0.5 ? FERN[5] : lit > 0.12 ? FERN[4] : lit > -0.3 ? FERN[3] : FERN[2]);
+      }
+    }
+    // necks spring out of the crown to each head
     const order = e.heads.slice().sort((a, b) => a.y - b.y);
     for (const h of order) {
       const ax = lx(e.x + h.ax), ay = ly(e.y + h.ay), hx = lx(h.x), hy = ly(h.y), mx = (ax + hx) / 2 + Math.cos(h.phi) * 6, my = Math.min(ay, hy) - 18;
@@ -356,21 +396,16 @@
       const ha = Math.atan2(hy - q.y, hx - q.x), warn = h.state === "wind" || h.state === "windSpit" || h.state === "windSweep";
       drawHead(put, hx, hy, h.state === "lash" || h.state === "hold" ? h.aim : ha, h.state === "lash" || h.state === "hold" || h.state === "sweep" ? 1 : h.state === "spit" ? 0.8 : warn ? 0.45 : 0.12, warn ? 1 : 0.4, t, warn, FERN, SUN, HIB, CREAM);
     }
-    // the mound: a heap of broad leaves radiating from the crown, lit from the top-left, with sun flowers
-    const mcx = cx, mcy = cy - 12 + introY;
-    for (let y = mcy - 22; y < mcy + 16; y++) for (let x = mcx - 34; x < mcx + 34; x++) {
-      const dx = (x + 0.5 - mcx) / 32, dy = (y + 0.5 - mcy) / 18, rr = dx * dx + dy * dy, edge = 1 + (K.noise(Math.atan2(dy, dx) * 3 + 9, 1) - 0.5) * 0.5;
-      if (rr > edge) continue;
-      const ang = Math.atan2(dy, dx), leaf = Math.abs(((ang * 7 / Math.PI) % 1 + 1) % 1 - 0.5) * 2, rib = leaf < 0.12, lit = -dx * 0.5 - dy * 0.9 + (1 - leaf) * 0.25;
-      let c = rib ? PALM[2] : lit > 0.5 ? PALM[5] : lit > 0.1 ? PALM[4] : lit > -0.35 ? PALM[3] : PALM[2];
-      if (rr > edge - 0.12) c = PALM[1];
-      if (K.hash2((x / 5) | 0, (y / 4) | 0, 9) > 0.93 && rr < 0.6) c = K.hash2(x, y, 3) > 0.5 ? HIB[3] : SUN[5];
-      put(x, y, c);
+    // a crown of sun petals around the necks' roots
+    for (let k = 0; k < 14; k++) {
+      const a = (k / 14) * TAU + Math.sin(t * 1.5 + k) * 0.05, len = 6 + (k % 2) * 3;
+      for (let r = 5; r < 5 + len; r += 0.5) { const px = cx + Math.cos(a) * r * 1.2, py = top + 1 + Math.sin(a) * r * 0.45 - (r - 5) * 0.35; if (Math.sin(a) < -0.2 && r < 7) continue; put(px, py, r > 3 + len ? SUN[2] : Math.sin(a) < 0 ? SUN[4] : SUN[5]); }
     }
+    front.forEach(([a, l, w]) => leaf(a, l, w, HY_LEAVES.findIndex((q) => q[0] === a)));
     if (flush(S, true)) ctx.drawImage(S.c, Math.round(e.x - cx - ox), Math.round(e.y - cy - oy));
     for (const h of e.heads) if (h.state === "wind" || h.state === "windSpit" || h.state === "windSweep") telegraph(ctx, h.x - ox, h.y - oy - 16, t);
-    if (e.state === "windSurge") { telegraph(ctx, e.x - ox, e.y - oy - 36, t); }
-    glow(g, e.x - ox, e.y - oy - 20, 50, "200,255,150", 0.12);
+    if (e.state === "windSurge") { telegraph(ctx, e.x - ox, e.y - oy - 44, t); }
+    glow(g, e.x - ox, e.y - oy - 24, 56, "200,255,150", 0.12);
   };
   const stateCode = ["sway", "wind", "lash", "hold", "windSpit", "spit", "recover", "windSweep", "sweep"];
   E.NET.hydra = {
