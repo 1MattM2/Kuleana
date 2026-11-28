@@ -252,7 +252,10 @@
     drawFishInto(u2, L, ox, oy, LW, LH, t);
     // the water over it all: its own surface, at the same pixels, tinting what lies beneath
     const surf = Water.surface && Water.surface();
-    if (surf) { u2.globalCompositeOperation = "source-atop"; u2.globalAlpha = 0.4; u2.drawImage(surf, 0, 0); u2.globalAlpha = 1; u2.globalCompositeOperation = "source-over"; }
+    // first the depth: a cool blue wash over everything beneath, then the surface itself over that
+    u2.globalCompositeOperation = "source-atop"; u2.fillStyle = "rgba(18,96,140,0.42)"; u2.fillRect(0, 0, LW, LH);
+    if (surf) { u2.globalAlpha = 0.45; u2.drawImage(surf, 0, 0); u2.globalAlpha = 1; }
+    u2.globalCompositeOperation = "source-over";
     // refraction: the layer drawn in bands of rows, each nudged a pixel with a slow wave
     const B2 = 3;
     for (let y = 0; y < LH; y += B2) { const dx = Math.round(Math.sin(t * 1.7 + (oy + y) * 0.16) * 0.9 + Math.sin(t * 0.9 + (oy + y) * 0.05) * 0.4); ctx.drawImage(UC, 0, y, LW, B2, dx, y, LW, B2); }
