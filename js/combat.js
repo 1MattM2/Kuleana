@@ -239,10 +239,14 @@
   function at(t) { return C.clock + t; }
   function sfx(kind, delay) { if (!window.Ambience || !Ambience.sfx) return; if (delay) C.events.push({ t: at(delay), fn: () => Ambience.sfx(kind) }); else Ambience.sfx(kind); }
 
-  function hitArc(s, t, o) { if (C.boostR || C.boostD) o = Object.assign({}, o, { dmg: o.dmg * (C.boostD || 1), range: o.range && o.range * (C.boostR || 1), r: o.r && o.r * (C.boostR || 1), len: o.len && o.len * (C.boostR || 1), w: o.w && o.w * (C.boostR || 1) }); C.events.push({ t: at(t), fn: () => { const hx = C.p.x, hy = C.p.y - 10; for (const d of C.targets) { if (d.dead || d.untouchable) continue; const dx = d.x - hx, dy = (d.y - 12 - hy) / 0.8, dist = Math.hypot(dx, dy); let da = Math.atan2(dy, dx) - s.a; da = Math.atan2(Math.sin(da), Math.cos(da)); if (dist < o.range * 1.25 + 8 + (d.big || 0) && Math.abs(da) < o.span / 2 + 0.3 + (d.big ? Math.min(0.8, d.big / Math.max(dist, 1)) : 0)) damage(d, o, Math.atan2(dy, dx)); } } }); }
-  function hitLine(s, t, o) { if (C.boostR || C.boostD) o = Object.assign({}, o, { dmg: o.dmg * (C.boostD || 1), range: o.range && o.range * (C.boostR || 1), r: o.r && o.r * (C.boostR || 1), len: o.len && o.len * (C.boostR || 1), w: o.w && o.w * (C.boostR || 1) }); C.events.push({ t: at(t), fn: () => { const hx = C.p.x, hy = C.p.y - 10, ux = Math.cos(s.a), uy = Math.sin(s.a); for (const d of C.targets) { if (d.dead || d.untouchable) continue; const dx = d.x - hx, dy = d.y - 12 - hy, along = dx * ux + dy * uy, perp = Math.abs(-dx * uy + dy * ux); if (along > -8 - (d.big || 0) && along < o.len + 8 + (d.big || 0) && perp < o.w + 6 + (d.big || 0)) damage(d, o, s.a); } } }); }
-  function hitCircle(s, t, o) { if (C.boostR || C.boostD) o = Object.assign({}, o, { dmg: o.dmg * (C.boostD || 1), range: o.range && o.range * (C.boostR || 1), r: o.r && o.r * (C.boostR || 1), len: o.len && o.len * (C.boostR || 1), w: o.w && o.w * (C.boostR || 1) }); C.events.push({ t: at(t), fn: () => { let cx = C.p.x, cy = C.p.y - 10; if (o.at) { cx = o.at.x; cy = o.at.y; } else if (o.fwd) { cx += Math.cos(s.a) * o.fwd; cy += Math.sin(s.a) * o.fwd * 0.8; } for (const d of C.targets) { if (d.dead || d.untouchable) continue; if (Math.hypot(d.x - cx, (d.y - 12 - cy) / 0.85) < o.r + 8 + (d.big || 0)) damage(d, o, Math.atan2(d.y - cy, d.x - cx)); } } }); }
+  function hitArc(s, t, o) { if (C.boostR || C.boostD) o = Object.assign({}, o, { dmg: o.dmg * (C.boostD || 1), range: o.range && o.range * (C.boostR || 1), r: o.r && o.r * (C.boostR || 1), len: o.len && o.len * (C.boostR || 1), w: o.w && o.w * (C.boostR || 1) }); C.events.push({ t: at(t), fn: () => { const hx = C.p.x, hy = C.p.y - 10; for (const d of C.targets) { if (C.immune(d)) continue; const dx = d.x - hx, dy = (d.y - 12 - hy) / 0.8, dist = Math.hypot(dx, dy); let da = Math.atan2(dy, dx) - s.a; da = Math.atan2(Math.sin(da), Math.cos(da)); if (dist < o.range * 1.25 + 8 + (d.big || 0) && Math.abs(da) < o.span / 2 + 0.3 + (d.big ? Math.min(0.8, d.big / Math.max(dist, 1)) : 0)) damage(d, o, Math.atan2(dy, dx)); } } }); }
+  function hitLine(s, t, o) { if (C.boostR || C.boostD) o = Object.assign({}, o, { dmg: o.dmg * (C.boostD || 1), range: o.range && o.range * (C.boostR || 1), r: o.r && o.r * (C.boostR || 1), len: o.len && o.len * (C.boostR || 1), w: o.w && o.w * (C.boostR || 1) }); C.events.push({ t: at(t), fn: () => { const hx = C.p.x, hy = C.p.y - 10, ux = Math.cos(s.a), uy = Math.sin(s.a); for (const d of C.targets) { if (C.immune(d)) continue; const dx = d.x - hx, dy = d.y - 12 - hy, along = dx * ux + dy * uy, perp = Math.abs(-dx * uy + dy * ux); if (along > -8 - (d.big || 0) && along < o.len + 8 + (d.big || 0) && perp < o.w + 6 + (d.big || 0)) damage(d, o, s.a); } } }); }
+  function hitCircle(s, t, o) { if (C.boostR || C.boostD) o = Object.assign({}, o, { dmg: o.dmg * (C.boostD || 1), range: o.range && o.range * (C.boostR || 1), r: o.r && o.r * (C.boostR || 1), len: o.len && o.len * (C.boostR || 1), w: o.w && o.w * (C.boostR || 1) }); C.events.push({ t: at(t), fn: () => { let cx = C.p.x, cy = C.p.y - 10; if (o.at) { cx = o.at.x; cy = o.at.y; } else if (o.fwd) { cx += Math.cos(s.a) * o.fwd; cy += Math.sin(s.a) * o.fwd * 0.8; } for (const d of C.targets) { if (C.immune(d)) continue; if (Math.hypot(d.x - cx, (d.y - 12 - cy) / 0.85) < o.r + 8 + (d.big || 0)) damage(d, o, Math.atan2(d.y - cy, d.x - cx)); } } }); }
 
+  // what a blow can't touch: the dead, the hidden (burrowed, high in the air), and sea creatures unless
+  // the hero striking stands in the water (C.p is whoever is swinging, a partner's ghost included).
+  // A shark stranded on the beach can be struck by anyone.
+  C.immune = (d) => d.dead || d.untouchable || (d.aquatic && !d.stranded && !(window.Level && Level.waterAt && C.p && Level.waterAt(C.p.x, C.p.y)));
   // Co-op: a move can be played for a partner's hero (a "ghost" replay). Everything it schedules or
   // spawns is bound to that hero, so its effects follow them and its hits come from where they stand.
   let REAL = true;
@@ -255,7 +259,7 @@
   }
   // a talisman's blast: every foe within r of (x, y) takes the hit (actor = whose blast it is)
   C.blast = function (actor, x, y, r, o, real) {
-    withActor(actor, real === undefined ? true : real, () => { for (const d of C.targets) { if (d.dead || d.untouchable) continue; const dd = Math.hypot(d.x - x, (d.y - 10 - y) / 0.85); if (dd < r + (d.big || 0)) damage(d, Object.assign({ stop: 0.05, shake: 0.3 }, o), Math.atan2(d.y - y, d.x - x)); } });
+    withActor(actor, real === undefined ? true : real, () => { for (const d of C.targets) { if (C.immune(d)) continue; const dd = Math.hypot(d.x - x, (d.y - 10 - y) / 0.85); if (dd < r + (d.big || 0)) damage(d, Object.assign({ stop: 0.05, shake: 0.3 }, o), Math.atan2(d.y - y, d.x - x)); } });
   };
   C.unleash = function (actor, wi, a, boostR, boostD, real) {
     const pr = C.boostR, pd = C.boostD; C.boostR = boostR; C.boostD = boostD;
@@ -319,7 +323,7 @@
     if (C.lifesteal) { C.lsCount = (C.lsCount || 0) + 1; if (C.lsCount >= C.lifesteal) { C.lsCount = 0; C.onHeal && C.onHeal(1); } }
     if (C.chainChance && !o.chained && Math.random() < C.chainChance) {
       let best = null, bd = 70;
-      for (const q of C.targets) if (q !== d && !q.dead && !q.untouchable) { const dd = Math.hypot(q.x - d.x, q.y - d.y); if (dd < bd) { bd = dd; best = q; } }
+      for (const q of C.targets) if (q !== d && !C.immune(q)) { const dd = Math.hypot(q.x - d.x, q.y - d.y); if (dd < bd) { bd = dd; best = q; } }
       if (best) {
         for (let k = 0; k <= 8; k++) part({ x: d.x + (best.x - d.x) * k / 8 + (Math.random() - 0.5) * 6, y: d.y - 14 + (best.y - d.y) * k / 8, vx: 0, vy: 0, life: 0.2, col: "#e8f0ff", size: 1, kind: "spark" });
         damage(best, { dmg: Math.max(1, Math.round(dmg * 0.45)), shock: 1, chained: true, stop: 0, shake: 0.08, quiet: false }, ang);
@@ -528,7 +532,7 @@
       C.swing = { final: finale && m !== w.ult, counted: false, w };
       let a = facingAngle(p);
       let best = null, bd = 120;
-      for (const d of C.targets) { if (d.dead || d.untouchable) continue; const dx = d.x - p.x, dy = d.y - p.y, dist = Math.hypot(dx, dy); let da = Math.atan2(dy, dx) - a; da = Math.atan2(Math.sin(da), Math.cos(da)); if (dist < bd && Math.abs(da) < 1.4) { bd = dist; best = Math.atan2(dy, dx); } }
+      for (const d of C.targets) { if (C.immune(d)) continue; const dx = d.x - p.x, dy = d.y - p.y, dist = Math.hypot(dx, dy); let da = Math.atan2(dy, dx) - a; da = Math.atan2(Math.sin(da), Math.cos(da)); if (dist < bd && Math.abs(da) < 1.4) { bd = dist; best = Math.atan2(dy, dx); } }
       if (best !== null) a = best;
       p.dir = dirFromAngle(a);
       C.move = m; C.moveIdx = idx; C.moveT = 0; C.aim = a;

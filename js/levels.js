@@ -10,14 +10,16 @@
   const Level = (window.Level = { cur: null, baked: {} });
   let A = null;
   Level.init = (assets) => { A = assets; Ruins.init(assets); };
+  Level.assets = () => A;
 
   // water (zone 2): shallow and medium water can be waded (medium slowly); deep water is the edge of the world
-  const VOID = 0, WALL = 1, SOIL = 2, GRASS = 3, SAND = 4, PATH = 5, SUN = 6, PAVE = 7, STAIR = 8, BH = 9, BV = 10, SHAL = 11, MED = 12, DEEP = 13;
-  const CH = { "#": WALL, " ": VOID, ".": SOIL, ",": GRASS, ":": SAND, "=": PATH, o: SUN, "%": PAVE, S: STAIR, H: BH, V: BV, _: SHAL, "-": MED, "~": DEEP };
+  // (zone 2 land: c = pink coral rock, the atolls' ground; b = basalt flagstones, the thermal cliffs' ground)
+  const VOID = 0, WALL = 1, SOIL = 2, GRASS = 3, SAND = 4, PATH = 5, SUN = 6, PAVE = 7, STAIR = 8, BH = 9, BV = 10, SHAL = 11, MED = 12, DEEP = 13, CORAL = 14, BASALT = 15;
+  const CH = { "#": WALL, " ": VOID, ".": SOIL, ",": GRASS, ":": SAND, "=": PATH, o: SUN, "%": PAVE, S: STAIR, H: BH, V: BV, _: SHAL, "-": MED, "~": DEEP, c: CORAL, b: BASALT };
   const walk = (v) => v >= SOIL && v !== DEEP;
-  const isWet = (v) => v >= SHAL;
+  const isWet = (v) => v >= SHAL && v <= DEEP;
   const soft = (v) => v < PATH || v >= SHAL;          // terrain whose borders are drawn organic (not carved)
-  Level.T_ = { VOID, WALL, SOIL, GRASS, SAND, PATH, SUN, PAVE, STAIR, BH, BV, SHAL, MED, DEEP, walk, isWet };
+  Level.T_ = { VOID, WALL, SOIL, GRASS, SAND, PATH, SUN, PAVE, STAIR, BH, BV, SHAL, MED, DEEP, CORAL, BASALT, walk, isWet };
 
   // ------------------------------------------------------------------ level definitions
   const DEFS = {
@@ -427,6 +429,35 @@
     const pk = K.rgb;
     const OB = PAL.packed.obsidian, SO = PAL.packed.soil, GR = PAL.packed.grass, SA = PAL.packed.sand, GL = PAL.packed.glyph, ST = PAL.packed.stone, FE = PAL.packed.fern, HZ = PAL.packed.haze;
     const rock = A.px.tex_rock.data, grassT = A.px.tex_grass.data, sandT = A.px.tex_sand.data, glyph = A.px.tex_glyph.data;
+    const pebT = A.px.tex_pebble && A.px.tex_pebble.data, pinkT = A.px.tex_pinkcoral && A.px.tex_pinkcoral.data;
+    // a 64px texture laid in big patches, each shifted and sometimes mirrored, so its repeat never shows
+    const patch64 = (x, y, salt) => {
+      const pcx = Math.floor((x + K.noise(x / 40, y / 40) * 46) / 150), pcy = Math.floor((y + K.noise(x / 40 + 70, y / 40) * 46) / 150);
+      let u = (x + ((K.hash2(pcx, pcy, salt) * 64) | 0)) & 63; if (K.hash2(pcx, pcy, salt + 17) > 0.5) u = 63 - u;
+      return u | (((y + ((K.hash2(pcx, pcy, salt + 9) * 64) | 0)) & 63) << 6);
+    };
+    // basalt, after the concept: fitted flagstones of dark slate, each its own tone, bevelled to the light
+    const BAS = [[22, 24, 24], [36, 38, 36], [50, 52, 48], [64, 66, 60], [80, 82, 74], [100, 100, 90], [124, 122, 108]].map((q) => pk(q[0], q[1], q[2]));
+    const stoneAt = (x, y, cell) => {
+      const gx0 = Math.floor(x / cell), gy0 = Math.floor(y / cell);
+      let d1 = 1e9, d2 = 1e9, id = 0, fx = 0, fy = 0;
+      for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+        const cx = gx0 + i, cy = gy0 + j, px2 = (cx + 0.15 + K.hash2(cx, cy, 81) * 0.7) * cell, py2 = (cy + 0.15 + K.hash2(cx, cy, 82) * 0.7) * cell * 0.9;
+        const d = Math.hypot(x - px2, (y - py2) * 1.1);
+        if (d < d1) { d2 = d1; d1 = d; id = cx * 7919 + cy; fx = px2; fy = py2; } else if (d < d2) d2 = d;
+      }
+      return { edge: d2 - d1, id, dx: x - fx, dy: y - fy };
+    };
+    const basaltAt = (x, y) => {
+      const s2 = stoneAt(x + K.noise(x / 9, y / 9) * 3, y + K.noise(x / 9 + 40, y / 9) * 3, 15), tone = K.hash2(s2.id, 3, 5);
+      if (s2.edge < 1.3) return BAS[0];
+      if (s2.edge < 2.4) return s2.dx + s2.dy < 0 ? BAS[4 + (tone > 0.6 ? 1 : 0)] : BAS[1];          // bevel: lit up-left, shadowed down-right
+      let ix = 2 + ((tone * 2.99) | 0);
+      const n = K.noise(x / 3.5, y / 3.5) + B(x, y) * 0.2; if (n > 0.72) ix++; else if (n < 0.22) ix--;
+      if (K.hash2(x >> 1, y >> 1, s2.id & 255) > 0.985) ix = 1;                                       // a pit in the stone
+      return BAS[Math.max(1, Math.min(6, ix))];
+    };
+    const toBasalt = (v) => BAS[Math.max(0, Math.min(6, Math.round(lum(v) / 255 * 7.4) - 1))];
     const lum = (v) => (v & 255) * 0.3 + ((v >>> 8) & 255) * 0.59 + ((v >>> 16) & 255) * 0.11;
     const rockIdx = (v) => { const l = lum(v); return l < 18 ? 0 : l < 33 ? 1 : l < 41 ? 2 : l < 48 ? 3 : l < 60 ? 4 : 5; };
     const B = PAL.bayer, CL = def.cliff, FACE = def.wallFace, valley = def.bg === "valley";
@@ -468,6 +499,8 @@
         if (v < 0.38) c = shade(c, 0.82); else if (v > 0.66) c = shade(c, 1.08);
       } else {
         c = sandT[ti];
+        // the archipelago's beaches: drifts of pebbled sand (lava pebbles, white shell grit) among the plain
+        if (def.sea && pebT) { const pb = K.fbm(x / 110 + 61, y / 110, 3) + (B(x, y) + 0.5) * 0.06; if (pb > (def.pebbles || 0.54)) c = pebT[patch64(x, y, 11)]; else if (pb > (def.pebbles || 0.54) - 0.03 && K.hash2(x, y, 12) > 0.6) c = pebT[patch64(x, y, 11)]; }
         if (def.scorch) {
           // sun-baked ash sand: dulled toward the volcanic soil, burnt in dark drifts, with cinders in it
           const b = K.fbm(x / 60 + 40, y / 60, 3), fine = K.noise(x / 5, y / 5);
@@ -565,6 +598,30 @@
           else if (k > CL - 6 && valley && K.noise(x * 0.3, 21) > 0.45) c = mixc(GR[1], HZ[2], 0.35);   // undergrowth at its foot
           lo[li] = c; continue;
         }
+        if (t === WALL && def.basalt) {
+          // a basalt sea cliff: tall columns with dark joints and broken, staggered ends on the face; on
+          // top, flagstones, with ferns and orange lichen in the cracks
+          const d = down[i];
+          if (d <= FACE && T_(x, y + d) !== VOID) {
+            const col = Math.floor((x + K.noise(x / 14, 3) * 3) / 7), cx2 = (x + K.noise(x / 14, 3) * 3) % 7, brk = (d + ((K.hash2(col, 1, 9) * 11) | 0)) % 13;
+            let ix = 2 + ((K.hash2(col, 2, 9) * 2.2) | 0);
+            if (cx2 < 1) ix = 0; else if (cx2 < 2) ix += 2; else if (cx2 > 5) ix -= 1;               // the joint, the lit face, the turned edge
+            if (brk === 0) ix = 0; else if (brk === 1) ix = Math.min(6, ix + 2);                     // a broken column end
+            c = BAS[Math.max(0, Math.min(6, ix))];
+            if (d <= 1) c = ROCK_LINE; else if (d > FACE - 3) c = shade(c, 0.7); else if (d < 5) c = shade(c, 0.75);
+            const iv = ivyAt(x, FACE - d); if (iv) c = iv;
+            if (K.hash2(x >> 1, y >> 1, 44) > 0.993) c = pk(214, 120, 52);                          // lichen
+          } else {
+            c = shade(basaltAt(x, y), 0.92);
+            if (T_(x, y - 1) !== WALL) c = BAS[6]; else if (T_(x, y - 2) !== WALL) c = BAS[5];
+            const m = K.fbm(x / 30 + 70, y / 30, 3), lip = d - FACE;
+            if (lip > 0 && lip < 4 && K.noise(x * 0.25, 13) > 0.45) c = lip === 1 ? FE[2] : (x + y) & 1 ? FE[3] : GR[1];
+            else if (m > 0.62 && B(x, y) + 0.5 < (m - 0.62) * 7) c = m > 0.68 ? (K.hash2(x, y, 3) > 0.85 ? FE[4] : FE[3]) : FE[2];
+            else if (K.hash2(x >> 1, y >> 1, 45) > 0.994) c = pk(214, 120, 52);
+            if (T_(x - 1, y) !== WALL || T_(x + 1, y) !== WALL) c = ROCK_LINE;
+          }
+          out[li] = c; continue;
+        }
         if (t === WALL) {
           const d = down[i], rc = rock[patchIdx(x, y, 7)];
           if (d <= FACE && T_(x, y + d) !== VOID) {
@@ -592,7 +649,19 @@
           out[li] = c; continue;
         }
         // ---- walkable ground
-        if (t === SOIL || t === GRASS || t === SAND) c = groundSoft(t, x, y);
+        if (t === CORAL) {
+          // pink coral rock: the reef raised into land. Darker and wet where the sea laps it, a sunlit crust
+          // just above that, and here and there a living head of brighter coral
+          c = pinkT ? pinkT[patch64(x, y, 31)] : SA[3];
+          let near = 9; for (let dd = 1; dd <= 4 && near === 9; dd++) for (const [dx, dy] of [[dd, 0], [-dd, 0], [0, dd], [0, -dd]]) if (isWet(T_(x + dx, y + dy))) { near = dd; break; }
+          if (near === 1) c = pk(70, 26, 44); else if (near === 2) c = shade(c, 0.66); else if (near === 3 && B(x, y) > -0.2) c = shade(c, 0.82);
+          else if (near === 4) c = shade(c, 1.1);
+          const lv2 = K.fbm(x / 80 + 5, y / 80, 2); if (lv2 > 0.64) c = shade(c, 1.08); else if (lv2 < 0.34) c = mixc(c, pk(150, 96, 120), 0.25);
+        } else if (t === BASALT) {
+          c = basaltAt(x, y);
+          if (def.sea && window.Sea) { let near = 9; for (const [dx, dy, d] of [[2, 0, 2], [-2, 0, 2], [0, 2, 2], [0, -2, 2], [4, 0, 4], [-4, 0, 4], [0, 4, 4], [0, -4, 4]]) if (d < near && isWet(T_(x + dx, y + dy))) near = d; if (near <= 2) c = shade(c, 0.7); else if (near <= 4 && B(x, y) > 0) c = shade(c, 0.85); }
+          if (T_(x, y - 1) !== BASALT && T_(x, y - 1) !== WALL && T_(x, y - 1) !== STAIR) c = BAS[5];
+        } else if (t === SOIL || t === GRASS || t === SAND) c = groundSoft(t, x, y);
         else if (t === PATH) {
           // the island's carved road, its edges eaten by moss and soil
           const tx = x >> 5, ty = y >> 5, lx = x & 31, ly = y & 31;
@@ -638,6 +707,7 @@
             if (inner < 2 && ly > 0 && ly < 7) c = shade(c, 0.8);                   // the cheek's shadow on the steps
             if (ly >= 1 && ly <= 4 && inner < 5 && K.hash2(x >> 1, y >> 1, 13) > 0.84) c = FE[(x + y) & 1 ? 3 : 2];   // moss in the corners
           }
+          if (def.basalt) c = toBasalt(c);
         } else c = 0;   // bridges are drawn as props over the void
         // ---- edges of walkable ground
         if (c) {
@@ -861,7 +931,7 @@
     const np = Level.players || 1;
     // later zones are tougher: def.hpMul raises every creature's health (bosses scale with the heroes)
     Enemies.hpScale = (np >= 3 ? COOP.hp3 : np === 2 ? COOP.hp : 1) * (def.hpMul || 1); Enemies.bossScale = np * (def.bossMul || 1);
-    if (!Level.netGuest) for (const e of coopRoster(def.enemies || [], b)) { const en = Enemies.spawn(e.e, e.x * T, e.y * T, e.tribe || 0, L); if (en) L.enemies.push(en); }
+    if (!Level.netGuest) for (const e of coopRoster(withCover(def.enemies || []), b)) { const en = Enemies.spawn(e.e, e.x * T, e.y * T, e.tribe || 0, L); if (en) L.enemies.push(en); }
     L.solids = [];
     for (const p of L.props) if (p.solids) L.solids.push(...p.solids);
     if (def.sea && !Level.netGuest) { const r = K.rng(name.length * 41 + 7); for (let k = 0, n = 0; k < 600 && n < 3; k++) { const x = r() * b.W, y = r() * b.H, i = (y | 0) * b.W + (x | 0); if (b.terr[i] !== SAND || !b.water || b.water.landDist[i] > 12 || b.water.landDist[i] < 3) continue; L.pickups.push({ x, y, t0: 0, beach: 1, shell: Gear.randomShell(r() < 0.85 ? 0 : 1) }); n++; } }
@@ -935,6 +1005,14 @@
     }
     return out;
   }
+  // a tiki brute is always covering for a darter: if a group has a brute and no darter of his tribe, one
+  // is added just behind him (the darters' AI keeps them in his shadow, js/enemies3.js)
+  function withCover(list) {
+    const out = list.slice();
+    for (const s of list) if (s.e === "brute" && !list.some((o) => o.e === "dart" && (o.tribe || 0) === (s.tribe || 0))) out.push({ ...s, e: "dart", x: s.x + 0.6, y: s.y - 1.1 });
+    return out;
+  }
+  Level.withCover = withCover;
   // with three heroes an arena gains a final wave, mixed from the creatures of the ones before it
   function arenaWaves(waves) {
     if ((Level.players || 1) < 3 || !waves.length) return waves;
@@ -947,9 +1025,9 @@
   Level.update = function (dt, t, P0, api, others) {
     const L = Level.cur, heroes = [P0].concat(others || []);
     updateAir(L, dt, t);
-    if (L.def.sea && window.Sea) Sea.update(L, dt, t, heroes, api);
+    if (L.def.sea && window.Sea) { Sea.update(L, dt, t, heroes, api); Sea.fish(L, dt, t); }
     for (const bd of L.birds) { bd.a += Math.sin(t * 0.3 + bd.ph) * 0.15 * dt; bd.x += Math.cos(bd.a) * bd.sp * dt; bd.y += Math.sin(bd.a) * bd.sp * dt * 0.6; if (bd.x < -200) bd.x += L.W + 400; if (bd.x > L.W + 200) bd.x -= L.W + 400; if (bd.y < -200) bd.y += L.H + 400; if (bd.y > L.H + 200) bd.y -= L.H + 400; }
-    if (Level.netGuest) { for (const a of L.arenas) if (a.state === "active" && !a.sealT0) { a.sealT0 = 1; a.sealT = t; } else if (a.state !== "active") a.sealT0 = 0; return; }
+    if (Level.netGuest) { for (const a of L.arenas) if (a.state === "active" && !a.sealT0) { a.sealT0 = 1; a.sealT = t; if (a.frenzy && window.Sea) Sea.frenzyStart(L, a); } else if (a.state !== "active") { if (a.sealT0 && a.frenzy && window.Sea) Sea.frenzyEnd(L); a.sealT0 = 0; } return; }
     for (const a of L.arenas) {
       const [x0, y0, x1, y1] = a.rect;
       // the trap springs only once a hero is well inside: clear of every doorway it will seal
@@ -967,7 +1045,8 @@
         }
         L.banner = { title: a.title, sub: a.sub, t0: t };
         api.sfx("sealUp"); api.sfx("warcry");
-        if (a.survive) { a.endT = t + a.survive * (1 + 0.12 * (heroes.length - 1)); a.herdT = t + 2; a.waveT = t + 0.5; }
+        if (a.survive) { a.endT = t + a.survive * (a.frenzy ? 1 : 1 + 0.12 * (heroes.length - 1)); a.herdT = t + 2; a.waveT = t + 0.5; a.t0 = t; }
+        if (a.frenzy && window.Sea) { Sea.frenzyStart(L, a); L.banner = { title: a.title, sub: a.sub || "Survive the frenzy", t0: t }; }
       }
       if (a.state === "active" && a.survive) { survival(a, L, t, heroes, api); continue; }
       if (a.state === "active" && a.live.filter((e) => !e.dead).length === 0 && t > a.next) {
@@ -976,7 +1055,7 @@
           finishArena(a, L, t, api);
           rewards(heroes, P0, L, t);
         } else {
-          a.live = coopRoster(a.waves[a.wave], L).map((s) => { const e = Enemies.spawn(s.e, s.x * T, s.y * T, s.tribe || 0, L); e.enter = s.enter || "leap"; e.introT = 0.9; e.alerted = true; L.enemies.push(e); return e; });
+          a.live = coopRoster(withCover(a.waves[a.wave]), L).map((s) => { const e = Enemies.spawn(s.e, s.x * T, s.y * T, s.tribe || 0, L); e.enter = s.enter || "leap"; e.introT = 0.9; e.alerted = true; L.enemies.push(e); return e; });
           a.next = t + 1.2;
           if (a.wave > 0) api.sfx("warcry");
         }
@@ -1010,6 +1089,7 @@
     const [x0, y0, x1, y1] = a.rect.map((v) => v * T), np = heroes.length;
     a.live = a.live.filter((e) => !e.dead);
     L.timer = Math.max(0, a.endT - t);
+    if (a.frenzy && t < a.endT) { Sea.frenzyTick(a, L, t, heroes, api); return; }
     if (t < a.endT) {
       if (t > a.waveT && a.live.length < 4 + np * 2) { const w = a.waves[(a.wave = (a.wave + 1) % a.waves.length)]; for (const s of coopRoster(w, L)) { const e = Enemies.spawn(s.e, s.x * T, s.y * T, s.tribe || 0, L); if (!e) continue; e.enter = s.enter || "leap"; e.introT = 0.9; e.alerted = true; L.enemies.push(e); a.live.push(e); } a.waveT = t + 7; }
       if (t > a.herdT) {
@@ -1031,7 +1111,8 @@
       }
     } else {
       // the dust settles: what's left scatters, and the way opens
-      for (const e of L.enemies) if (!e.dead && (e.type === "runner" || a.live.includes(e))) { e.dead = true; e.gone = true; Enemies.death(e); }
+      for (const e of L.enemies) if (!e.dead && (e.type === "runner" || a.live.includes(e))) { e.dead = true; e.gone = true; if (!a.frenzy) Enemies.death(e); }
+      if (a.frenzy && window.Sea) Sea.frenzyEnd(L);
       a.live = []; L.timer = 0;
       finishArena(a, L, t, api); rewards(heroes, heroes[0], L, t);
     }
@@ -1131,7 +1212,7 @@
     }
     // the ledges, walls and paths you walk on
     ctx.drawImage(L.ground, ox, oy, LW, LH, 0, 0, LW, LH);
-    if (L.water) { Water.render(ctx, ox, oy, LW, LH, t, L.water); Sea.drawUnder(ctx, L, ox, oy, LW, LH, t); }
+    if (L.water) { Level.camHint = { x: ox + LW / 2, y: oy + LH / 2 }; Water.render(ctx, ox, oy, LW, LH, t, L.water); Sea.drawUnder(ctx, L, ox, oy, LW, LH, t); Sea.drawFish(ctx, L, ox, oy, LW, LH, t); }
     eachBridge(ox, oy, LW, LH, (v, X, Y, tx, ty) => { const tm = L.tm, a = v === BH ? tm.at(tx, ty - 1) !== v : tm.at(tx - 1, ty) !== v, b = v === BH ? tm.at(tx, ty + 1) !== v : tm.at(tx + 1, ty) !== v; ctx.drawImage(bridgeTile(v, (tx * 7 + ty * 3) % 3, a, b), X, Y); });
     for (const v of L.vines) if (v.x > ox - 10 && v.x < ox + LW + 10 && v.y > oy - 60 && v.y < oy + LH + 10) Ruins.drawVine(ctx, v.x - ox, v.y - oy, v.len, t, v.ph);
     for (const b of L.pickups) { const bob = b.vy === undefined ? Math.round(Math.sin(t * 3 + b.x) * 1.5) : 0; if (b.el) drawShard(ctx, b, b.x - ox, b.y - oy + bob, t); else if (b.shell) { ctx.drawImage(Gear.shellArt(b.shell), Math.round(b.x - 6 - ox), Math.round(b.y - 10 - oy + bob)); if (Math.sin(t * 3 + b.x) > 0.85) { ctx.fillStyle = "#ffffff"; ctx.fillRect(Math.round(b.x + 3 - ox), Math.round(b.y - 11 - oy + bob), 1, 1); } } else ctx.drawImage(Ruins.berry, Math.round(b.x - 4 - ox), Math.round(b.y - 6 - oy + bob)); }

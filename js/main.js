@@ -850,7 +850,7 @@
     if (scene === "cave") return "tile";
     if (scene === "level") {
       const v = Level.tileAt(x, y);
-      return v === 9 || v === 10 ? "wood" : v === 3 ? "grass" : v === 4 ? "sand" : v === 2 ? "dirt" : v >= 11 ? "water" : v >= 5 ? "tile" : "dirt";
+      return v === 9 || v === 10 ? "wood" : v === 3 ? "grass" : v === 4 ? "sand" : v === 2 ? "dirt" : v >= 11 && v <= 13 ? "water" : v >= 5 ? "tile" : "dirt";
     }
     if (World.bridges.some((b) => x > b.x0 && x < b.x1 && Math.abs(y - b.y) < 18)) return "wood";
     const t = World.terrAt(x, y);

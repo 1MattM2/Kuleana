@@ -1,29 +1,33 @@
 // Creatures of the Archipelago (Zone 2). The tiki spearman and darter carry on from Zone 1; new here:
 //
-//   crab       - ʻŌhiki, the sand crab: skitters sideways round you, snips twice, and burrows to
-//                travel under the sand and burst up beneath your feet
-//   hermit     - Hermit crab: plods along in its spiral shell, pulls in to shrug off blows, then
-//                tucks up and bowls the shell at you, left dizzy where it stops
-//   spitcrab   - Kona bubble crab: keeps its distance, froths, and spits volleys of foam bubbles;
-//                too close and it slams the ground with its great claw
-//   brute      - Tiki brute: a towering carved warrior with a stone club. Overhead slams that crack
-//                the ground, wide sweeps, and a bull rush
-//   shark      - Reef shark: a shadow in the water, then a fin, then it rises and bursts out to bite.
-//                Only while it is out of the water can it be struck
-//   tshark     - Thermal shark (by the vents): hotter, harder bites, and dashes that leave water boiling
-//   ray        - Stingray: a silhouette gliding over the reef that gathers a charge and lets it go in
-//                a ring of lightning through the water
-//   giantray   - Kai-Uila, the Storm Ray (mini-boss): a great ray made of many small rays swimming as
-//                one. Storm rings, called lightning, sweeping glides; it breaks apart to swarm you,
-//                then gathers itself again
-//   pueo       - Pueo: a great owl that lives on the cliffs. Drops stones from above and swoops; only
-//                low, after a swoop, can it be reached
-//   pueoboss   - Pueo-Ahi, Lord of the Thermals (boss): rides the vents' heat; burning feather
-//                volleys, updrafts that set the vents off in waves, talon dives that crack the ground,
-//                a gale of wings, and in its fury a storm of molten stones
+//   crab        - ʻŌhiki, the sand crab (the user's concept sprite): zigzags in, scurries aside from
+//                 blows, snips twice. Alone it hunts on its own and burrows to ambush; in a pack the
+//                 crabs ring you and strike together from every side
+//   spitcrab    - Bubble crab: hangs back with the pack and spits foam; slams its claw when crowded
+//   brute       - Tiki brute (concept sprite): a towering carved warrior with stone fists. Paws the
+//                 ground and charges to ram you; double-fist ground pounds up close. Darters of his
+//                 tribe take cover behind him and lean out to shoot
+//   shark       - Reef shark: a silhouette in the water. It circles, lines up (fin up, a wake ahead of
+//                 it) and lunges along a straight line, breaking the surface to bite. It leaps narrow
+//                 sandbars, and lunges up the beach at heroes near the water, stranding itself
+//   bigshark    - Tiger shark: the big one. Slower, longer lines, two-heart bites
+//   tshark      - Thermal shark (by the vents): big and hot; its lunges leave the water boiling and it
+//                 scalds the water ahead of it in a line of steam
+//   ray         - Stingray: a gliding silhouette. Rings of lightning through the water, and an arc of
+//                 current at anyone standing on the shore nearby
+//   pueo        - Pueo: a great horned cliff owl. Spotting you, it flies over and drops a stone, then
+//                 stays close, circling and swooping; a flock bombs and swoops together
+//   spidercrab  - Pāpaʻi-Loa, the giant spider crab (boss, the Coral Atolls): stilt legs that stab,
+//                 a long claw that sweeps, a sideways trampling scuttle, foam, and a call to the crabs
+//   giantray    - Kai-Uila, the Storm Ray (boss, the Thermal Cliffs): one great ray made of many small
+//                 ray silhouettes, rimmed with lightning. Storm rings, called bolts, a lightning field,
+//                 sweeping glides; it breaks apart to swarm you and gathers itself again
+//
+// Sea creatures (sharks, rays, the Storm Ray) can be struck only by a hero standing in the water
+// (Combat.immune checks e.aquatic). A stranded shark can be struck by anyone.
 (function () {
   const E = window.Enemies, L0 = E.lib, AI = E.AI, ST = E.STATS;
-  const { Surface, begin, mark, flush, tryMove, telegraph, tinted, glow, rnd, dist, angDiff, TAU, css, R, P8, WHITE, winding } = L0;
+  const { Surface, begin, mark, flush, tryMove, telegraph, tinted, glow, rnd, dist, angDiff, TAU, css, R } = L0;
   const sfx = (api, k) => api && api.sfx && api.sfx(k);
   const keyOf = (q) => (q.isRemote ? "r" + q.slot : "l");
   function hitAny(e, x, y, reach, dmg, set, src) {
@@ -34,8 +38,8 @@
   const nearest = (x, y) => (E.alive || []).reduce((b, q) => (!b || Math.hypot(q.x - x, q.y - y) < Math.hypot(b.x - x, b.y - y) ? q : b), null);
   const px = (ctx, x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), w, h); };
   const rgb = (c) => PAL.css(c);
-  const zone = () => (Level.cur && Level.cur.def.level) || 1;
-  const wetAt = (x, y) => Level.waterAt && Level.waterAt(x, y);
+  const wetAt = (x, y) => (Level.waterAt && Level.waterAt(x, y)) || 0;
+  const img = (k) => L0.assets().img[k];
   // swimmers move only through the water kinds they allow
   function swim(e, dx, dy, kinds) {
     const ok = (x, y) => kinds.includes(wetAt(x, y)) && kinds.includes(wetAt(x + Math.cos(e.va || 0) * 8, y + Math.sin(e.va || 0) * 8));
@@ -47,17 +51,24 @@
   // a fresh direction through open water, toward a goal if there is one
   function steer(e, goal, kinds, dt, sp, turn) {
     let want = goal ? Math.atan2(goal.y - e.y, goal.x - e.x) : e.va;
-    for (let k = 0; k < 7; k++) { const a = want + (k === 0 ? 0 : (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.5), fx = e.x + Math.cos(a) * 22, fy = e.y + Math.sin(a) * 22; if (kinds.includes(wetAt(fx, fy))) { want = a; break; } }
+    for (let k = 0; k < 9; k++) { const a = want + (k === 0 ? 0 : (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.45), fx = e.x + Math.cos(a) * 26, fy = e.y + Math.sin(a) * 26; if (kinds.includes(wetAt(fx, fy))) { want = a; break; } }
     e.va += angDiff(want, e.va) * Math.min(1, dt * (turn || 3));
     const moved = swim(e, Math.cos(e.va) * sp * dt, Math.sin(e.va) * sp * dt, kinds);
-    if (!moved) e.va += Math.PI * (0.5 + Math.random() * 0.5);
+    if (!moved) e.va += Math.PI * (0.4 + Math.random() * 0.3);
     return moved;
+  }
+  // what lies along a line: how much land it crosses, and whether it ends in water
+  function lineInfo(x0, y0, x1, y1, kinds) {
+    const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 5)); let land = 0, run = 0, maxRun = 0, wall = false;
+    for (let k = 1; k <= n; k++) { const x = x0 + ((x1 - x0) * k) / n, y = y0 + ((y1 - y0) * k) / n, w = wetAt(x, y); if (Level.tileAt(x, y) === Level.T_.WALL || Level.solidAt(x, y) && !w) wall = true; if (kinds.includes(w)) { run = 0; } else { land += 5; run += 5; maxRun = Math.max(maxRun, run); } }
+    return { land, maxRun, endsWet: kinds.includes(wetAt(x1, y1)), wall };
   }
 
   // ================================================================== effects (host makes them; everyone draws them)
   E.FX.zap = {   // an electric ring spreading through the water
-    hit(r, q, t, key) { r.hits = r.hits || {}; const rad = (r.t / r.dur) * r.R; if (!r.hits[key] && Math.abs(Math.hypot(q.x - r.x, (q.y - 4 - r.y) / 0.7) - rad) < 8) { if (q._api.hurt(r.dmg || 1, r.x, r.y, "zap")) r.hits[key] = 1; } },
+    hit(r, q, t, key) { r.hits = r.hits || {}; if (r.t < 0) return; const rad = (r.t / r.dur) * r.R; if (!r.hits[key] && Math.abs(Math.hypot(q.x - r.x, (q.y - 4 - r.y) / 0.7) - rad) < 8) { if (q._api.hurt(r.dmg || 1, r.x, r.y, "zap")) r.hits[key] = 1; } },
     draw(ctx, r, ox, oy, t) {
+      if (r.t < 0) return;
       const u = r.t / r.dur, rad = u * r.R, n = Math.max(24, rad * 1.4 | 0);
       for (let k = 0; k < n; k++) { const a = (k / n) * TAU, j = (K.hash2(k, (t * 20) | 0, 7) - 0.5) * 5; ctx.fillStyle = k % 3 ? `rgba(160,220,255,${(1 - u) * 0.9})` : `rgba(255,255,255,${1 - u})`; ctx.fillRect(Math.round(r.x - ox + Math.cos(a) * (rad + j)), Math.round(r.y - oy + Math.sin(a) * (rad + j) * 0.7), 2, 1); }
     },
@@ -69,6 +80,7 @@
       if (Math.hypot(r.x + dx * u - q.x, r.y + dy * u - (q.y - 8)) < 10 && q._api.hurt(r.dmg || 1, r.x2, r.y2, "bolt")) r.hits[key] = 1;
     },
     draw(ctx, r, ox, oy, t) {
+      if (r.t < 0) return;
       const live = r.t >= r.dur - 0.18, n = Math.ceil(Math.hypot(r.x2 - r.x, r.y2 - r.y) / 3);
       for (let k = 0; k <= n; k++) {
         const u = k / n, j = live ? (K.hash2(k, (t * 30) | 0, 3) - 0.5) * 8 : 0, x = r.x + (r.x2 - r.x) * u - ox, y = r.y + (r.y2 - r.y) * u - oy;
@@ -77,12 +89,24 @@
       }
     },
   };
+  // lightning from the sky onto a marked spot: a ring tightens, then the strike
+  E.FX.strike = {
+    hit(r, q, t, key) { if (r.t < r.dur - 0.12 || r.t > r.dur) return; r.hits = r.hits || {}; if (!r.hits[key] && Math.hypot(q.x - r.x, (q.y - r.y) / 0.7) < r.R && q._api.hurt(r.dmg || 1, r.x, r.y, "bolt")) r.hits[key] = 1; },
+    draw(ctx, r, ox, oy, t) {
+      if (r.t < 0) return;
+      const x = Math.round(r.x - ox), y = Math.round(r.y - oy), u = Math.min(1, r.t / (r.dur - 0.12));
+      if (r.t < r.dur - 0.12) { ctx.strokeStyle = `rgba(170,225,255,${0.4 + 0.5 * Math.sin(t * 30)})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(x + 0.5, y + 0.5, r.R * (1.4 - u * 0.4), r.R * 0.7 * (1.4 - u * 0.4), 0, 0, TAU); ctx.stroke(); return; }
+      let lx = x; for (let yy = y - 120; yy < y; yy += 3) { lx += Math.round((K.hash2(yy, (t * 40) | 0, 5) - 0.5) * 5); ctx.fillStyle = "#ffffff"; ctx.fillRect(lx, yy, 2, 3); ctx.fillStyle = "rgba(140,200,255,0.8)"; ctx.fillRect(lx + 2, yy, 1, 3); }
+      for (let k = 0; k < 16; k++) { const a = (k / 16) * TAU; ctx.fillStyle = "rgba(220,245,255,0.9)"; ctx.fillRect(Math.round(x + Math.cos(a) * r.R), Math.round(y + Math.sin(a) * r.R * 0.7), 2, 1); }
+    },
+  };
   E.FX.rock = {   // a falling stone: its shadow grows, then it lands
     hit(r, q, t, key) { if (r.t < r.dur - 0.12 || r.t > r.dur - 0.02) return; r.hits = r.hits || {}; if (!r.hits[key] && Math.hypot(q.x - r.x, (q.y - r.y) / 0.7) < r.R && q._api.hurt(r.dmg || 1, r.x, r.y - 20, "rock")) r.hits[key] = 1; },
     draw(ctx, r, ox, oy, t) {
+      if (r.t < 0) return;
       const u = Math.min(1, r.t / (r.dur - 0.1)), x = Math.round(r.x - ox), y = Math.round(r.y - oy), hot = r.hot;
       ctx.fillStyle = `rgba(10,12,16,${0.15 + u * 0.35})`; ctx.beginPath(); ctx.ellipse(x, y, r.R * (0.4 + u * 0.6), r.R * 0.45 * (0.4 + u * 0.6), 0, 0, TAU); ctx.fill();
-      if (r.t > r.dur - 0.5 && r.t < r.dur) { const fall = (r.dur - r.t) / 0.5, ry = y - fall * 90; const OB = R().obsidian; px(ctx, x - 3, ry - 6, 7, 6, rgb(hot ? R().fire[2] : OB[3])); px(ctx, x - 2, ry - 6, 3, 2, rgb(hot ? R().fire[4] : OB[5])); }
+      if (r.t > r.dur - 0.5 && r.t < r.dur) { const fall = (r.dur - r.t) / 0.5, ry = y - fall * 90; const OB = R().obsidian; px(ctx, x - 3, ry - 6, 7, 6, rgb(hot ? R().fire[2] : OB[3])); px(ctx, x - 2, ry - 6, 3, 2, rgb(hot ? R().fire[4] : OB[5])); px(ctx, x + 2, ry - 2, 2, 2, rgb(OB[1])); }
     },
   };
   E.FX.quake = {   // a ring of cracking ground
@@ -91,522 +115,732 @@
   };
   E.FX.boil = {    // water boiling where a thermal shark has been
     hit(r, q, t, key) { r.hitT = r.hitT || {}; if (r.t > 0.2 && Math.hypot(q.x - r.x, (q.y - r.y) / 0.7) < r.R && t - (r.hitT[key] ?? -9) > 0.8 && q._api.hurt(1, r.x, r.y, "boil")) r.hitT[key] = t; },
-    draw(ctx, r, ox, oy, t) { const life = Math.min(1, (r.dur - r.t) / 0.5, r.t / 0.2); for (let k = 0; k < 6; k++) { const ph = (t * 1.5 + k * 0.37) % 1, a = k * 2.2 + r.x; ctx.fillStyle = `rgba(255,${200 - ph * 80 | 0},150,${life * (1 - ph)})`; ctx.fillRect(Math.round(r.x + Math.cos(a) * r.R * 0.6 - ox), Math.round(r.y + Math.sin(a) * r.R * 0.4 - ph * 4 - oy), 2, 1); } },
+    draw(ctx, r, ox, oy, t) { if (r.t < 0) return; const life = Math.min(1, (r.dur - r.t) / 0.5, r.t / 0.2); for (let k = 0; k < 7; k++) { const ph = (t * 1.5 + k * 0.37) % 1, a = k * 2.2 + r.x; ctx.fillStyle = `rgba(255,${200 - ph * 80 | 0},150,${life * (1 - ph)})`; ctx.fillRect(Math.round(r.x + Math.cos(a) * r.R * 0.6 - ox), Math.round(r.y + Math.sin(a) * r.R * 0.4 - ph * 4 - oy), 2, 1); } },
+  };
+  // a jet of scalding steam out of the water: a hiss of bubbles, then the column
+  E.FX.scald = {
+    hit(r, q, t, key) { if (r.t < 0.45 || r.t > 0.9) return; r.hits = r.hits || {}; if (!r.hits[key] && Math.hypot(q.x - r.x, (q.y - r.y) / 0.7) < r.R && q._api.hurt(r.dmg || 1, r.x, r.y, "steam")) r.hits[key] = 1; },
+    draw(ctx, r, ox, oy, t) {
+      if (r.t < 0) return;
+      const x = Math.round(r.x - ox), y = Math.round(r.y - oy);
+      if (r.t < 0.45) { for (let k = 0; k < 6; k++) { const a = k * 1.9 + t * 9; ctx.fillStyle = "rgba(255,230,200,0.85)"; ctx.fillRect(Math.round(x + Math.cos(a) * r.R * 0.6), Math.round(y + Math.sin(a) * r.R * 0.35), 1, 1); } ctx.strokeStyle = `rgba(255,150,80,${0.4 + 0.4 * Math.sin(t * 30)})`; ctx.beginPath(); ctx.ellipse(x + 0.5, y + 0.5, r.R, r.R * 0.6, 0, 0, TAU); ctx.stroke(); return; }
+      const u = Math.min(1, (r.t - 0.45) / 0.15), fade = 1 - Math.max(0, (r.t - 0.9) / (r.dur - 0.9)), h = 30 * u;
+      for (let yy = 0; yy < h; yy++) { const w = 2 + (yy / 30) * 4 + Math.sin(yy * 0.7 + t * 30); ctx.fillStyle = `rgba(${yy > h - 5 ? "255,255,255" : "255,226,196"},${0.85 * fade})`; ctx.fillRect(Math.round(x - w), y - yy, Math.round(w * 2), 1); }
+      for (let k = 0; k < 8; k++) { const a = k * 0.8 + t * 4, rr = (t * 40 + k * 6) % 18; ctx.fillStyle = `rgba(255,190,120,${fade})`; ctx.fillRect(Math.round(x + Math.cos(a) * rr), Math.round(y - h + rr), 1, 2); }
+    },
   };
   E.FX.mark = {   // where something is about to come down
-    draw(ctx, r, ox, oy, t) { const u = r.t / r.dur; ctx.strokeStyle = `rgba(255,${120 + 100 * Math.sin(t * 20) | 0},80,0.85)`; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(Math.round(r.x - ox) + 0.5, Math.round(r.y - oy) + 0.5, r.R * (1.2 - u * 0.2), r.R * 0.7 * (1.2 - u * 0.2), 0, 0, TAU); ctx.stroke(); },
+    draw(ctx, r, ox, oy, t) { if (r.t < 0) return; const u = r.t / r.dur; ctx.strokeStyle = `rgba(255,${120 + 100 * Math.sin(t * 20) | 0},80,0.85)`; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(Math.round(r.x - ox) + 0.5, Math.round(r.y - oy) + 0.5, r.R * (1.2 - u * 0.2), r.R * 0.7 * (1.2 - u * 0.2), 0, 0, TAU); ctx.stroke(); },
+  };
+  // the spider crab's leg coming down like a spear
+  E.FX.stab = {
+    hit(r, q, t, key) { if (r.t < r.dur - 0.1 || r.t > r.dur) return; r.hits = r.hits || {}; if (!r.hits[key] && Math.hypot(q.x - r.x, (q.y - r.y) / 0.7) < r.R && q._api.hurt(r.dmg || 2, r.x, r.y - 10, "stab")) r.hits[key] = 1; },
+    draw(ctx, r, ox, oy, t) {
+      if (r.t < 0) return;
+      const x = Math.round(r.x - ox), y = Math.round(r.y - oy), u = Math.min(1, r.t / (r.dur - 0.1));
+      ctx.strokeStyle = `rgba(255,${150 + 90 * Math.sin(t * 25) | 0},90,0.9)`; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(x + 0.5, y + 0.5, r.R * (1.3 - u * 0.3), r.R * 0.7 * (1.3 - u * 0.3), 0, 0, TAU); ctx.stroke();
+      if (r.t >= r.dur - 0.1) for (let k = 0; k < 10; k++) { const a = (k / 10) * TAU; ctx.fillStyle = k % 2 ? "#e8d0a0" : "#fff4d8"; ctx.fillRect(Math.round(x + Math.cos(a) * r.R * 0.8), Math.round(y + Math.sin(a) * r.R * 0.5), 2, 2); }
+    },
   };
   E.SHOT_DRAW.bubble = (ctx, s, x, y, t) => { const r = 3 + Math.sin(t * 8 + s.x) * 0.5; ctx.strokeStyle = "rgba(220,250,255,0.9)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(Math.round(x) + 0.5, Math.round(y) + 0.5, r, 0, TAU); ctx.stroke(); ctx.fillStyle = "rgba(150,210,240,0.35)"; ctx.fill(); px(ctx, x - 1, y - 2, 1, 1, "#ffffff"); };
-  E.SHOT_DRAW.feather = (ctx, s, x, y, t) => { const a = Math.atan2(s.vy, s.vx), ux = Math.cos(a), uy = Math.sin(a); const FI = R().fire; for (let k = -5; k <= 3; k++) { ctx.fillStyle = rgb(k > 1 ? FI[4] : k > -2 ? FI[3] : R().koa[3]); ctx.fillRect(Math.round(x + ux * k), Math.round(y + uy * k), 1, 1); if (k < 0 && k > -5) { ctx.fillStyle = rgb(FI[2]); ctx.fillRect(Math.round(x + ux * k - uy), Math.round(y + uy * k + ux), 1, 1); } } };
 
-  // ================================================================== crabs
-  ST.crab = { hp: 34, r: 7, mat: "flesh", kb: 90, barY: 18, colors: ["#e8c898", "#c88a58", "#f4e0c0"] };
-  ST.hermit = { hp: 66, r: 8, mat: "wood", kb: 40, barY: 24, colors: ["#d8b080", "#a85a3a", "#f2dcc0"] };
-  ST.spitcrab = { hp: 44, r: 8, mat: "flesh", kb: 70, barY: 22, colors: ["#d0503a", "#5a8ad8", "#f0e8e0"] };
-  const CRAB_PAL = {
-    crab: { shell: [[150, 110, 80], [204, 164, 120], [236, 206, 160], [250, 232, 196]], leg: [190, 140, 100], claw: [222, 180, 130] },
-    hermit: { shell: [[120, 40, 30], [180, 70, 50], [222, 110, 80], [246, 160, 120]], leg: [196, 70, 50], claw: [222, 90, 64] },
-    spitcrab: { shell: [[120, 30, 30], [190, 60, 48], [228, 96, 70], [250, 150, 120]], leg: [180, 60, 50], claw: [80, 130, 210] },
-  };
-  // a crab seen from above: legs that step in turn, eyes on stalks, and claws that open to pinch
-  function drawCrab(ctx, e, x, y, t, fl, open) {
-    const P = CRAB_PAL[e.type], big = e.type === "spitcrab" ? 1.15 : 1, W2 = 7 * big, H2 = 4.5 * big, by = y - 6;
-    const c = (col) => (fl ? "#ffffff" : rgb(col));
-    ctx.fillStyle = "rgba(10,12,16,0.3)"; ctx.beginPath(); ctx.ellipse(Math.round(x), Math.round(y), W2 + 3, 3, 0, 0, TAU); ctx.fill();
-    // legs: three a side, stepping in turn
-    for (const sg of [-1, 1]) for (let k = 0; k < 3; k++) { const step = e.moving ? Math.sin(t * 26 + k * 2 + (sg > 0 ? 1.5 : 0)) : 0, lx = x + sg * (W2 - 1), ly = by - 1 + k * 2; px(ctx, lx, ly, sg * 3, 1, c(P.leg)); px(ctx, lx + sg * 3, ly + 1 + (step > 0 ? -1 : 0), sg * 2, 1, c(P.leg)); px(ctx, lx + sg * 4, ly + 2 + (step > 0 ? -1 : 0), 1, 2, c(P.shell[0])); }
-    // the shell
-    for (let yy = -Math.ceil(H2); yy <= H2; yy++) for (let xx = -Math.ceil(W2); xx <= W2; xx++) { const d = (xx / W2) ** 2 + (yy / H2) ** 2; if (d > 1) continue; const lit = -xx / W2 * 0.4 - yy / H2 * 0.7; ctx.fillStyle = c(d > 0.8 ? P.shell[0] : lit > 0.45 ? P.shell[3] : lit > 0 ? P.shell[2] : P.shell[1]); ctx.fillRect(Math.round(x + xx), Math.round(by + yy), 1, 1); }
-    if (e.type === "crab") { px(ctx, x - 2, by - 1, 1, 1, c(P.shell[1])); px(ctx, x + 2, by, 1, 1, c(P.shell[1])); }
-    // claws, opening on the strike
-    for (const sg of [-1, 1]) { const cx2 = x + sg * (W2 - 1), cy2 = by + H2 + 1, o2 = open ? 2 : 0, cs = e.type === "spitcrab" && sg > 0 ? 1.6 : 1; px(ctx, cx2 - 1, cy2, 3 * cs, 3 * cs, c(P.shell[0])); px(ctx, cx2, cy2, 2 * cs, 2 * cs, c(P.claw)); px(ctx, cx2 - 1 + sg * o2, cy2 + 2 * cs, 1, 2, c(P.claw)); px(ctx, cx2 + 1 * cs + sg * o2, cy2 + 2 * cs, 1, 2, c(P.claw)); }
-    // eyes on stalks
-    for (const sg of [-1, 1]) { px(ctx, x + sg * 2, by - H2 - 2, 1, 2, c(P.shell[1])); px(ctx, x + sg * 2, by - H2 - 3, 1, 1, "#140c10"); }
+  // ================================================================== crabs (the concept's red crab)
+  ST.crab = { hp: 34, r: 8, mat: "flesh", kb: 90, barY: 22, colors: ["#e8583a", "#a83020", "#f4c0a0"] };
+  ST.spitcrab = { hp: 44, r: 8, mat: "flesh", kb: 70, barY: 24, colors: ["#7a5ad0", "#3a2a80", "#d8d0f4"] };
+  // frames from the sprite: legs stepping in turn (left set, right set) and claws snapping shut
+  const CRAB = {};
+  function crabFrames(kind) {
+    if (CRAB[kind]) return CRAB[kind];
+    const src = img("e_crab"), W = src.width, H = src.height, [, sx] = K.canvas(W, H); sx.drawImage(src, 0, 0);
+    const base = sx.getImageData(0, 0, W, H), d0 = new Uint32Array(base.data.buffer);
+    if (kind === "spitcrab") for (let i = 0; i < d0.length; i++) { const v = d0[i]; if (!(v >>> 24)) continue; const r = v & 255, g = (v >>> 8) & 255, b = (v >>> 16) & 255; if (r > g + 20) d0[i] = (255 << 24) | (Math.min(255, r * 0.95 + 20) << 16) | (Math.min(255, g * 0.8 + 30) << 8) | Math.min(255, b * 0.6 + r * 0.45); }
+    const mk = (fn) => { const [c, x] = K.canvas(W, H), out = x.createImageData(W, H), d = new Uint32Array(out.data.buffer); for (let y = 0; y < H; y++) for (let xx = 0; xx < W; xx++) { const [sxx, syy] = fn(xx, y); d[y * W + xx] = sxx >= 0 && syy >= 0 && sxx < W && syy < H ? d0[syy * W + sxx] : 0; } x.putImageData(out, 0, 0); return c; };
+    const legRow = H * 0.5, clawRow = H * 0.42;
+    const f0 = mk((x, y) => [x, y]);
+    const fL = mk((x, y) => (y > legRow && x < W * 0.3 ? [x, y + 1] : [x, y]));
+    const fR = mk((x, y) => (y > legRow && x > W * 0.7 ? [x, y + 1] : [x, y]));
+    const fOpen = mk((x, y) => (y < clawRow ? [x < W / 2 ? x + 1 : x - 1, y + 1] : [x, y]));
+    return (CRAB[kind] = { f0, fL, fR, fOpen, W, H });
   }
-  function drawShell(ctx, e, x, y, t, fl, spin) {
-    // the hermit's spiral shell, rolling or sitting
-    const GL = R().glyph, KA = R().kapa, rr = 7;
-    ctx.fillStyle = "rgba(10,12,16,0.3)"; ctx.beginPath(); ctx.ellipse(Math.round(x), Math.round(y), rr + 2, 3, 0, 0, TAU); ctx.fill();
-    for (let yy = -rr; yy <= rr; yy++) for (let xx = -rr; xx <= rr; xx++) { const d = Math.hypot(xx, yy); if (d > rr) continue; const a = Math.atan2(yy, xx) + spin, sp = ((d / rr) * 2.6 - a / TAU) % 1; let c = ((sp + 1) % 1) < 0.3 ? GL[1] : yy + xx < -3 ? KA[3] : GL[3]; if (d > rr - 1) c = GL[0]; ctx.fillStyle = fl ? "#ffffff" : rgb(c); ctx.fillRect(Math.round(x + xx), Math.round(y - 8 + yy), 1, 1); }
+  // a pack of crabs shares one plan: ring the hero, then all strike at once
+  const PACKS = {};
+  const packOf = (e, live) => (e.tribe ? live.filter((o) => !o.dead && o.tribe === e.tribe && (o.type === "crab" || o.type === "spitcrab")) : [e]);
+  function crabDodge(e, api) {
+    // a hero winding up close by: scurry aside, the way a crab does
+    if ((e.dodgeCd || 0) > 0) return false;
+    for (const q of E.alive || []) {
+      const dq = Math.hypot(q.x - e.x, q.y - e.y);
+      if (dq < 52 && q.attacking && Math.random() < 0.55) {
+        const a = Math.atan2(e.y - q.y, e.x - q.x) + (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2;
+        e.dash = { a, t: 0.2, sp: 230 }; e.dodgeCd = rnd(1.4, 2.4); sfx(api, "clack"); return true;
+      }
+    }
+    e.dodgeCd = 0.25; return false;
   }
-  E.DRAW.crab = function (e, ctx, ox, oy, t, g, introY, fl) {
-    const x = e.x - ox, y = e.y - oy + introY;
-    if (e.state === "under") { const OB = R().sand || R().glyph; px(ctx, x - 5, y - 2, 10, 2, rgb(R().soil[3])); px(ctx, x - 3, y - 3, 6, 1, rgb(R().glyph[4])); if (Math.random() < 0.5) Combat.addPart({ x: e.x + rnd(-4, 4), y: e.y, vx: rnd(-20, 20), vy: rnd(-30, -10), g: 200, life: 0.3, col: "#e8d0a0", size: 1, kind: "debris" }); return; }
-    if (e.state === "rise") { const sh = Math.sin(t * 50) * 1.5; px(ctx, x - 6 + sh, y - 3, 12, 3, rgb(R().glyph[3])); telegraph(ctx, x, y - 14, t); return; }
-    drawCrab(ctx, e, x, y, t, fl, e.state === "pinch" || e.state === "windPinch" || e.state === "pop");
-    if (e.state === "windPinch") telegraph(ctx, x, y - 18, t);
-  };
-  E.DRAW.hermit = function (e, ctx, ox, oy, t, g, introY, fl) {
-    const x = e.x - ox, y = e.y - oy + introY;
-    if (e.state === "shell" || e.state === "roll" || e.state === "windRoll") { drawShell(ctx, e, x, y, t, fl, e.spin || 0); if (e.state === "windRoll") telegraph(ctx, x, y - 20, t); return; }
-    drawCrab(ctx, e, x, y + 2, t, fl, e.state === "snap");
-    drawShell(ctx, e, x - e.face * 2, y - 3, t, fl, 0);
-    if (e.state === "dizzy") for (let k = 0; k < 3; k++) { const a = t * 6 + k * 2.1; px(ctx, x + Math.cos(a) * 6, y - 22 + Math.sin(a) * 2, 1, 1, "#fff4b8"); }
-    if (e.state === "windSnap") telegraph(ctx, x, y - 22, t);
-  };
-  E.DRAW.spitcrab = function (e, ctx, ox, oy, t, g, introY, fl) {
-    const x = e.x - ox, y = e.y - oy + introY;
-    drawCrab(ctx, e, x, y, t, fl, e.state === "windSmash" || e.state === "smash");
-    if (e.state === "windSpit") { for (let k = 0; k < 4; k++) { const a = t * 5 + k * 1.6; ctx.strokeStyle = "rgba(230,250,255,0.85)"; ctx.beginPath(); ctx.arc(Math.round(x + Math.cos(a) * 3) + 0.5, Math.round(y - 12 + Math.sin(a) * 1.5) + 0.5, 1.5, 0, TAU); ctx.stroke(); } telegraph(ctx, x, y - 20, t); }
-    if (e.state === "windSmash") telegraph(ctx, x, y - 20, t);
-  };
-  // ---- ʻōhiki: skitter, double snip, and the burrow ambush
-  AI.crab = function (e, dt, t, P, L, api, d) {
-    const toP = Math.atan2(P.y - e.y, P.x - e.x);
+  E.SETUP.crab = E.SETUP.spitcrab = (e) => { e.zig = Math.random() < 0.5 ? 1 : -1; e.zigT = 0; e.cd = rnd(0.6, 1.6); };
+  AI.crab = function (e, dt, t, P, L, api, d, live) {
+    const toP = Math.atan2(P.y - e.y, P.x - e.x), pack = packOf(e, live || []), inPack = pack.length > 1;
     e.untouchable = e.state === "under" || e.state === "rise";
-    e.cd = (e.cd || 0) - dt; e.dig = (e.dig ?? rnd(2, 4)) - dt;
-    if (!e.alerted) { if (e.st > (e.wait || 1)) { e.dash = { a: Math.random() < 0.5 ? 0 : Math.PI, t: rnd(0.15, 0.35) }; e.wait = rnd(0.5, 1.4); e.st = 0; } }
+    e.cd -= dt; e.dodgeCd = (e.dodgeCd || 0) - dt; e.dig = (e.dig ?? rnd(3, 5)) - dt;
+    if (!e.alerted) { if (e.st > (e.wait || 1)) { e.dash = { a: Math.random() < 0.5 ? 0 : Math.PI, t: rnd(0.15, 0.35), sp: 90 }; e.wait = rnd(0.6, 1.6); e.st = 0; } }
     else if (e.state === "idle" || e.state === "skitter") {
       e.state = "skitter";
-      // sideways round you, the way crabs go, closing in now and then
-      if (!e.dash || e.dash.t <= 0) { const side = (e.side = e.side || (Math.random() < 0.5 ? 1 : -1)); e.dash = { a: toP + side * (Math.PI / 2) + (d > 46 ? side * -0.6 : d < 26 ? side * 0.5 : 0), t: rnd(0.15, 0.3) }; if (Math.random() < 0.25) e.side = -side; }
-      if (d < 34 && e.cd <= 0) { e.state = "windPinch"; e.st = 0; e.dash = null; e.aim = toP; sfx(api, "clack"); }
-      else if (e.dig <= 0 && d > 50 && d < 200 && Level.tileAt(e.x, e.y) === Level.T_.SAND) { e.state = "dig"; e.st = 0; e.dash = null; sfx(api, "hop"); }
-    } else if (e.state === "windPinch") { e.aim = toP; if (e.st > 0.32) { e.state = "pinch"; e.st = 0; e.snips = 2; e.hitSet = {}; } }
+      if (e.dash && e.dash.t > 0) { /* finishing a step */ }
+      else if (!crabDodge(e, api)) {
+        let ring = 0;
+        if (inPack) {
+          // take a place on a ring round the hero, spread from the others
+          const idx = pack.indexOf(e), n = pack.length, P2 = PACKS[e.tribe] || (PACKS[e.tribe] = { next: t + rnd(2, 3), ph: Math.random() * TAU });
+          const slotA = P2.ph + (idx / n) * TAU + Math.sin(t * 0.6) * 0.3, R0 = e.type === "spitcrab" ? 90 : 46, gx = P.x + Math.cos(slotA) * R0, gy = P.y + Math.sin(slotA) * R0 * 0.8;
+          const ga = Math.atan2(gy - e.y, gx - e.x), gd = Math.hypot(gx - e.x, gy - e.y);
+          if (gd > 8) e.dash = { a: ga + e.zig * 0.5, t: rnd(0.16, 0.26), sp: 120 }; else e.dash = { a: toP + Math.PI / 2 * e.zig, t: 0.12, sp: 60 };
+          e.zig = -e.zig;
+          if (t > P2.next && e.type === "crab") { P2.next = t + rnd(3.2, 4.6); P2.ph = Math.random() * TAU; for (const o of pack) if (o.type === "crab" && (o.state === "skitter" || o.state === "idle") && Math.hypot(o.x - P.x, o.y - P.y) < 90) { o.state = "windPinch"; o.st = -Math.random() * 0.12; o.aim = Math.atan2(P.y - o.y, P.x - o.x); o.dash = null; } sfx(api, "clack"); }
+          ring = 1;
+        }
+        if (!ring) {
+          // alone: zigzag in, a diagonal each way in turn
+          const lean = d > 40 ? 0.75 : d < 24 ? -0.4 : 0;
+          e.dash = { a: toP + e.zig * (Math.PI / 2 - lean), t: rnd(0.22, 0.34), sp: 125 }; e.zig = -e.zig;
+          if (d < 32 && e.cd <= 0) { e.state = "windPinch"; e.st = 0; e.dash = null; e.aim = toP; sfx(api, "clack"); }
+          else if (e.dig <= 0 && d > 60 && d < 200 && Level.tileAt(e.x, e.y) === Level.T_.SAND) { e.state = "dig"; e.st = 0; e.dash = null; sfx(api, "hop"); }
+        }
+      }
+    } else if (e.state === "windPinch") { e.aim = Math.atan2(P.y - e.y, P.x - e.x); if (e.st > 0.38) { e.state = "pinch"; e.st = 0; e.snips = 2; e.hitSet = {}; } }
     else if (e.state === "pinch") {
-      tryMove(e, Math.cos(e.aim) * 170 * dt, Math.sin(e.aim) * 170 * dt);
-      hitAny(e, e.x + Math.cos(e.aim) * 6, e.y - 4, 13, 1, e.hitSet, "pinch");
-      if (e.st > 0.14) { e.snips--; if (e.snips > 0) { e.st = -0.12; e.hitSet = {}; e.aim = toP; sfx(api, "clack"); } else { e.state = "recover"; e.st = 0; e.cd = rnd(1, 1.8); } }
+      tryMove(e, Math.cos(e.aim) * 190 * dt, Math.sin(e.aim) * 190 * dt);
+      hitAny(e, e.x + Math.cos(e.aim) * 7, e.y - 5, 13, 1, e.hitSet, "pinch");
+      if (e.st > 0.15) { e.snips--; if (e.snips > 0) { e.st = -0.1; e.hitSet = {}; e.aim = Math.atan2(P.y - e.y, P.x - e.x); sfx(api, "clack"); } else { e.state = "recover"; e.st = 0; e.cd = rnd(1, 1.8); e.dash = { a: e.aim + Math.PI + e.zig * 0.8, t: 0.25, sp: 150 }; } }
     } else if (e.state === "dig") { if (Math.random() < 0.6) Combat.addPart({ x: e.x + rnd(-5, 5), y: e.y, vx: rnd(-40, 40), vy: rnd(-60, -20), g: 220, life: 0.5, col: "#e8d0a0", size: 1, kind: "debris" }); if (e.st > 0.45) { e.state = "under"; e.st = 0; } }
     else if (e.state === "under") {
-      // a ridge of sand runs at your feet
-      const tgt = { x: P.x, y: P.y }, a = Math.atan2(tgt.y - e.y, tgt.x - e.x), dd = Math.hypot(tgt.x - e.x, tgt.y - e.y);
-      if (dd > 6) tryMove(e, Math.cos(a) * 125 * dt, Math.sin(a) * 125 * dt);
+      const a = Math.atan2(P.y - e.y, P.x - e.x), dd = Math.hypot(P.x - e.x, P.y - e.y);
+      if (dd > 6) tryMove(e, Math.cos(a) * 120 * dt, Math.sin(a) * 120 * dt);
       if (dd < 8 || e.st > 1.8) { e.state = "rise"; e.st = 0; }
-    } else if (e.state === "rise") { if (e.st > 0.4) { e.state = "pop"; e.st = 0; e.hitSet = {}; hitAny(e, e.x, e.y - 6, 17, 1, e.hitSet, "ambush"); sfx(api, "vineBurst"); for (let k = 0; k < 10; k++) Combat.addPart({ x: e.x, y: e.y, vx: rnd(-70, 70), vy: rnd(-90, -30), g: 240, life: 0.6, col: "#e8d0a0", size: 2, kind: "debris" }); } }
-    else if (e.state === "pop") { if (e.st > 0.35) { e.state = "recover"; e.st = 0; e.dig = rnd(4.5, 7); } }
-    else if (e.state === "recover" && e.st > 0.4) { e.state = "skitter"; e.st = 0; }
-    if (e.dash && e.dash.t > 0) { e.dash.t -= dt; e.moving = tryMove(e, Math.cos(e.dash.a) * 120 * dt, Math.sin(e.dash.a) * 120 * dt); if (!e.moving) e.dash.t = 0; } else e.moving = e.state === "under";
-    if (d > 260) e.alerted = false;
+    } else if (e.state === "rise") { if (e.st > 0.42) { e.state = "pop"; e.st = 0; e.hitSet = {}; hitAny(e, e.x, e.y - 6, 17, 1, e.hitSet, "ambush"); sfx(api, "vineBurst"); for (let k = 0; k < 10; k++) Combat.addPart({ x: e.x, y: e.y, vx: rnd(-70, 70), vy: rnd(-90, -30), g: 240, life: 0.6, col: "#e8d0a0", size: 2, kind: "debris" }); } }
+    else if (e.state === "pop") { if (e.st > 0.35) { e.state = "recover"; e.st = 0; e.dig = rnd(5, 8); } }
+    else if (e.state === "recover" && e.st > 0.35) { e.state = "skitter"; e.st = 0; }
+    if (e.dash && e.dash.t > 0) { e.dash.t -= dt; e.moving = tryMove(e, Math.cos(e.dash.a) * e.dash.sp * dt, Math.sin(e.dash.a) * e.dash.sp * dt); if (!e.moving) { e.dash.t = 0; e.zig = -e.zig; } } else e.moving = e.state === "under";
+    if (d > 280) e.alerted = false;
   };
-  // ---- hermit: plod, hide, bowl the shell
-  ST.hermit.noStun = true;
-  E.SETUP.hermit = (e) => { e.spin = 0; e.onHitBase = e.onHit; e.onHit = function (dmg, ang) { e.onHitBase.call(this, dmg, ang); if ((this.state === "walk" || this.state === "idle") && Math.random() < 0.6) { this.state = "shell"; this.st = 0; } }; };
-  AI.hermit = function (e, dt, t, P, L, api, d) {
+  // ---- bubble crab: hangs back, spits foam, slams when crowded; dodges like its kin
+  AI.spitcrab = function (e, dt, t, P, L, api, d, live) {
     const toP = Math.atan2(P.y - e.y, P.x - e.x);
-    e.armor = e.state === "shell" ? 0.15 : e.state === "dizzy" ? 1.5 : 1; e.cd = (e.cd ?? 2) - dt;
-    e.face = Math.cos(toP) >= 0 ? 1 : -1;
-    if (!e.alerted) { e.moving = false; return; }
-    if (e.state === "idle" || e.state === "walk") {
-      e.state = "walk"; e.moving = d > 20 && tryMove(e, Math.cos(toP) * 34 * dt, Math.sin(toP) * 34 * dt);
-      if (d < 22 && e.cd <= 0) { e.state = "windSnap"; e.st = 0; e.aim = toP; }
-      else if (d > 50 && d < 170 && e.cd <= 0) { e.state = "windRoll"; e.st = 0; e.aim = toP; sfx(api, "clack"); }
-    } else if (e.state === "windSnap") { if (e.st > 0.38) { e.state = "snap"; e.st = 0; e.hitSet = {}; hitAny(e, e.x + Math.cos(e.aim) * 10, e.y - 4, 14, 1, e.hitSet, "snap"); sfx(api, "clack"); } }
-    else if (e.state === "snap") { if (e.st > 0.3) { e.state = "walk"; e.cd = rnd(1.2, 2); } }
-    else if (e.state === "shell") { e.spin += dt * 0.5; if (e.st > 1.3) { e.state = d > 50 && d < 180 ? "windRoll" : "walk"; e.st = 0; e.aim = toP; } }
-    else if (e.state === "windRoll") { e.spin += dt * (4 + e.st * 20); e.aim = toP; if (e.st > 0.6) { e.state = "roll"; e.st = 0; e.hitSet = {}; e.bounced = false; sfx(api, "roll"); } }
-    else if (e.state === "roll") {
-      e.spin += dt * 24;
-      const moved = tryMove(e, Math.cos(e.aim) * 230 * dt, Math.sin(e.aim) * 230 * dt);
-      if (!moved) { if (e.bounced) e.st = 9; else { e.bounced = true; e.aim += Math.PI + rnd(-0.5, 0.5); Combat.shake = Math.min(1, Combat.shake + 0.15); } }
-      hitAny(e, e.x, e.y - 8, 12, zone() >= 2 ? 2 : 1, e.hitSet, "shell");
-      if (e.st > 1.0) { e.state = "dizzy"; e.st = 0; }
-    } else if (e.state === "dizzy") { if (e.st > 0.9) { e.state = "walk"; e.st = 0; e.cd = rnd(1.5, 2.5); } }
-  };
-  // ---- bubble crab: keep away, spit foam, slam when crowded
-  AI.spitcrab = function (e, dt, t, P, L, api, d) {
-    const toP = Math.atan2(P.y - e.y, P.x - e.x);
-    e.cd = (e.cd ?? 1.5) - dt;
+    e.cd -= dt; e.dodgeCd = (e.dodgeCd || 0) - dt;
     if (!e.alerted) { e.moving = false; return; }
     if (e.state === "idle" || e.state === "keep") {
       e.state = "keep";
-      const want = d < 70 ? toP + Math.PI : d > 115 ? toP : toP + Math.PI / 2 * (e.side || (e.side = 1));
-      e.moving = tryMove(e, Math.cos(want) * 60 * dt, Math.sin(want) * 60 * dt); if (!e.moving) e.side = -(e.side || 1);
-      if (d < 32 && e.cd <= 0) { e.state = "windSmash"; e.st = 0; }
-      else if (d < 190 && e.cd <= 0) { e.state = "windSpit"; e.st = 0; e.aim = toP; sfx(api, "inhale"); }
-    } else if (e.state === "windSpit") { e.aim = toP; if (e.st > 0.55) { const n = zone() >= 3 ? 5 : 3; for (let k = 0; k < n; k++) { const a = e.aim + (k - (n - 1) / 2) * 0.28; L.shots.push({ kind: "bubble", x: e.x, y: e.y - 10, vx: Math.cos(a) * 75, vy: Math.sin(a) * 75, t: 0, life: 3, r: 7 }); } sfx(api, "splash"); e.state = "keep"; e.st = 0; e.cd = rnd(1.6, 2.4); } }
+      if (!(e.dash && e.dash.t > 0) && !crabDodge(e, api)) {
+        const want = d < 70 ? toP + Math.PI + e.zig * 0.6 : d > 115 ? toP + e.zig * 0.7 : toP + Math.PI / 2 * e.zig;
+        e.dash = { a: want, t: rnd(0.2, 0.32), sp: 80 }; if (Math.random() < 0.4) e.zig = -e.zig;
+      }
+      if (d < 30 && e.cd <= 0) { e.state = "windSmash"; e.st = 0; e.dash = null; }
+      else if (d < 190 && e.cd <= 0) { e.state = "windSpit"; e.st = 0; e.aim = toP; e.dash = null; sfx(api, "inhale"); }
+    } else if (e.state === "windSpit") { e.aim = toP; if (e.st > 0.55) { const n = 3 + ((Level.cur && Level.cur.def.level) >= 2 ? 2 : 0); for (let k = 0; k < n; k++) { const a = e.aim + (k - (n - 1) / 2) * 0.26; L.shots.push({ kind: "bubble", x: e.x, y: e.y - 10, vx: Math.cos(a) * 78, vy: Math.sin(a) * 78, t: 0, life: 3, r: 7 }); } sfx(api, "splash"); e.state = "keep"; e.st = 0; e.cd = rnd(1.8, 2.6); } }
     else if (e.state === "windSmash") { if (e.st > 0.45) { e.state = "smash"; e.st = 0; L.fx.push({ kind: "quake", x: e.x, y: e.y, t: 0, dur: 0.35, R: 38, dmg: 1 }); sfx(api, "land"); Combat.shake = Math.min(1, Combat.shake + 0.2); } }
     else if (e.state === "smash" && e.st > 0.4) { e.state = "keep"; e.cd = rnd(1.4, 2); }
+    if (e.dash && e.dash.t > 0) { e.dash.t -= dt; e.moving = tryMove(e, Math.cos(e.dash.a) * e.dash.sp * dt, Math.sin(e.dash.a) * e.dash.sp * dt); if (!e.moving) { e.dash.t = 0; e.zig = -e.zig; } } else e.moving = false;
+  };
+  function drawCrabSprite(ctx, e, x, y, t, fl, open, kind, scale) {
+    const F = crabFrames(kind), step = e.moving ? Math.sin(t * 28 + e.ph) : 0, fr = open ? F.fOpen : step > 0.3 ? F.fL : step < -0.3 ? F.fR : F.f0, src = fl ? tinted(fr) : fr, s = scale || 1;
+    const bob = e.moving ? Math.round(Math.abs(Math.sin(t * 28 + e.ph))) : 0;
+    ctx.fillStyle = "rgba(10,12,16,0.3)"; ctx.beginPath(); ctx.ellipse(Math.round(x), Math.round(y), F.W * 0.45 * s, 3, 0, 0, TAU); ctx.fill();
+    ctx.drawImage(src, Math.round(x - (F.W * s) / 2), Math.round(y - F.H * s + 1 - bob), Math.round(F.W * s), Math.round(F.H * s));
+  }
+  E.DRAW.crab = function (e, ctx, ox, oy, t, g, introY, fl) {
+    const x = e.x - ox, y = e.y - oy + introY;
+    if (e.state === "under") { px(ctx, x - 5, y - 2, 10, 2, rgb(R().soil[3])); px(ctx, x - 3, y - 3, 6, 1, rgb(R().glyph[4])); if (Math.random() < 0.5) Combat.addPart({ x: e.x + rnd(-4, 4), y: e.y, vx: rnd(-20, 20), vy: rnd(-30, -10), g: 200, life: 0.3, col: "#e8d0a0", size: 1, kind: "debris" }); return; }
+    if (e.state === "rise") { const sh = Math.sin(t * 50) * 1.5; px(ctx, x - 6 + sh, y - 3, 12, 3, rgb(R().glyph[3])); telegraph(ctx, x, y - 14, t); return; }
+    drawCrabSprite(ctx, e, x, y, t, fl, e.state === "pinch" || e.state === "pop", "crab");
+    if (e.state === "windPinch") telegraph(ctx, x, y - 24, t);
+  };
+  E.DRAW.spitcrab = function (e, ctx, ox, oy, t, g, introY, fl) {
+    const x = e.x - ox, y = e.y - oy + introY;
+    drawCrabSprite(ctx, e, x, y, t, fl, e.state === "smash", "spitcrab", 1.1);
+    if (e.state === "windSpit") { for (let k = 0; k < 4; k++) { const a = t * 5 + k * 1.6; ctx.strokeStyle = "rgba(230,250,255,0.85)"; ctx.beginPath(); ctx.arc(Math.round(x + Math.cos(a) * 3) + 0.5, Math.round(y - 14 + Math.sin(a) * 1.5) + 0.5, 1.5, 0, TAU); ctx.stroke(); } telegraph(ctx, x, y - 26, t); }
+    if (e.state === "windSmash") telegraph(ctx, x, y - 26, t);
   };
 
-  // ================================================================== Tiki brute
-  ST.brute = { hp: 180, r: 11, mat: "wood", kb: 18, noStun: true, big: 6, barY: 50, colors: [css(R().koa[4]), css(R().koa[2]), css(R().stone[3])] };
-  let BRUTE = null;
-  function bruteArt() {
-    if (BRUTE) return BRUTE;
-    const src = Props.make.tiki(), W2 = src.width, H2 = src.height - 2, [c, x] = K.canvas(W2, H2);
-    x.drawImage(src, 0, 0, W2, H2, 0, 0, W2, H2);
-    // warpaint across the brute's chest and brow
-    x.fillStyle = PAL.css(R().kapa[2]); x.fillRect(3, 31, W2 - 6, 1); x.fillRect(3, 12, 3, 1); x.fillRect(W2 - 6, 12, 3, 1);
-    BRUTE = { c, w: W2, h: H2 }; return BRUTE;
-  }
-  E.SETUP.brute = (e) => { e.club = -2.2; e.hitSet = {}; };
+  // ================================================================== Tiki brute (the concept's carved giant)
+  ST.brute = { hp: 260, r: 14, mat: "wood", kb: 10, noStun: true, big: 10, barY: 66, colors: [css(R().koa[4]), css(R().koa[2]), css(R().palm[3])] };
+  E.SETUP.brute = (e) => { e.hitSet = {}; e.cd = rnd(1, 2); };
   AI.brute = function (e, dt, t, P, L, api, d) {
-    const toP = Math.atan2(P.y - e.y, P.x - e.x), lvl = zone();
-    e.cd = (e.cd ?? 1.5) - dt; e.moving = false;
-    if (!e.alerted) { e.club = -2.2; return; }
-    if (e.state !== "charge" && e.state !== "windCharge") e.face = Math.cos(toP) >= 0 ? 1 : -1;
-    const rest = e.face > 0 ? -2.3 : -0.84;
+    const toP = Math.atan2(P.y - e.y, P.x - e.x);
+    e.cd -= dt; e.moving = false; e.armor = 1;
+    if (!e.alerted) return;
+    if (e.state !== "charge" && e.state !== "skid") e.face = Math.cos(e.state === "windCharge" ? e.aim : toP) >= 0 ? 1 : -1;
     if (e.state === "idle" || e.state === "walk") {
-      e.state = "walk"; e.club += angDiff(rest, e.club) * Math.min(1, dt * 6);
-      if (d > 34) e.moving = tryMove(e, Math.cos(toP) * 40 * dt, Math.sin(toP) * 40 * dt);
+      e.state = "walk";
+      if (d > 40) e.moving = tryMove(e, Math.cos(toP) * 34 * dt, Math.sin(toP) * 34 * dt);
       if (e.cd <= 0) {
-        const r = Math.random();
-        if (d < 50) { e.state = r < 0.55 ? "windSlam" : "windSweep"; e.st = 0; e.aim = toP; sfx(api, "warcry"); }
-        else if (d > 70 && d < 190 && r < 0.5) { e.state = "windCharge"; e.st = 0; e.aim = toP; sfx(api, "warcry"); }
+        if (d < 50) { e.state = "windSlam"; e.st = 0; sfx(api, "warcry"); }
+        else if (d < 230 && Level.sight(e.x, e.y - 20, P.x, P.y - 10)) { e.state = "windCharge"; e.st = 0; e.aim = toP; sfx(api, "warcry"); }
       }
-    } else if (e.state === "windSlam") { e.club += angDiff(-Math.PI / 2 - e.face * 0.6, e.club) * Math.min(1, dt * 8); if (e.st > 0.7) { e.state = "slam"; e.st = 0; e.hitSet = {}; } }
-    else if (e.state === "slam") {
-      e.club += angDiff(e.aim, e.club) * Math.min(1, dt * 30);
-      if (e.st > 0.08 && !e.landed) { e.landed = true; const ix = e.x + Math.cos(e.aim) * 22, iy = e.y + Math.sin(e.aim) * 16; hitAny(e, ix, iy - 4, 20, 2, e.hitSet, "club"); L.fx.push({ kind: "quake", x: ix, y: iy, t: 0, dur: 0.45, R: 60, dmg: lvl >= 3 ? 2 : 1 }); sfx(api, "stone"); Combat.shake = Math.min(1, Combat.shake + 0.45); }
-      if (e.st > 0.6) { e.state = "walk"; e.st = 0; e.landed = false; e.cd = rnd(1.2, 2); }
-    } else if (e.state === "windSweep") { e.club += angDiff(e.aim - e.face * 1.5, e.club) * Math.min(1, dt * 8); if (e.st > 0.55) { e.state = "sweep"; e.st = 0; e.hitSet = {}; sfx(api, "spearSweep"); } }
-    else if (e.state === "sweep") {
-      e.club = e.aim - e.face * 1.5 + (e.st / 0.3) * 3 * e.face;
-      for (const q of E.alive || []) { const k = keyOf(q); if (e.hitSet[k]) continue; const dq = Math.hypot(q.x - e.x, q.y - e.y); if (dq < 46 && Math.abs(angDiff(Math.atan2(q.y - e.y, q.x - e.x), e.club)) < 0.5 && q._api.hurt(2, e.x, e.y, "club")) e.hitSet[k] = 1; }
-      if (e.st > 0.3) { e.state = "walk"; e.st = 0; e.cd = rnd(1, 1.8); }
-    } else if (e.state === "windCharge") { e.club += angDiff(e.aim, e.club) * Math.min(1, dt * 6); e.aim += angDiff(toP, e.aim) * Math.min(1, dt * 3); e.face = Math.cos(e.aim) >= 0 ? 1 : -1; if (e.st > 0.65) { e.state = "charge"; e.st = 0; e.hitSet = {}; } }
-    else if (e.state === "charge") {
-      e.moving = tryMove(e, Math.cos(e.aim) * 215 * dt, Math.sin(e.aim) * 215 * dt);
-      hitAny(e, e.x + Math.cos(e.aim) * 8, e.y - 10, 17, 2, e.hitSet, "charge");
-      if (Math.random() < 0.5) Combat.addPart({ x: e.x + rnd(-6, 6), y: e.y, vx: -Math.cos(e.aim) * 30, vy: rnd(-20, -5), g: 30, life: 0.5, col: css(R().soil[4]), size: 2, kind: "smoke" });
-      if (!e.moving) { e.state = "stagger"; e.st = 0; Combat.shake = Math.min(1, Combat.shake + 0.4); sfx(api, "stone"); }
-      else if (e.st > 0.9) { e.state = "walk"; e.st = 0; e.cd = rnd(1, 1.6); }
-    } else if (e.state === "stagger") { e.armor = 1.5; if (e.st > 1) { e.armor = 1; e.state = "walk"; e.st = 0; e.cd = 1; } }
+    } else if (e.state === "windCharge") {
+      // head down, pawing the ground, tracking you until the last moment
+      if (e.st < 0.65) e.aim += angDiff(toP, e.aim) * Math.min(1, dt * 5);
+      if (Math.random() < 0.35) Combat.addPart({ x: e.x - Math.cos(e.aim) * 10 + rnd(-4, 4), y: e.y, vx: -Math.cos(e.aim) * rnd(20, 60), vy: rnd(-30, -10), g: 120, life: 0.5, col: css(R().soil[4]), size: 2, kind: "smoke" });
+      if (e.st > 0.9) { e.state = "charge"; e.st = 0; e.hitSet = {}; e.dist0 = d; sfx(api, "stampede"); }
+    } else if (e.state === "charge") {
+      // the ram: straight through, and anything in the way is thrown aside
+      const sp = 250 * Math.min(1, 0.4 + e.st * 3);
+      e.moving = tryMove(e, Math.cos(e.aim) * sp * dt, Math.sin(e.aim) * sp * dt);
+      if (hitAny(e, e.x + Math.cos(e.aim) * 10, e.y - 14, 20, 2, e.hitSet, "ram")) Combat.shake = Math.min(1, Combat.shake + 0.35);
+      if (Math.random() < 0.6) Combat.addPart({ x: e.x + rnd(-8, 8), y: e.y, vx: -Math.cos(e.aim) * 40, vy: rnd(-25, -5), g: 30, life: 0.5, col: css(R().soil[4]), size: 2, kind: "smoke" });
+      if (!e.moving) { e.state = "stagger"; e.st = 0; Combat.shake = Math.min(1, Combat.shake + 0.5); sfx(api, "stone"); L.fx.push({ kind: "quake", x: e.x + Math.cos(e.aim) * 14, y: e.y, t: 0, dur: 0.4, R: 40, dmg: 1 }); }
+      else if (e.st > 1.5 || (e.st > 0.5 && Math.cos(Math.atan2(P.y - e.y, P.x - e.x) - e.aim) < -0.3 && d > 50)) { e.state = "skid"; e.st = 0; }
+    } else if (e.state === "skid") { tryMove(e, Math.cos(e.aim) * 120 * (1 - e.st / 0.45) * dt, Math.sin(e.aim) * 120 * (1 - e.st / 0.45) * dt); if (e.st > 0.45) { e.state = "walk"; e.st = 0; e.cd = rnd(1.2, 2); } }
+    else if (e.state === "windSlam") { if (e.st > 0.65) { e.state = "slam"; e.st = 0; e.hitSet = {}; hitAny(e, e.x, e.y - 6, 30, 2, e.hitSet, "fists"); L.fx.push({ kind: "quake", x: e.x, y: e.y + 2, t: 0, dur: 0.5, R: 62, dmg: 1 }); sfx(api, "stone"); Combat.shake = Math.min(1, Combat.shake + 0.5); } }
+    else if (e.state === "slam") { if (e.st > 0.6) { e.state = "walk"; e.st = 0; e.cd = rnd(1.4, 2.2); } }
+    else if (e.state === "stagger") { e.armor = 1.6; if (e.st > 1.4) { e.state = "walk"; e.st = 0; e.cd = 0.8; } }
   };
   E.DRAW.brute = function (e, ctx, ox, oy, t, g, introY, fl) {
-    const B = bruteArt(), x = Math.round(e.x - ox), y = Math.round(e.y - oy + introY), f = e.face;
-    let sx = 1, sy = 1; if (e.state === "windSlam" || e.state === "windCharge") { sx = 1.08; sy = 0.92; } else if (e.state === "slam") { sx = 0.95; sy = 1.06; }
-    const bob = e.moving ? Math.abs(Math.sin(t * 9)) * 1.5 : 0, step = e.moving ? Math.sin(t * 9) : 0, img = fl ? tinted(B.c) : B.c;
-    ctx.fillStyle = "rgba(10,12,16,0.35)"; ctx.beginPath(); ctx.ellipse(x, y, 14, 4, 0, 0, TAU); ctx.fill();
-    // the club behind the body when raised behind the shoulder
-    const back = Math.sin(e.club) < -0.2;
-    const club = () => {
-      const hx = x + f * 8, hy = y - 22 - bob, a = e.club, KO = R().koa, ST2 = R().stone;
-      for (let s2 = 0; s2 < 24; s2 += 0.5) { const cx2 = hx + Math.cos(a) * s2, cy2 = hy + Math.sin(a) * s2; const head = s2 > 15; const w = head ? 3.2 : 1; for (let o = -w; o <= w; o += 1) { ctx.fillStyle = fl ? "#ffffff" : rgb(head ? (o < -1 ? ST2[4] : o > 1 ? ST2[1] : ST2[3]) : (o < 0 ? KO[4] : KO[2])); ctx.fillRect(Math.round(cx2 - Math.sin(a) * o), Math.round(cy2 + Math.cos(a) * o), 1, 1); } if (head && ((s2 * 2) | 0) % 3 === 0) { ctx.fillStyle = "#f2ead8"; ctx.fillRect(Math.round(cx2 - Math.sin(a) * 4.2), Math.round(cy2 + Math.cos(a) * 4.2), 1, 1); ctx.fillRect(Math.round(cx2 + Math.sin(a) * 4.2), Math.round(cy2 - Math.cos(a) * 4.2), 1, 1); } }
-      px(ctx, hx - 2, hy - 2, 4, 4, fl ? "#ffffff" : rgb(KO[1]));
-    };
-    if (back) club();
-    ctx.save(); ctx.translate(x, y - bob); ctx.scale((f > 0 ? 1 : -1) * sx, sy);
-    ctx.drawImage(img, 0, B.h - 3, B.w / 2, 3, -B.w / 2, -3 - (step > 0.3 ? 1 : 0), B.w / 2, 3);
-    ctx.drawImage(img, B.w / 2, B.h - 3, B.w / 2, 3, 0, -3 - (step < -0.3 ? 1 : 0), B.w / 2, 3);
-    ctx.drawImage(img, 0, 0, B.w, B.h - 3, -B.w / 2, -B.h, B.w, B.h - 3);
+    const B = img("e_brute"), x = Math.round(e.x - ox), y = Math.round(e.y - oy + introY), f = e.face;
+    let sx = 1, sy = 1, lean = 0;
+    if (e.state === "windSlam") { const u = Math.min(1, e.st / 0.65); sx = 1 - u * 0.06; sy = 1 + u * 0.08; }
+    else if (e.state === "slam") { const u = Math.max(0, 1 - e.st / 0.25); sx = 1 + u * 0.12; sy = 1 - u * 0.12; }
+    else if (e.state === "windCharge") { sx = 1.06; sy = 0.93; lean = 0.12 * Math.min(1, e.st / 0.4); }
+    else if (e.state === "charge") lean = 0.2;
+    else if (e.state === "stagger") lean = Math.sin(t * 9) * 0.06;
+    const step = e.moving ? Math.sin(t * (e.state === "charge" ? 18 : 8) + e.ph) : 0, bob = Math.abs(step) * (e.state === "charge" ? 3 : 1.5);
+    ctx.fillStyle = "rgba(10,12,16,0.38)"; ctx.beginPath(); ctx.ellipse(x, y, 20, 5, 0, 0, TAU); ctx.fill();
+    const src = fl ? tinted(B) : B;
+    ctx.save(); ctx.translate(x, y - bob); ctx.transform(f * sx, 0, -lean * f * (e.state === "charge" || e.state === "windCharge" ? -1 : 1), sy, 0, 0);
+    ctx.drawImage(src, -B.width / 2, -B.height + 2);
     ctx.restore();
-    if (!back) club();
-    if (e.state === "windSlam" || e.state === "windSweep" || e.state === "windCharge") telegraph(ctx, x, y - B.h - 10, t);
-    if (e.state === "stagger") for (let k = 0; k < 3; k++) { const a = t * 6 + k * 2.1; px(ctx, x + Math.cos(a) * 8, y - B.h - 4 + Math.sin(a) * 2, 1, 1, "#fff4b8"); }
+    // eyes burning in the carved face when it means to charge
+    if (e.state === "windCharge" || e.state === "charge") { for (const sg of [-1, 1]) px(ctx, x + sg * 4 + f * 1, y - B.height + 17 - bob, 2, 1, "#ffe070"); if (g) glow(g, x, y - B.height + 18, 18, "255,200,90", 0.4); }
+    if (e.state === "windSlam" || e.state === "windCharge") telegraph(ctx, x, y - B.height - 6, t);
+    if (e.state === "stagger") for (let k = 0; k < 3; k++) { const a = t * 6 + k * 2.1; px(ctx, x + Math.cos(a) * 10, y - B.height - 2 + Math.sin(a) * 2, 1, 1, "#fff4b8"); }
+  };
+  // darters of a brute's tribe stand behind him for cover and lean out to shoot
+  const dartBase = AI.dart;
+  AI.dart = function (e, dt, t, P, L, api, d, live) {
+    const brutes = (live || []).filter((o) => o.type === "brute" && !o.dead && (!e.tribe || o.tribe === e.tribe));
+    let B = e.cover && !e.cover.dead ? e.cover : null;
+    if (!B && brutes.length) { B = brutes.reduce((b, o) => (!b || dist(o, e) < dist(b, e) ? o : b), null); if ((live || []).filter((o) => o.type === "dart" && o.cover === B).length >= 2) B = null; }
+    e.cover = B;
+    if (!B || !e.alerted || (e.state !== "idle" && e.state !== "range" && e.state !== "cover" && e.state !== "peek")) { if (e.state === "cover" || e.state === "peek") e.state = "range"; return dartBase(e, dt, t, P, L, api, d, live); }
+    const away = Math.atan2(B.y - P.y, B.x - P.x), mates = (live || []).filter((o) => o.type === "dart" && o.cover === B), side = mates.indexOf(e) % 2 ? 1 : -1;
+    const hide = { x: B.x + Math.cos(away) * 22 + Math.cos(away + Math.PI / 2) * side * 6, y: B.y + Math.sin(away) * 18 + Math.sin(away + Math.PI / 2) * side * 5 };
+    const peek = { x: hide.x + Math.cos(away + Math.PI / 2) * side * 20, y: hide.y + Math.sin(away + Math.PI / 2) * side * 16 };
+    e.aimA += angDiff(Math.atan2(P.y - 10 - (e.y - 14), P.x - e.x), e.aimA) * Math.min(1, dt * 6);
+    e.face = Math.cos(Math.atan2(P.y - e.y, P.x - e.x)) >= 0 ? 1 : -1;
+    const go = (q, sp) => { const dx = q.x - e.x, dy = q.y - e.y, l = Math.hypot(dx, dy); if (l > 2) e.moving = tryMove(e, (dx / l) * Math.min(l, sp * dt), (dy / l) * Math.min(l, sp * dt)); else e.moving = false; return l; };
+    if (e.state !== "cover" && e.state !== "peek") { e.state = "cover"; e.st = 0; e.next = rnd(1.4, 2.4); }
+    if (e.state === "cover") { go(hide, 80); if (e.st > e.next) { e.state = "peek"; e.st = 0; } }
+    else if (e.state === "peek") { const l = go(peek, 110); if (l < 4 || e.st > 0.5) { e.state = "aim"; e.st = 0; sfx(api, "inhale"); } }
   };
 
-  // ================================================================== sharks (silhouettes that surface to bite)
+  // ================================================================== sharks
   const SHARK_WATER = [11, 12, 13];
-  ST.shark = { hp: 52, r: 9, mat: "flesh", kb: 0, noStun: true, barY: 18, colors: ["#6a8aa0", "#dfe6ea", "#3a5468"] };
-  ST.tshark = { hp: 64, r: 9, mat: "flesh", kb: 0, noStun: true, barY: 18, colors: ["#a0604a", "#ffb060", "#5a3028"] };
+  ST.shark = { hp: 60, r: 9, mat: "flesh", kb: 0, noStun: true, barY: 18, aquatic: true, colors: ["#6a8aa0", "#dfe6ea", "#3a5468"] };
+  ST.bigshark = { hp: 150, r: 13, mat: "flesh", kb: 0, noStun: true, barY: 24, aquatic: true, big: 8, colors: ["#5a7a70", "#dfe6ea", "#2a4038"] };
+  ST.tshark = { hp: 120, r: 12, mat: "flesh", kb: 0, noStun: true, barY: 22, aquatic: true, big: 6, colors: ["#a0604a", "#ffb060", "#5a3028"] };
+  const SHARK = {
+    shark: { sc: 1, L: 34, cruise: 30, stalk: 48, lunge: 230, wind: 0.75, dmg: 1, reach: 14 },
+    bigshark: { sc: 1.5, L: 52, cruise: 26, stalk: 42, lunge: 200, wind: 0.95, dmg: 2, reach: 20 },
+    tshark: { sc: 1.35, L: 46, cruise: 28, stalk: 46, lunge: 215, wind: 0.85, dmg: 2, reach: 18 },
+  };
   const sharkBody = (s) => (s < 0.1 ? 1.6 + s * 26 : s < 0.36 ? 4.2 : Math.max(0.8, 4.2 * Math.pow(Math.max(0, 1 - (s - 0.36) / 0.6), 1.3)));
   const sharkFins = (s) => { let f = 0; if (s > 0.24 && s < 0.37) f = Math.max(f, 7 * (1 - (s - 0.24) / 0.13) * Math.min(1, (s - 0.24) / 0.035)); if (s > 0.58 && s < 0.66) f = Math.max(f, 3 * (1 - (s - 0.58) / 0.08)); if (s > 0.9) f = Math.max(f, 5.5 * Math.pow((s - 0.9) / 0.1, 0.8)); return f; };
-  for (const k of ["shark", "tshark"]) E.SETUP[k] = (e) => { e.swim = true; e.va = Math.random() * TAU; e.S = Surface(90, 90); e.hist = []; e.untouchable = true; e.hideBar = true; e.L = 34; };
+  for (const k of ["shark", "bigshark", "tshark"]) E.SETUP[k] = (e) => { const C = SHARK[k]; e.swim = true; e.aquatic = true; e.sc = C.sc; e.L = C.L; e.va = Math.random() * TAU; e.S = Surface(Math.ceil(90 * C.sc), Math.ceil(90 * C.sc)); e.hist = []; e.z = 0; e.next = rnd(2.2, 3.6); };
+  // the parts of a shark's life spent out of the water
+  const OUT = { lunge: 1, thrash: 1, leap: 1, beach: 1, stranded: 1, flop: 1 };
   function sharkAI(e, dt, t, P, L, api, d) {
-    const thermal = e.type === "tshark";
-    e.untouchable = !(e.state === "bite" || e.state === "surfaced");
-    e.hideBar = e.untouchable;
-    const inReach = () => Math.hypot(P.x - e.x, P.y - e.y) < 70;
+    const C = SHARK[e.type], thermal = e.type === "tshark";
+    e.stranded = e.state === "stranded" || e.state === "beach" || e.state === "flop";
+    const wetP = wetAt(P.x, P.y);
+    // in a frenzy, the school is prey too
+    const school = L.school && L.school.active ? L.school : null;
+    // somehow on dry land (a spawn, a shove): flop back to the water
+    if (!OUT[e.state] && e.state !== "windBeach" && !SHARK_WATER.includes(wetAt(e.x, e.y))) { e.state = "flop"; e.st = 0; e.home = nearestWater(e); }
     if (!e.alerted || e.state === "idle" || e.state === "cruise") {
-      e.state = "cruise"; steer(e, null, SHARK_WATER, dt, 40, 1.5);
-      if (e.alerted && d < 180) { e.state = "stalk"; e.st = 0; e.next = rnd(1.6, 3); e.orb = Math.random() < 0.5 ? 1 : -1; }
+      e.state = "cruise"; steer(e, school ? { x: school.x, y: school.y } : null, SHARK_WATER, dt, C.cruise, 1.2);
+      if (e.alerted && d < 200) { e.state = "stalk"; e.st = 0; e.orb = Math.random() < 0.5 ? 1 : -1; }
     } else if (e.state === "stalk") {
-      // circling, fin up, closing in
-      const want = { x: P.x - Math.cos(Math.atan2(P.y - e.y, P.x - e.x) + e.orb * 0.9) * 54, y: P.y - Math.sin(Math.atan2(P.y - e.y, P.x - e.x) + e.orb * 0.9) * 54 };
-      steer(e, want, SHARK_WATER, dt, 75, 3);
-      if (thermal) { e.dashCd = (e.dashCd ?? 3) - dt; if (e.dashCd <= 0 && d < 160) { e.state = "boildash"; e.st = 0; e.dashCd = rnd(5, 7); e.aim = Math.atan2(P.y - e.y, P.x - e.x); e.dropT = 0; } }
-      if (e.st > e.next && inReach()) { e.state = "rise"; e.st = 0; e.aim = Math.atan2(P.y - e.y, P.x - e.x); sfx(api, "splash"); }
-      if (d > 300) { e.state = "cruise"; e.alerted = false; }
-    } else if (e.state === "boildash") {
-      e.va += angDiff(e.aim, e.va) * Math.min(1, dt * 8); const moved = swim(e, Math.cos(e.va) * 200 * dt, Math.sin(e.va) * 200 * dt, SHARK_WATER);
-      e.dropT -= dt; if (e.dropT <= 0) { e.dropT = 0.08; L.fx.push({ kind: "boil", x: e.x, y: e.y, t: 0, dur: 2.2, R: 10 }); }
-      if (!moved || e.st > 0.8) { e.state = "stalk"; e.st = 0; e.next = rnd(1, 2); }
-    } else if (e.state === "rise") {
-      // the water swells as it turns to come up at you
-      e.aim += angDiff(Math.atan2(P.y - e.y, P.x - e.x), e.aim) * Math.min(1, dt * 5); e.va += angDiff(e.aim, e.va) * Math.min(1, dt * 8);
-      if (e.st > 0.55) { e.state = "bite"; e.st = 0; e.hitSet = {}; sfx(api, "splash"); for (let k = 0; k < 12; k++) Combat.addPart({ x: e.x, y: e.y - 2, vx: rnd(-60, 60), vy: rnd(-90, -30), g: 260, life: 0.6, col: k % 2 ? "#e8f8fc" : "#9ad8e8", size: 1, kind: "drop" }); }
-    } else if (e.state === "bite") {
-      // out of the water, jaws first
-      const moved = swim(e, Math.cos(e.va) * 240 * dt, Math.sin(e.va) * 240 * dt, SHARK_WATER);
-      hitAny(e, e.x + Math.cos(e.va) * 10, e.y + Math.sin(e.va) * 7 - 4, 15, thermal ? 2 : 1, e.hitSet, "bite");
-      if (e.st > 0.3 || !moved) { e.state = "surfaced"; e.st = 0; sfx(api, "bite"); }
-    } else if (e.state === "surfaced") { if (e.st > 0.8) { e.state = "stalk"; e.st = 0; e.next = rnd(1.4, 2.8); sfx(api, "splash"); } }
-    e.hist.unshift([e.x, e.y]); if (e.hist.length > 30) e.hist.length = 30;
+      // a slow circle round you, fin up, closing in; if you're on land, it patrols the water's edge nearest you
+      if (!wetP) { if (!e.shore || t - (e.shoreT || 0) > 1) { e.shoreT = t; e.shore = nearestWater(P); } steer(e, { x: e.shore.x + Math.cos(t * 0.8 + e.ph) * 18, y: e.shore.y + Math.sin(t * 0.8 + e.ph) * 12 }, SHARK_WATER, dt, C.stalk, 2); }
+      else { const a0 = Math.atan2(e.y - P.y, e.x - P.x) + e.orb * 0.6, R0 = 72 * C.sc; steer(e, { x: P.x + Math.cos(a0) * R0, y: P.y + Math.sin(a0) * R0 * 0.8 }, SHARK_WATER, dt, C.stalk, 1.6); }
+      if (thermal) { e.scaldCd = (e.scaldCd ?? 4) - dt; if (e.scaldCd <= 0 && d < 150 && wetP) { e.state = "scald"; e.st = 0; e.scaldCd = rnd(6, 8); e.aim = Math.atan2(P.y - e.y, P.x - e.x); sfx(api, "inhale"); } }
+      if (school && Math.random() < dt * 0.25) { e.state = "line"; e.st = 0; e.aim = Math.atan2(school.y - e.y, school.x - e.x); e.prey = 1; }
+      if (e.st > e.next && e.state === "stalk") {
+        const info = lineInfo(e.x, e.y, P.x, P.y, SHARK_WATER);
+        if (wetP && info.land === 0 && d < 150) { e.state = "line"; e.st = 0; e.aim = Math.atan2(P.y - e.y, P.x - e.x); e.prey = 0; }
+        else if (wetP && !info.wall && info.maxRun <= 70 && info.maxRun > 0 && d < 170) { e.state = "windLeap"; e.st = 0; e.aim = Math.atan2(P.y - e.y, P.x - e.x); }
+        else if (!wetP && d < 70 + 30 * C.sc && !info.wall && info.land < 64) { e.state = "windBeach"; e.st = 0; e.aim = Math.atan2(P.y - e.y, P.x - e.x); e.home = { x: e.x, y: e.y }; }
+        else e.st = e.next - 0.6;
+      }
+      if (d > 320) { e.state = "cruise"; e.alerted = false; }
+    } else if (e.state === "line") {
+      // it turns, settles, and its wake points the way it is about to go
+      if (e.st < C.wind - 0.25) e.aim += angDiff(Math.atan2(P.y - e.y, P.x - e.x), e.aim) * Math.min(1, dt * (e.prey ? 0 : 3));
+      e.va += angDiff(e.aim, e.va) * Math.min(1, dt * 6); swim(e, Math.cos(e.va) * 12 * dt, Math.sin(e.va) * 12 * dt, SHARK_WATER);
+      if (e.st > C.wind) { e.state = "lunge"; e.st = 0; e.hitSet = {}; sfx(api, "splash"); }
+    } else if (e.state === "lunge") {
+      const moved = swim(e, Math.cos(e.va) * C.lunge * dt, Math.sin(e.va) * C.lunge * dt, SHARK_WATER);
+      if (e.st > 0.12) hitAny(e, e.x + Math.cos(e.va) * 10 * C.sc, e.y + Math.sin(e.va) * 7 * C.sc - 4, C.reach, C.dmg, e.hitSet, "bite");
+      if (thermal && Math.random() < dt * 14) L.fx.push({ kind: "boil", x: e.x, y: e.y, t: 0, dur: 2, R: 10 });
+      if (school && e.prey && Math.hypot(school.x - e.x, school.y - e.y) < 60) school.scare = { x: e.x, y: e.y, t };
+      if (!moved || e.st > 0.55) { e.state = "thrash"; e.st = 0; sfx(api, "bite"); for (let k = 0; k < 12; k++) Combat.addPart({ x: e.x, y: e.y - 2, vx: rnd(-60, 60), vy: rnd(-90, -30), g: 260, life: 0.6, col: k % 2 ? "#e8f8fc" : "#9ad8e8", size: 1, kind: "drop" }); }
+    } else if (e.state === "thrash") { if (e.st > 0.55) { e.state = "stalk"; e.st = 0; e.next = rnd(2.4, 3.8); sfx(api, "splash"); } }
+    else if (e.state === "windLeap") {
+      e.va += angDiff(e.aim, e.va) * Math.min(1, dt * 6);
+      if (e.st > C.wind) {
+        // pick a landing in the water past the bar, at the hero
+        let lx = P.x, ly = P.y; if (!SHARK_WATER.includes(wetAt(lx, ly))) { for (let k = 1; k < 8; k++) { const x2 = P.x + Math.cos(e.aim) * k * 6, y2 = P.y + Math.sin(e.aim) * k * 6; if (SHARK_WATER.includes(wetAt(x2, y2))) { lx = x2; ly = y2; break; } } }
+        e.state = "leap"; e.st = 0; e.from = { x: e.x, y: e.y }; e.to = { x: lx, y: ly }; e.hitSet = {}; sfx(api, "splash");
+      }
+    } else if (e.state === "leap") {
+      // a breach clean over the sandbar, landing jaws first where you stand
+      const dur = 0.75, u = Math.min(1, e.st / dur);
+      e.x = e.from.x + (e.to.x - e.from.x) * u; e.y = e.from.y + (e.to.y - e.from.y) * u; e.z = Math.sin(u * Math.PI) * 30 * C.sc;
+      if (u >= 1) { e.z = 0; hitAny(e, e.x, e.y - 4, C.reach + 6, C.dmg, e.hitSet, "bite"); Combat.shake = Math.min(1, Combat.shake + 0.3); for (let k = 0; k < 16; k++) Combat.addPart({ x: e.x, y: e.y - 2, vx: rnd(-80, 80), vy: rnd(-110, -40), g: 260, life: 0.7, col: k % 2 ? "#e8f8fc" : "#9ad8e8", size: 1, kind: "drop" }); sfx(api, "splash"); e.state = "thrash"; e.st = 0; }
+    } else if (e.state === "windBeach") { e.va += angDiff(e.aim, e.va) * Math.min(1, dt * 6); if (e.st > C.wind) { e.state = "beach"; e.st = 0; e.hitSet = {}; sfx(api, "splash"); } }
+    else if (e.state === "beach") {
+      // up out of the surf onto the sand after you, and stuck there
+      const sp = C.lunge * 0.9; e.x += Math.cos(e.va) * sp * dt; e.y += Math.sin(e.va) * sp * dt;
+      hitAny(e, e.x + Math.cos(e.va) * 10 * C.sc, e.y + Math.sin(e.va) * 7 * C.sc - 4, C.reach, C.dmg, e.hitSet, "bite");
+      if (e.st > 0.42 || Level.solidAt(e.x + Math.cos(e.va) * 10, e.y + Math.sin(e.va) * 10)) { e.state = "stranded"; e.st = 0; sfx(api, "bite"); }
+    } else if (e.state === "stranded") { if (e.st > 1.1) { e.state = "flop"; e.st = 0; } }
+    else if (e.state === "flop") {
+      // flops back into the sea, hop by hop
+      const h = e.home || nearestWater(e), a = Math.atan2(h.y - e.y, h.x - e.x), hop = Math.abs(Math.sin(e.st * 9));
+      e.va += angDiff(a + Math.PI, e.va) * Math.min(1, dt * 2); e.x += Math.cos(a) * 70 * hop * dt; e.y += Math.sin(a) * 70 * hop * dt; e.z = hop * 5;
+      if (SHARK_WATER.includes(wetAt(e.x, e.y)) && SHARK_WATER.includes(wetAt(e.x + Math.cos(a) * 8, e.y + Math.sin(a) * 8)) || e.st > 3) { e.z = 0; e.state = "stalk"; e.st = 0; e.next = rnd(2.4, 3.6); sfx(api, "splash"); if (!SHARK_WATER.includes(wetAt(e.x, e.y))) { e.x = h.x; e.y = h.y; } }
+    } else if (e.state === "scald") {
+      // a thermal shark heats the water ahead of it: steam bursts up along a line toward you
+      if (!e.scalded && e.st > 0.4) { e.scalded = true; for (let k = 1; k <= 5; k++) { const x2 = e.x + Math.cos(e.aim) * k * 22, y2 = e.y + Math.sin(e.aim) * k * 18; if (wetAt(x2, y2)) L.fx.push({ kind: "scald", x: x2, y: y2, t: -k * 0.12, dur: 1.3, R: 13, dmg: 1 }); } sfx(api, "geyser"); }
+      if (e.st > 1) { e.scalded = false; e.state = "stalk"; e.st = 0; e.next = rnd(1.4, 2.4); }
+    }
+    e.hist.unshift([e.x, e.y]); if (e.hist.length > 36) e.hist.length = 36;
   }
-  AI.shark = sharkAI; AI.tshark = sharkAI;
-  // the body: the cave sharks' own outline (snout to forked tail), traced along where it has swum
+  function nearestWater(e) { for (let r = 8; r < 160; r += 8) for (let k = 0; k < 16; k++) { const a = (k / 16) * TAU, x = e.x + Math.cos(a) * r, y = e.y + Math.sin(a) * r; if (SHARK_WATER.includes(wetAt(x, y))) return { x, y }; } return { x: e.x, y: e.y }; }
+  AI.shark = AI.bigshark = AI.tshark = sharkAI;
+  // the body: the cave sharks' own outline (snout to forked tail), traced along where it has swum. A
+  // silhouette under the water; out of it (lunging, leaping, stranded) the real shark
   function drawShark(e, ctx, ox, oy, t, g, fl) {
-    const thermal = e.type === "tshark", S = e.S, W = S.w, cx = W / 2, cy = W / 2, out = e.state === "bite" || e.state === "surfaced", rising = e.state === "rise";
+    const thermal = e.type === "tshark", big = e.type === "bigshark", S = e.S, W = S.w, cx = W / 2, cy = W / 2, sc = e.sc || 1;
+    const full = e.state === "leap" || e.state === "beach" || e.state === "stranded" || e.state === "flop", out = full || e.state === "lunge" && e.st > 0.15 || e.state === "thrash";
     const pts = [], h = e.hist.length ? e.hist : [[e.x, e.y]], LEN = e.L;
-    // spine points from the snout back, following the path (so the body bends as it turns)
-    let acc = 0, hi = 0; pts.push([e.x + Math.cos(e.va) * 6, e.y + Math.sin(e.va) * 6, 0]);
-    for (let s = 1; s <= 10; s++) { const want = (s / 10) * LEN; while (hi < h.length - 1 && acc + Math.hypot(h[hi + 1][0] - h[hi][0], h[hi + 1][1] - h[hi][1]) < want) { acc += Math.hypot(h[hi + 1][0] - h[hi][0], h[hi + 1][1] - h[hi][1]); hi++; } const b = h[Math.min(hi, h.length - 1)], fall = want - acc; const pa = e.va + Math.PI; pts.push([b[0] + Math.cos(pa) * Math.max(0, fall) * (hi >= h.length - 1 ? 1 : 0), b[1] + Math.sin(pa) * Math.max(0, fall) * (hi >= h.length - 1 ? 1 : 0), s / 10]); }
-    for (let k = 1; k < pts.length; k++) { const wave = Math.sin(pts[k][2] * 5 - t * 5 + e.ph) * pts[k][2] * pts[k][2] * 3, a = e.va + Math.PI / 2; pts[k][0] += Math.cos(a) * wave; pts[k][1] += Math.sin(a) * wave; }
+    let acc = 0, hi = 0; pts.push([e.x + Math.cos(e.va) * 6 * sc, e.y + Math.sin(e.va) * 6 * sc, 0]);
+    for (let s = 1; s <= 10; s++) {
+      const want = (s / 10) * LEN;
+      while (hi < h.length - 1 && acc + Math.hypot(h[hi + 1][0] - h[hi][0], h[hi + 1][1] - h[hi][1]) < want) { acc += Math.hypot(h[hi + 1][0] - h[hi][0], h[hi + 1][1] - h[hi][1]); hi++; }
+      const b = h[Math.min(hi, h.length - 1)], fall = want - acc, pa = e.va + Math.PI, past = hi >= h.length - 1 || full ? 1 : 0;
+      pts.push(full ? [e.x + Math.cos(pa) * want, e.y + Math.sin(pa) * want, s / 10] : [b[0] + Math.cos(pa) * Math.max(0, fall) * past, b[1] + Math.sin(pa) * Math.max(0, fall) * past, s / 10]);
+    }
+    const flop = e.state === "stranded" || e.state === "flop" ? Math.sin(t * 16) * 4 : 0;
+    for (let k = 1; k < pts.length; k++) { const wave = Math.sin(pts[k][2] * 5 - t * (out ? 9 : 4) + e.ph) * pts[k][2] * pts[k][2] * 3 * sc + flop * pts[k][2], a = e.va + Math.PI / 2; pts[k][0] += Math.cos(a) * wave; pts[k][1] += Math.sin(a) * wave; }
     begin(S);
-    const SIL = thermal ? PAL.pk([60, 22, 20]) : PAL.pk([8, 34, 52]), EDGE = thermal ? PAL.pk([200, 90, 40]) : PAL.pk([20, 60, 84]);
-    const TOP = thermal ? [[150, 92, 80], [190, 120, 96], [110, 60, 52]] : [[104, 132, 152], [140, 168, 186], [70, 96, 116]], BELLY = [226, 232, 234];
+    const SIL = thermal ? PAL.pk([60, 22, 20]) : big ? PAL.pk([10, 30, 34]) : PAL.pk([8, 34, 52]), EDGE = thermal ? PAL.pk([200, 90, 40]) : PAL.pk([20, 60, 84]);
+    const TOP = thermal ? [[150, 92, 80], [190, 120, 96], [110, 60, 52]] : big ? [[96, 120, 110], [130, 156, 140], [64, 84, 76]] : [[104, 132, 152], [140, 168, 186], [70, 96, 116]], BELLY = [226, 232, 234];
     for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
       const wx = e.x + x + 0.5 - cx, wy = e.y + y + 0.5 - cy;
       let best = 1e9, bs = 0, side = 0;
       for (let k = 0; k < pts.length - 1; k++) { const ax = pts[k][0], ay = pts[k][1], dx = pts[k + 1][0] - ax, dy = pts[k + 1][1] - ay, ll = dx * dx + dy * dy || 1, tt = Math.max(0, Math.min(1, ((wx - ax) * dx + (wy - ay) * dy) / ll)), dd = Math.hypot(ax + dx * tt - wx, ay + dy * tt - wy); if (dd < best) { best = dd; bs = pts[k][2] + (pts[k + 1][2] - pts[k][2]) * tt; side = (wx - ax) * -dy + (wy - ay) * dx; } }
-      const w = sharkBody(bs) + sharkFins(bs);
+      const w = (sharkBody(bs) + sharkFins(bs)) * sc;
       if (!(best <= w)) continue;
       const i = y * W + x;
-      if (out && bs < 0.42) {
-        // the part out of the water: grey-blue back, white belly, a black eye, open jaws and teeth
-        const n = best / Math.max(0.1, sharkBody(bs)), up = side < 0;
+      if (out && (full || bs < 0.42)) {
+        const n = best / Math.max(0.1, sharkBody(bs) * sc), up = side < 0;
         let c = PAL.pk(n > 0.8 ? TOP[2] : up ? TOP[1] : n > 0.35 ? TOP[0] : BELLY);
+        if (big && bs > 0.15 && bs < 0.8 && Math.sin(bs * 70 + (side > 0 ? 1 : 0)) > 0.55 && n > 0.3) c = PAL.pk(TOP[2]);           // a tiger's stripes
         if (bs > 0.1 && bs < 0.14 && n > 0.45 && n < 0.85) c = PAL.pk([12, 12, 18]);
-        if (bs < 0.07 && n < 0.55) c = PAL.pk(e.state === "bite" ? [170, 40, 50] : [60, 40, 48]);
+        if (bs < 0.07 && n < 0.55) c = PAL.pk(e.state === "lunge" || e.state === "beach" || e.state === "leap" ? [170, 40, 50] : [60, 40, 48]);
         if (bs < 0.09 && n > 0.5 && n < 0.75 && ((x + y) & 1)) c = PAL.pk([250, 248, 240]);
         if (thermal && bs > 0.16 && Math.sin(bs * 60) > 0.6) c = PAL.pk([255, 160, 70]);
-        S.d[i] = fl ? WHITE : c; mark(S, x, y);
+        S.d[i] = fl ? L0.WHITE : c; mark(S, x, y);
       } else { S.d[i] = best > w - 1 ? EDGE : SIL; mark(S, x, y); }
     }
     const has = flush(S, out);
-    if (has) { ctx.globalAlpha = out ? 1 : rising ? 0.7 : 0.5; ctx.drawImage(S.c, Math.round(e.x - cx - ox), Math.round(e.y - cy - oy)); ctx.globalAlpha = 1; }
+    const z = e.z || 0;
+    if (full) { ctx.fillStyle = "rgba(10,12,16,0.3)"; ctx.beginPath(); ctx.ellipse(Math.round(e.x - ox), Math.round(e.y - oy), 14 * sc, 4 * sc, 0, 0, TAU); ctx.fill(); }
+    if (has) { ctx.globalAlpha = out ? 1 : e.state === "line" ? 0.68 : 0.5; ctx.drawImage(S.c, Math.round(e.x - cx - ox), Math.round(e.y - cy - oy - z)); ctx.globalAlpha = 1; }
     // the fin cutting the surface, and its wake
-    if (!out && (e.state === "stalk" || rising || e.state === "boildash")) {
-      const fx = pts[3][0] - ox, fy = pts[3][1] - oy, hgt = rising ? 6 : 4;
-      for (let k = 0; k < hgt; k++) px(ctx, fx - (hgt - k) * 0.4, fy - k, Math.max(1, (hgt - k) * 0.6), 1, thermal ? "#8a4a3a" : "#4a6478");
+    if (!out && (e.state === "stalk" || e.state === "line" || e.state === "windLeap" || e.state === "windBeach" || e.state === "scald")) {
+      const fx = pts[3][0] - ox, fy = pts[3][1] - oy, hgt = Math.round((e.state === "stalk" ? 4 : 6) * sc);
+      for (let k = 0; k < hgt; k++) px(ctx, fx - (hgt - k) * 0.4, fy - k, Math.max(1, (hgt - k) * 0.6), 1, thermal ? "#8a4a3a" : big ? "#3e5a50" : "#4a6478");
       px(ctx, fx, fy - hgt, 1, 1, "#dfe8ee");
       for (let k = 1; k < 4; k++) { const wa = e.va + Math.PI; for (const sg of [-1, 1]) px(ctx, fx + Math.cos(wa + sg * 0.5) * k * 4, fy + 2 + Math.sin(wa + sg * 0.5) * k * 3, 2, 1, `rgba(240,252,252,${0.8 - k * 0.2})`); }
     }
-    if (rising) { ctx.strokeStyle = `rgba(240,252,252,${0.5 + 0.4 * Math.sin(t * 30)})`; ctx.beginPath(); ctx.ellipse(Math.round(e.x - ox) + 0.5, Math.round(e.y - oy) + 0.5, 14 + e.st * 10, 8 + e.st * 5, 0, 0, TAU); ctx.stroke(); telegraph(ctx, e.x - ox, e.y - oy - 16, t); }
-    if (thermal && g) glow(g, e.x - ox, e.y - oy, 30, "255,120,50", out ? 0.45 : 0.25);
-  }
-  E.DRAW.shark = (e, ctx, ox, oy, t, g, introY, fl) => drawShark(e, ctx, ox, oy, t, g, fl);
-  E.DRAW.tshark = E.DRAW.shark;
-
-  // ================================================================== stingrays
-  const RAY_WATER = [11, 12];
-  ST.ray = { hp: 38, r: 9, mat: "flesh", kb: 0, noStun: true, barY: 14, colors: ["#3a5468", "#9adcff", "#20384a"] };
-  E.SETUP.ray = (e) => { e.swim = true; e.va = Math.random() * TAU; e.cd = rnd(1, 3); };
-  // a ray from above: a soft diamond whose wingtips ripple, a long whip of a tail
-  function drawRay(ctx, x, y, va, t, ph, scale, alpha, charge, fl) {
-    const ca = Math.cos(va), sa = Math.sin(va), span = 11 * scale, len = 8 * scale;
-    const col = fl ? "255,255,255" : charge > 0 ? `${40 + 120 * charge | 0},${80 + 140 * charge | 0},${110 + 140 * charge | 0}` : "8,34,52";
-    ctx.fillStyle = `rgba(${col},${alpha})`;
-    for (let u = -len; u <= len * 0.6; u += 1) for (let v = -span; v <= span; v += 1) {
-      const flap = Math.sin(t * 4 + ph + Math.abs(v) * 0.25) * Math.abs(v) / span * 1.6;
-      if (Math.abs(v) / span + Math.abs(u + flap * 0.3) / (u < 0 ? len : len * 0.6) > 1) continue;
-      ctx.fillRect(Math.round(x + ca * u - sa * v), Math.round(y + sa * u + ca * v + flap), 1, 1);
+    // lining up: a pale wake arrow on the water where it is about to go
+    if (e.state === "line" || e.state === "windLeap" || e.state === "windBeach") {
+      const u = Math.min(1, e.st / SHARK[e.type].wind), len = 60 * sc * u;
+      for (let s2 = 10; s2 < len; s2 += 4) { const x2 = e.x + Math.cos(e.aim) * s2 - ox, y2 = e.y + Math.sin(e.aim) * s2 * 0.85 - oy; px(ctx, x2, y2, 2, 1, `rgba(240,252,252,${0.65 * (1 - s2 / (len + 10))})`); }
+      telegraph(ctx, e.x - ox, e.y - oy - 16 * sc, t);
     }
-    for (let k = 0; k < 12 * scale; k++) ctx.fillRect(Math.round(x - ca * (len + k) + Math.sin(t * 5 + k * 0.4) * sa * 1.5), Math.round(y - sa * (len + k)), 1, 1);
+    if (thermal && g) glow(g, e.x - ox, e.y - oy, 30 * sc, "255,120,50", out ? 0.45 : 0.25);
+    if (e.state === "stranded" || e.state === "flop") for (let k = 0; k < 2; k++) if (Math.random() < 0.3) Combat.addPart({ x: e.x + rnd(-10, 10), y: e.y - 4, vx: rnd(-30, 30), vy: rnd(-50, -20), g: 200, life: 0.4, col: "#e8d8b0", size: 1, kind: "debris" });
+  }
+  E.DRAW.shark = E.DRAW.bigshark = E.DRAW.tshark = (e, ctx, ox, oy, t, g, introY, fl) => drawShark(e, ctx, ox, oy, t, g, fl);
+
+  // ================================================================== stingrays (silhouettes)
+  const RAY_WATER = [11, 12];
+  ST.ray = { hp: 42, r: 9, mat: "flesh", kb: 0, noStun: true, barY: 14, aquatic: true, colors: ["#3a5468", "#9adcff", "#20384a"] };
+  E.SETUP.ray = (e) => { e.swim = true; e.aquatic = true; e.va = Math.random() * TAU; e.cd = rnd(1, 3); e.cur = rnd(2, 4); };
+  // a stingray from above: a rounded diamond disc whose wing edges ripple, two eye bumps, and a long
+  // whip of a tail with its barb
+  function drawRay(ctx, x, y, va, t, ph, scale, alpha, charge, fl) {
+    const ca = Math.cos(va), sa = Math.sin(va), span = 11 * scale, len = 9 * scale;
+    const col = fl ? "255,255,255" : charge > 0 ? `${20 + 120 * charge | 0},${50 + 160 * charge | 0},${80 + 170 * charge | 0}` : "6,30,46";
+    ctx.fillStyle = `rgba(${col},${alpha})`;
+    // filled screen pixel by screen pixel (mapped back into the ray's own frame), so it has no holes at any angle
+    const X0 = Math.round(x), Y0 = Math.round(y), RR = Math.ceil(Math.max(span, len) + 3);
+    for (let dy = -RR; dy <= RR; dy++) for (let dx = -RR; dx <= RR; dx++) {
+      const u0 = ca * (dx + X0 - x) + sa * (dy + Y0 - y), v = -sa * (dx + X0 - x) + ca * (dy + Y0 - y), av = Math.abs(v) / span;
+      if (av > 1.05) continue;
+      const u = u0 - Math.sin(t * 3.4 + ph - av * 2.4) * av * av * 1.1 * scale;
+      const front = u > 0 ? Math.pow(u / (len * 0.75), 1.6) : Math.pow(-u / len, 1.15);
+      if (av + front > 1.02 || u > len * 0.75 || u < -len) continue;
+      ctx.fillRect(X0 + dx, Y0 + dy, 1, 1);
+    }
+    ctx.fillStyle = `rgba(${col},${Math.min(1, alpha * 1.25)})`;
+    for (const sg of [-1, 1]) ctx.fillRect(Math.round(x + ca * len * 0.35 - sa * sg * 2.2 * scale), Math.round(y + sa * len * 0.35 + ca * sg * 2.2 * scale), 1, 1);
+    for (let k = 0; k < 15 * scale; k++) { const w = Math.sin(t * 4.5 + ph - k * 0.35) * Math.min(1, k / 6) * 1.6; ctx.fillRect(Math.round(x - ca * (len + k) - sa * w), Math.round(y - sa * (len + k) + ca * w), 1, 1); }
     if (charge > 0) for (let k = 0; k < 6; k++) { const a = K.hash2(k, (t * 20) | 0, 9) * TAU, r = span * (0.6 + K.hash2(k, 3, (t * 20) | 0) * 0.8); ctx.fillStyle = "rgba(220,240,255,0.95)"; ctx.fillRect(Math.round(x + Math.cos(a) * r), Math.round(y + Math.sin(a) * r * 0.7), 1, 1); }
   }
   AI.ray = function (e, dt, t, P, L, api, d) {
-    e.cd -= dt;
-    if (e.state === "charge") { if (e.st > 0.85) { const inW = wetAt(P.x, P.y); L.fx.push({ kind: "zap", x: e.x, y: e.y, t: 0, dur: 0.55, R: 62 * (inW ? 1.25 : 1), dmg: 1 }); sfx(api, "zap"); e.state = "glide"; e.st = 0; e.cd = rnd(2.2, 3.6); } return; }
+    e.cd -= dt; e.cur -= dt;
+    if (e.state === "charge") { if (e.st > 0.85) { L.fx.push({ kind: "zap", x: e.x, y: e.y, t: 0, dur: 0.55, R: wetAt(P.x, P.y) ? 78 : 62, dmg: 1 }); sfx(api, "zap"); e.state = "glide"; e.st = 0; e.cd = rnd(2.2, 3.6); } return; }
+    if (e.state === "current") {
+      // an arc of current thrown up the shore at a hero on land
+      if (e.st > 0.7 && !e.shot) { e.shot = true; const Q = e.tq && !e.tq.dead ? e.tq : P; L.fx.push({ kind: "bolt", x: e.x, y: e.y - 2, x2: Q.x, y2: Q.y - 8, t: 0, dur: 0.45, dmg: 1 }); sfx(api, "zap"); }
+      if (e.st > 1.2) { e.shot = false; e.state = "glide"; e.st = 0; e.cur = rnd(2.6, 3.8); }
+      return;
+    }
     e.state = "glide";
-    const goal = e.alerted && d < 200 ? { x: P.x + Math.cos(t * 0.7 + e.ph) * 36, y: P.y + Math.sin(t * 0.7 + e.ph) * 26 } : null;
-    steer(e, goal, RAY_WATER, dt, e.alerted ? 62 : 30, 2);
-    if (e.alerted && e.cd <= 0 && d < 80) { e.state = "charge"; e.st = 0; sfx(api, "inhale"); }
+    const goal = e.alerted && d < 210 ? { x: P.x + Math.cos(t * 0.7 + e.ph) * 36, y: P.y + Math.sin(t * 0.7 + e.ph) * 26 } : null;
+    steer(e, goal, RAY_WATER, dt, e.alerted ? 58 : 28, 2);
+    if (e.alerted && e.cd <= 0 && d < 80 && wetAt(P.x, P.y)) { e.state = "charge"; e.st = 0; sfx(api, "inhale"); }
+    else if (e.alerted && e.cur <= 0) { const Q = (E.alive || []).find((q) => !wetAt(q.x, q.y) && Math.hypot(q.x - e.x, q.y - e.y) < 110); if (Q) { e.state = "current"; e.st = 0; e.tq = Q; sfx(api, "inhale"); } else e.cur = 0.5; }
   };
-  E.DRAW.ray = (e, ctx, ox, oy, t, g, introY, fl) => { const ch = e.state === "charge" ? Math.min(1, e.st / 0.85) : 0; drawRay(ctx, e.x - ox, e.y - oy, e.va, t, e.ph, 1, 0.55, ch, fl); if (ch > 0) { telegraph(ctx, e.x - ox, e.y - oy - 16, t); if (g) glow(g, e.x - ox, e.y - oy, 30 + ch * 30, "140,200,255", 0.3 + ch * 0.4); } };
+  E.DRAW.ray = (e, ctx, ox, oy, t, g, introY, fl) => {
+    const ch = e.state === "charge" ? Math.min(1, e.st / 0.85) : e.state === "current" ? Math.min(1, e.st / 0.7) : 0;
+    drawRay(ctx, e.x - ox, e.y - oy, e.va, t, e.ph, 1.1, 0.64, ch, fl);
+    if (ch > 0) { telegraph(ctx, e.x - ox, e.y - oy - 16, t); if (g) glow(g, e.x - ox, e.y - oy, 30 + ch * 30, "140,200,255", 0.3 + ch * 0.4); }
+  };
 
-  // ================================================================== Kai-Uila, the Storm Ray
-  ST.giantray = { hp: 760, r: 24, mat: "flesh", kb: 0, boss: true, big: 26, name: "KAI-UILA, THE STORM RAY", colors: ["#3a5468", "#9adcff", "#20384a"] };
-  ST.rayling = { hp: 9999, r: 7, mat: "flesh", kb: 0, noStun: true, barY: 12, colors: ["#3a5468", "#9adcff", "#20384a"] };
-  // the shape the school holds: a great ray's outline filled with small rays
-  const SLOTS = (() => { const s = []; for (let u = -26; u <= 18; u += 7) for (let v = -46; v <= 46; v += 8) { if (Math.abs(v) / 50 + Math.abs(u + 2) / (u < 0 ? 30 : 22) <= 1) s.push([u, v]); } return s; })();
-  E.SETUP.giantray = (e) => { e.swim = true; e.va = Math.PI / 2; e.form = 1; e.cd = 2; e.kids = []; e.hideBar = true; e.rayPh = SLOTS.map(() => Math.random() * 6); e.scatter = SLOTS.map(() => [rnd(-80, 80), rnd(-60, 60)]); };
+  // ================================================================== Kai-Uila, the Storm Ray (L3 boss)
+  ST.giantray = { hp: 1300, r: 30, mat: "flesh", kb: 0, boss: true, big: 34, aquatic: true, name: "KAI-UILA, THE STORM RAY", colors: ["#3a5468", "#9adcff", "#20384a"] };
+  ST.rayling = { hp: 9999, r: 7, mat: "flesh", kb: 0, noStun: true, barY: 12, aquatic: true, colors: ["#3a5468", "#9adcff", "#20384a"] };
+  // the great ray's outline (u forward, v across), after the concept: cephalic fins, swept wings, a
+  // long tail. Small rays fill it, packed along the wings like scales.
+  const RAYPOLY = [[30, 0], [30, 7], [40, 12], [34, 17], [20, 20], [8, 44], [-6, 74], [-16, 70], [-22, 44], [-30, 18], [-36, 7], [-40, 0]];
+  const inRay = (u, v) => { v = Math.abs(v); let ins = false; const pts = RAYPOLY.concat(RAYPOLY.slice().reverse().map(([a, b]) => [a, -b])); for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [ui, vi] = pts[i], [uj, vj] = pts[j]; if ((vi > v) !== (vj > v) && u < ((uj - ui) * (v - vi)) / (vj - vi || 1e-6) + ui) ins = !ins; } return ins; };
+  const SLOTS = (() => { const s = []; for (let u = -34; u <= 30; u += 7) for (let v = -72; v <= 72; v += 8) { const vv = v + ((u / 7) & 1 ? 4 : 0); if (inRay(u, vv)) s.push([u, vv]); } return s; })();
+  // the body as a mask in its own frame, built once: 0 outside, 1 body, 2 a small ray's shape, 3 rim
+  const MASK = (() => {
+    const U0 = -150, U1 = 44, V = 80, w = U1 - U0 + 1, h = V * 2 + 1, m = new Uint8Array(w * h);
+    for (let u = U0; u <= U1; u++) for (let v = -V; v <= V; v++) {
+      let inside = inRay(u, v);
+      if (!inside && u < -36 && u > -150) inside = Math.abs(v) <= Math.max(0.6, 3 * (1 + (u + 36) / 114));            // the tail
+      if (inside) m[(v + V) * w + (u - U0)] = 1;
+    }
+    for (const [su, sv] of SLOTS) for (let du = -4; du <= 3; du++) for (let dv = -4; dv <= 4; dv++) { if (Math.abs(dv) / 4.5 + (du > 0 ? du / 3.5 : -du / 4.5) > 1) continue; const i = (sv + dv + V) * w + (su + du - U0); if (m[i] === 1) m[i] = 2; }
+    for (let v = -V + 1; v < V; v++) for (let u = U0 + 1; u < U1; u++) { const i = (v + V) * w + (u - U0); if (m[i] === 1 && (m[i - 1] === 2 || m[i + 1] === 2 || m[i - w] === 2 || m[i + w] === 2)) m[i] = 4; }
+    const rim = new Uint8Array(m.length);
+    for (let v = -V + 2; v < V - 1; v++) for (let u = U0 + 2; u < U1 - 1; u++) { const i = (v + V) * w + (u - U0); if (!m[i]) continue; if (!m[i - 1] || !m[i + 1] || !m[i - w] || !m[i + w]) rim[i] = 3; else if (!m[i - 2] || !m[i + 2] || !m[i - 2 * w] || !m[i + 2 * w]) rim[i] = 5; }
+    for (let i = 0; i < m.length; i++) if (rim[i]) m[i] = rim[i];
+    return { m, U0, V, w, h };
+  })();
+  E.SETUP.giantray = (e) => { e.swim = true; e.aquatic = true; e.va = Math.PI / 2; e.form = 1; e.cd = 2.5; e.kids = []; e.hideBar = true; e.scatter = SLOTS.map(() => [rnd(-110, 110), rnd(-80, 80)]); e.S = Surface(260, 260); };
   AI.giantray = function (e, dt, t, P, L, api, d) {
-    const fury = e.hp < e.max / 2, lvlD = fury ? 2 : 1;
+    const fury = e.hp < e.max / 2, D2 = fury ? 2 : 1, heroes = E.alive || [];
     if (!e.announced && e.alerted) { e.announced = true; L.banner = { title: e.name, t0: t }; sfx(api, "zap"); }
-    if (e.hp <= 0 && !e.dead) { e.dead = true; for (const k of e.kids) { k.dead = true; k.gone = true; } E.death(e); return; }
     e.cd -= dt;
     e.untouchable = e.state === "swarm" || e.state === "break";
+    const anyWater = [11, 12, 13];
     if (e.state === "idle" || e.state === "glide") {
       e.state = "glide"; e.form = Math.min(1, e.form + dt);
-      const goal = { x: P.x - Math.cos(t * 0.4) * 80, y: P.y - Math.sin(t * 0.4) * 50 };
-      steer(e, goal, RAY_WATER, dt, fury ? 60 : 44, 1.2);
+      steer(e, { x: P.x - Math.cos(t * 0.35) * 96, y: P.y - Math.sin(t * 0.35) * 64 }, anyWater, dt, fury ? 58 : 44, 1.1);
       if (e.cd <= 0) {
         const r = Math.random(); e.st = 0;
-        if (r < (fury ? 0.3 : 0.22)) { e.state = "break"; sfx(api, "zap"); }
-        else if (r < 0.5) { e.state = "storm"; e.rings = 0; sfx(api, "inhale"); }
-        else if (r < 0.78) { e.state = "call"; sfx(api, "zap"); }
-        else { e.state = "sweep"; e.aim = Math.atan2(P.y - e.y, P.x - e.x); e.hitSet = {}; }
+        if (r < (fury ? 0.24 : 0.18)) { e.state = "break"; sfx(api, "zap"); }
+        else if (r < 0.4) { e.state = "storm"; e.rings = 0; sfx(api, "inhale"); }
+        else if (r < 0.6) { e.state = "call"; sfx(api, "zap"); }
+        else if (r < 0.78 || !fury) { e.state = "sweep"; e.aim = Math.atan2(P.y - e.y, P.x - e.x); e.hitSet = {}; sfx(api, "zap"); }
+        else { e.state = "field"; sfx(api, "zap"); }
       }
     } else if (e.state === "storm") {
-      // rings of lightning rolling out through the lagoon
-      if (e.st > 0.9 + e.rings * 0.45) { L.fx.push({ kind: "zap", x: e.x, y: e.y, t: 0, dur: 0.8, R: 110, dmg: lvlD }); sfx(api, "zap"); e.rings++; }
-      if (e.rings >= (fury ? 4 : 3)) { e.state = "glide"; e.cd = rnd(1.6, 2.6); }
+      // rings of lightning rolling out through the water, one after another
+      if (e.st > 0.8 + e.rings * 0.38) { L.fx.push({ kind: "zap", x: e.x, y: e.y, t: 0, dur: 0.9, R: 150, dmg: D2 }); sfx(api, "zap"); Combat.shake = Math.min(1, Combat.shake + 0.15); e.rings++; }
+      if (e.rings >= (fury ? 5 : 3)) { e.state = "glide"; e.cd = rnd(1.4, 2.2); }
     } else if (e.state === "call") {
-      // it marks every hero, then lightning comes down along the marks
-      if (!e.called) { e.called = true; for (const q of E.alive || []) for (let k = 0; k < (fury ? 2 : 1); k++) { const ox2 = rnd(-14, 14), oy2 = rnd(-10, 10); L.fx.push({ kind: "bolt", x: e.x, y: e.y - 10, x2: q.x + ox2 + k * 20, y2: q.y - 8 + oy2, t: -k * 0.35, dur: 0.85, dmg: lvlD }); } }
-      if (e.st > 1.5) { e.called = false; e.state = "glide"; e.cd = rnd(1.6, 2.6); }
+      // every hero is marked; bolts come down along the marks, a beat apart
+      if (!e.called) { e.called = true; for (const q of heroes) for (let k = 0; k < (fury ? 4 : 3); k++) L.fx.push({ kind: "strike", x: q.x + rnd(-10, 10) + (q.vx || 0) * 0.35 * k, y: q.y + rnd(-8, 8) + (q.vy || 0) * 0.35 * k, t: -k * 0.42, dur: 0.85, R: 16, dmg: D2 }); }
+      if (e.st > 2.2) { e.called = false; e.state = "glide"; e.cd = rnd(1.4, 2.2); }
+    } else if (e.state === "field") {
+      // fury: the water lights up in a lattice round each hero; the cells strike in a rolling wave
+      if (!e.called) { e.called = true; for (const q of heroes) for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) { if ((i + j) & 1) continue; L.fx.push({ kind: "strike", x: q.x + i * 30, y: q.y + j * 24, t: -(Math.abs(i) + Math.abs(j)) * 0.18, dur: 0.95, R: 15, dmg: 1 }); } }
+      if (e.st > 2.4) { e.called = false; e.state = "glide"; e.cd = rnd(1.6, 2.4); }
     } else if (e.state === "sweep") {
-      // a low, fast glide straight through you, crackling
-      e.va += angDiff(e.aim, e.va) * Math.min(1, dt * 6); const moved = swim(e, Math.cos(e.va) * 170 * dt, Math.sin(e.va) * 170 * dt, RAY_WATER);
-      hitAny(e, e.x, e.y - 6, 34, 1, e.hitSet, "ray");
-      if (!moved || e.st > 1.2) { e.state = "glide"; e.cd = rnd(1.2, 2); }
+      // a low, fast glide straight through you, crackling, dropping zap rings in its wake
+      e.va += angDiff(e.aim, e.va) * Math.min(1, dt * 5);
+      const moved = swim(e, Math.cos(e.va) * 175 * dt, Math.sin(e.va) * 175 * dt, anyWater);
+      hitAny(e, e.x, e.y - 6, 40, D2, e.hitSet, "ray");
+      e.dropT = (e.dropT || 0) - dt; if (e.dropT <= 0) { e.dropT = 0.3; L.fx.push({ kind: "zap", x: e.x, y: e.y, t: 0, dur: 0.5, R: 40, dmg: 1 }); }
+      if (!moved || e.st > 1.3) { e.state = "glide"; e.cd = rnd(1.2, 2); }
     } else if (e.state === "break") {
-      // the school comes apart
       e.form = Math.max(0, 1 - e.st / 0.6);
       if (e.st > 0.6) {
         e.state = "swarm"; e.st = 0; e.kids = [];
-        const n = Math.min(SLOTS.length, 8 + (E.players || []).length * 3);
-        for (let k = 0; k < n; k++) { const [u, v] = SLOTS[(k * 3) % SLOTS.length], ca = Math.cos(e.va), sa = Math.sin(e.va); const r = E.spawn("rayling", e.x + ca * u - sa * v, e.y + sa * u + ca * v, 0, L); r.parent = e; r.va = e.va; r.alerted = true; r.tgt = (E.alive || [])[k % Math.max(1, (E.alive || []).length)]; L.enemies.push(r); e.kids.push(r); }
+        const n = Math.min(SLOTS.length, 10 + heroes.length * 4);
+        for (let k = 0; k < n; k++) { const [u, v] = SLOTS[(k * 5) % SLOTS.length], ca = Math.cos(e.va), sa = Math.sin(e.va); const r = E.spawn("rayling", e.x + ca * u - sa * v, e.y + sa * u + ca * v, 0, L); r.parent = e; r.va = e.va; r.alerted = true; r.tgt = heroes[k % Math.max(1, heroes.length)]; L.enemies.push(r); e.kids.push(r); }
       }
     } else if (e.state === "swarm") {
-      // the heart of the school drifts while the rays hunt; when time's up they gather again
-      if (e.st > (fury ? 6 : 5) || e.kids.every((k) => k.dead)) { e.state = "reform"; e.st = 0; }
+      if (e.st > (fury ? 6.5 : 5.5) || e.kids.every((k) => k.dead)) { e.state = "reform"; e.st = 0; }
     } else if (e.state === "reform") {
-      for (const k of e.kids) if (!k.dead) { const dx = e.x - k.x, dy = e.y - k.y, l = Math.hypot(dx, dy); k.x += (dx / (l || 1)) * Math.min(l, 160 * dt); k.y += (dy / (l || 1)) * Math.min(l, 160 * dt); if (l < 10) { k.dead = true; k.gone = true; } }
+      for (const k of e.kids) if (!k.dead) { const dx = e.x - k.x, dy = e.y - k.y, l = Math.hypot(dx, dy); k.x += (dx / (l || 1)) * Math.min(l, 170 * dt); k.y += (dy / (l || 1)) * Math.min(l, 170 * dt); if (l < 10) { k.dead = true; k.gone = true; } }
       e.form = Math.min(1, e.st / 1.2);
-      if (e.st > 1.2) { for (const k of e.kids) { k.dead = true; k.gone = true; } e.kids = []; e.state = "glide"; e.cd = rnd(1.6, 2.4); }
+      if (e.st > 1.2) { for (const k of e.kids) { k.dead = true; k.gone = true; } e.kids = []; e.state = "glide"; e.cd = rnd(1.2, 2); L.fx.push({ kind: "zap", x: e.x, y: e.y, t: 0, dur: 0.7, R: 110, dmg: 1 }); sfx(api, "zap"); }
     }
   };
   // a ray of the school: hunts its hero, zaps on contact; blows to it land on the Storm Ray itself
-  E.SETUP.rayling = (e) => { e.swim = true; e.hideBar = true; e.zapT = 0; e.onHitBase = e.onHit; e.onHit = function (dmg, ang) { this.hp = this.max; const p = this.parent; if (p && !p.dead) { p.hp -= dmg; p.flash = 0.12; } }; };
+  E.SETUP.rayling = (e) => { e.swim = true; e.aquatic = true; e.hideBar = true; e.zapT = 0; e.onHitBase = e.onHit; e.onHit = function (dmg) { this.hp = this.max; const p = this.parent; if (p && !p.dead) { p.hp -= dmg; p.flash = 0.12; } }; };
   AI.rayling = function (e, dt, t, P, L, api) {
-    const tg = e.tgt && !e.tgt.dead ? e.tgt : P, goal = { x: tg.x + Math.cos(t * 2 + e.ph) * 14, y: tg.y + Math.sin(t * 2 + e.ph) * 10 };
+    const tg = e.tgt && !e.tgt.dead ? e.tgt : P, goal = { x: tg.x + Math.cos(t * 2 + e.ph) * 16, y: tg.y + Math.sin(t * 2 + e.ph) * 12 };
     e.va += angDiff(Math.atan2(goal.y - e.y, goal.x - e.x), e.va) * Math.min(1, dt * 4);
-    if (!swim(e, Math.cos(e.va) * 95 * dt, Math.sin(e.va) * 95 * dt, RAY_WATER)) e.va += 1.5;
+    if (!swim(e, Math.cos(e.va) * 100 * dt, Math.sin(e.va) * 100 * dt, [11, 12, 13])) e.va += 1.5;
     e.zapT -= dt; if (e.zapT <= 0 && hitAny(e, e.x, e.y - 6, 11, 1, null, "zap")) { e.zapT = 1.2; sfx(api, "zap"); }
   };
-  E.DRAW.rayling = (e, ctx, ox, oy, t, g, introY, fl) => drawRay(ctx, e.x - ox, e.y - oy, e.va, t, e.ph, 0.75, 0.62, 0.15 + 0.15 * Math.sin(t * 9 + e.ph), fl);
+  E.DRAW.rayling = (e, ctx, ox, oy, t, g, introY, fl) => { drawRay(ctx, e.x - ox, e.y - oy, e.va, t, e.ph, 0.8, 0.62, 0.2 + 0.2 * Math.sin(t * 9 + e.ph), fl); if (g && Math.sin(t * 7 + e.ph) > 0.7) glow(g, e.x - ox, e.y - oy, 16, "140,200,255", 0.35); };
   E.DRAW.giantray = (e, ctx, ox, oy, t, g, introY, fl) => {
     if (e.state === "swarm") return;
-    const ca = Math.cos(e.va), sa = Math.sin(e.va), f = e.form, ch = e.state === "storm" || e.state === "call" ? 0.5 + 0.5 * Math.sin(t * 20) : 0.1;
-    const pos = SLOTS.map(([u, v], k) => { const sx = e.x + e.scatter[k][0], sy = e.y + e.scatter[k][1], fx = e.x + ca * u - sa * v + Math.sin(t * 1.5 + e.rayPh[k]) * 1.5, fy = e.y + sa * u + ca * v; return [sx + (fx - sx) * f, sy + (fy - sy) * f]; });
-    // lightning flickering between the rays of the school
-    if (f > 0.6) for (let k = 0; k < 8; k++) { const a = pos[(k * 7 + ((t * 10) | 0)) % pos.length], b = pos[(k * 11 + 5 + ((t * 10) | 0)) % pos.length]; if (Math.hypot(a[0] - b[0], a[1] - b[1]) > 22) continue; ctx.fillStyle = `rgba(200,235,255,${0.4 + ch * 0.5})`; for (let s2 = 0; s2 <= 1; s2 += 0.15) ctx.fillRect(Math.round(a[0] + (b[0] - a[0]) * s2 - ox + (Math.random() - 0.5) * 2), Math.round(a[1] + (b[1] - a[1]) * s2 - oy), 1, 1); }
-    // the shadow of one great ray under the school, so it reads as a single creature
-    if (f > 0.3) { ctx.fillStyle = `rgba(4,22,40,${0.28 * f})`; for (let u = -34; u <= 26; u += 2) for (let v = -56; v <= 56; v += 2) { const flap = Math.sin(t * 2.2 + Math.abs(v) * 0.05) * Math.abs(v) / 56 * 4; if (Math.abs(v) / 56 + Math.abs(u + 4) / (u < -4 ? 30 : 30) > 1) continue; ctx.fillRect(Math.round(e.x - ox + ca * u - sa * v), Math.round(e.y - oy + sa * u + ca * v + flap), 2, 2); } for (let k = 0; k < 40; k++) ctx.fillRect(Math.round(e.x - ox - ca * (34 + k) + Math.sin(t * 3 + k * 0.2) * sa * 3), Math.round(e.y - oy - sa * (34 + k)), 2, 1); }
-    pos.forEach(([x, y], k) => drawRay(ctx, x - ox, y - oy, e.va, t, e.rayPh[k], 0.9, 0.78, ch * 0.6, fl));
-    if (g) glow(g, e.x - ox, e.y - oy, 70, "140,200,255", 0.18 + ch * 0.3);
-    if (e.state === "storm" || e.state === "call") telegraph(ctx, e.x - ox, e.y - oy - 40, t);
+    const f = e.form, ch = e.state === "storm" || e.state === "call" || e.state === "field" ? 0.5 + 0.5 * Math.sin(t * 20) : e.state === "sweep" ? 0.7 : 0.15;
+    const ca = Math.cos(e.va), sa = Math.sin(e.va), S = e.S, W = S.w, cx = W / 2;
+    if (f > 0.25) {
+      // the one great silhouette: deep navy, the small rays inside it a shade darker, its edge alive with
+      // electric blue; the wings ripple in a slow wave from the body out
+      begin(S);
+      const M = MASK, BODY = PAL.pk([8, 20, 44]), RAYS = PAL.pk([3, 10, 26]), RAYE = PAL.pk([34, 74, 132]), RIMA = PAL.pk([90, 180, 255]), RIMB = PAL.pk([200, 236, 255]), RIMC = PAL.pk([40, 90, 190]);
+      for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
+        const dx = x - cx, dy = y - cx, v0 = -sa * dx + ca * dy, u0 = ca * dx + sa * dy;
+        const av = Math.abs(v0) / 74, u = Math.round(u0 + Math.sin(t * 2.1 - av * 2.6) * av * av * 6), v = Math.round(v0 * (1 + Math.sin(t * 2.1 - av * 2.6) * 0.03));
+        const mu = u - M.U0, mv = v + M.V; if (mu < 0 || mv < 0 || mu >= M.w || mv >= M.h) continue;
+        const k = M.m[mv * M.w + mu]; if (!k) continue;
+        let c = k === 2 ? RAYS : k === 4 ? RAYE : BODY;
+        if (k === 3) { const fl2 = K.hash2(u, v, (t * 12) | 0); c = fl2 > 0.82 ? RIMB : fl2 > 0.35 ? RIMA : RIMC; }
+        else if (k === 5) c = K.hash2(u, v, (t * 8) | 0) > 0.7 ? RIMA : RIMC;
+        else if (k === 1 && K.hash2(u >> 1, v >> 1, 7) > 0.985) c = PAL.pk([30, 70, 140]);
+        S.d[y * W + x] = fl ? L0.WHITE : c; mark(S, x, y);
+      }
+      flush(S, false);
+      ctx.globalAlpha = Math.min(1, f) * 0.86; ctx.drawImage(S.c, Math.round(e.x - cx - ox), Math.round(e.y - cx - oy)); ctx.globalAlpha = 1;
+      // sparks shed from the trailing edges, as in the concept: the storm dissolving off its wings
+      if (Math.random() < 0.6) { const [u, v] = SLOTS[(Math.random() * SLOTS.length) | 0], a2 = e.va + Math.PI + rnd(-0.6, 0.6); Combat.addPart({ x: e.x + ca * u - sa * v, y: e.y + sa * u + ca * v, vx: Math.cos(a2) * rnd(20, 50), vy: Math.sin(a2) * rnd(20, 50), drag: 1.5, life: rnd(0.4, 0.9), col: Math.random() < 0.5 ? "#9adcff" : "#e0f4ff", size: 1, kind: "spark", glow: true }); }
+    }
+    // the rays of the school, scattered while it breaks apart or gathers
+    if (f < 1) { const pos = SLOTS.map(([u, v], k) => { const sx = e.x + e.scatter[k][0], sy = e.y + e.scatter[k][1], fx = e.x + ca * u - sa * v, fy = e.y + sa * u + ca * v; return [sx + (fx - sx) * f, sy + (fy - sy) * f]; }); pos.forEach(([x, y], k) => { if (k % 2) drawRay(ctx, x - ox, y - oy, e.va, t, k, 0.8, 0.6 * (1 - f), 0.3, fl); }); }
+    // lightning crawling over its back
+    if (f > 0.6) for (let k = 0; k < 6 + ch * 8; k++) { const a = SLOTS[(k * 7 + ((t * 9) | 0)) % SLOTS.length], b = SLOTS[(k * 11 + 5 + ((t * 9) | 0)) % SLOTS.length]; if (Math.hypot(a[0] - b[0], a[1] - b[1]) > 26) continue; ctx.fillStyle = `rgba(200,235,255,${0.35 + ch * 0.55})`; for (let s2 = 0; s2 <= 1; s2 += 0.12) { const u = a[0] + (b[0] - a[0]) * s2, v = a[1] + (b[1] - a[1]) * s2; ctx.fillRect(Math.round(e.x + ca * u - sa * v - ox + (Math.random() - 0.5) * 2), Math.round(e.y + sa * u + ca * v - oy), 1, 1); } }
+    if (g) { glow(g, e.x - ox, e.y - oy, 110, "90,170,255", 0.16 + ch * 0.3); }
+    if (e.state === "storm" || e.state === "call" || e.state === "field") telegraph(ctx, e.x - ox, e.y - oy - 50, t);
   };
   E.ON_DEATH.giantray = (e) => { for (const k of e.kids || []) { k.dead = true; } Combat.shake = 1; };
 
-  // ================================================================== pueo (cliff owls)
-  ST.pueo = { hp: 64, r: 8, mat: "flesh", kb: 80, fly: true, barY: 26, colors: ["#a07a4a", "#e8d8b0", "#5a4028"] };
-  E.SETUP.pueo = (e) => { e.alerted = true; e.perch = { x: e.x, y: e.y }; e.z = 0; e.state = "perch"; e.va = 0; e.untouchable = true; e.hideBar = true; e.cd = rnd(1.5, 3); e.y += 14; e.fly = true; };
-  // the owl drawn at any size: mottled brown wings, a pale facial disk with a dark rim, yellow eyes
-  function drawOwl(ctx, x, y, t, sc, flying, flap, fl, face, hot) {
-    const BR = hot ? [[96, 40, 26], [160, 74, 40], [214, 118, 54], [246, 176, 92]] : [[64, 46, 34], [114, 84, 56], [160, 124, 82], [214, 186, 136]], DISK = hot ? [255, 222, 176] : [238, 226, 196], RIM = hot ? [120, 36, 20] : [70, 46, 32];
+  // ================================================================== pueo (great horned cliff owls)
+  ST.pueo = { hp: 72, r: 9, mat: "flesh", kb: 80, fly: true, barY: 34, colors: ["#806040", "#e8d8b0", "#3a2818"] };
+  const FLOCKS = {};
+  E.SETUP.pueo = (e) => { e.perch = { x: e.x, y: e.y }; e.z = 14; e.state = "perch"; e.va = 0; e.untouchable = true; e.hideBar = true; e.cd = rnd(2, 3); e.fly = true; e.rock = 1; e.orbA = Math.random() * TAU; };
+  // the owl in flight at any size: broad barred wings, mottled body, tall ear tufts, a dark-rimmed face
+  // with burning amber eyes under a hard brow
+  function drawOwl(ctx, x, y, t, sc, flap, fl, carry) {
+    const BR = [[40, 28, 22], [84, 60, 40], [126, 94, 62], [186, 152, 108]], DISK = [214, 196, 160], RIM = [36, 24, 18];
     const c = (col) => (fl ? "#ffffff" : rgb(col));
     const P = (xx, yy, col) => { ctx.fillStyle = c(col); ctx.fillRect(Math.round(xx), Math.round(yy), 1, 1); };
-    if (flying) {
-      // broad wings: a pale covert band along the leading edge, barred flight feathers, and the
-      // primaries spread like fingers at the tips; the wingbeat lifts the tips
-      const span = 16 * sc, lift0 = Math.sin(flap);
-      for (const sg of [-1, 1]) for (let u = 0; u < span; u += 0.5) {
-        const f = u / span, lift = lift0 * f * f * 6 * sc, lead = -6.5 * sc - Math.sin(f * Math.PI) * 1.5 * sc, depth = (6.5 - f * 3) * sc;
-        const fingers = f > 0.72 ? Math.max(0, Math.sin((f - 0.72) / 0.28 * Math.PI * 4)) : 1;
-        for (let v = 0; v < depth * (f > 0.72 ? 0.45 + 0.55 * fingers : 1); v += 1) {
-          const wx = x + sg * (3.5 * sc + u), wy = y + lead + v - lift, band = v < depth * 0.3, bar = ((u * 0.5 + v) | 0) % (sc > 2 ? 5 : 3) === 0;
-          P(wx, wy, v < 1 ? BR[3] : band ? (bar ? BR[1] : BR[2]) : bar ? BR[0] : f > 0.8 ? BR[0] : BR[1]);
-        }
+    const span = 17 * sc, lift0 = Math.sin(flap);
+    for (const sg of [-1, 1]) for (let u = 0; u < span; u += 0.5) {
+      const f = u / span, lift = lift0 * f * f * 7 * sc, lead = -6.5 * sc - Math.sin(f * Math.PI) * 1.5 * sc, depth = (7 - f * 3) * sc;
+      const fingers = f > 0.7 ? Math.max(0, Math.sin((f - 0.7) / 0.3 * Math.PI * 4)) : 1;
+      for (let v = 0; v < depth * (f > 0.7 ? 0.4 + 0.6 * fingers : 1); v += 1) {
+        const wx = x + sg * (3.5 * sc + u), wy = y + lead + v - lift, band = v < depth * 0.3, bar = ((u * 0.5 + v) | 0) % 3 === 0;
+        P(wx, wy, v < 1 ? BR[3] : band ? (bar ? BR[1] : BR[2]) : bar ? BR[0] : f > 0.8 ? BR[0] : BR[1]);
       }
     }
-    // body: a streaked chest, darker back and shoulders
-    for (let yy = -9 * sc; yy <= 4 * sc; yy++) for (let xx = -5.2 * sc; xx <= 5.2 * sc; xx++) {
-      const d = (xx / (5.2 * sc)) ** 2 + ((yy + 2.5 * sc) / (6.6 * sc)) ** 2; if (d > 1) continue;
+    for (let yy = -9 * sc; yy <= 4 * sc; yy++) for (let xx = -5.4 * sc; xx <= 5.4 * sc; xx++) {
+      const d = (xx / (5.4 * sc)) ** 2 + ((yy + 2.5 * sc) / (6.8 * sc)) ** 2; if (d > 1) continue;
       const chest = Math.abs(xx) < 3.4 * sc && yy > -5 * sc, streak = chest && ((xx * 1.3 + yy * 0.2) | 0) % 3 === 0 && ((yy | 0) % 2 === 0);
-      P(x + xx, y + yy - 4 * sc, d > 0.85 ? BR[0] : chest ? (streak ? BR[1] : BR[3]) : xx < 0 ? BR[2] : BR[1]);
+      P(x + xx, y + yy - 4 * sc, d > 0.85 ? BR[0] : chest ? (streak ? BR[0] : BR[3]) : xx < 0 ? BR[2] : BR[1]);
     }
-    // talons when the wings are open
-    if (flying) for (const sg of [-1, 1]) for (let k = 0; k < 3; k++) P(x + sg * (1.5 * sc + k), y + 1.5 * sc + (k === 1 ? 1 : 0), [40, 30, 26]);
-    // the facial disk: pale, ringed dark, with the beak between deep eyes
+    for (const sg of [-1, 1]) for (let k = 0; k < 3; k++) P(x + sg * (1.5 * sc + k), y + 1.5 * sc + (k === 1 ? 1 : 0), [30, 22, 18]);
+    if (carry) { const OB = R().obsidian; px(ctx, x - 3, y + 2 * sc, 7, 5, c(OB[3])); px(ctx, x - 2, y + 2 * sc, 3, 1, c(OB[5])); px(ctx, x + 2, y + 2 * sc + 3, 2, 2, c(OB[1])); }
     const fy = y - 11 * sc;
     for (let yy = -4.4 * sc; yy <= 3.4 * sc; yy++) for (let xx = -5.4 * sc; xx <= 5.4 * sc; xx++) {
       const d = (xx / (5.4 * sc)) ** 2 + (yy / (4.4 * sc)) ** 2; if (d > 1) continue;
       const lobe = Math.min(((xx - 2.4 * sc) / (2.8 * sc)) ** 2 + (yy / (3 * sc)) ** 2, ((xx + 2.4 * sc) / (2.8 * sc)) ** 2 + (yy / (3 * sc)) ** 2);
-      P(x + xx, fy + yy, d > 0.78 ? RIM : lobe > 0.85 && Math.abs(xx) < 0.6 * sc ? BR[2] : DISK);
+      P(x + xx, fy + yy, d > 0.74 ? RIM : lobe > 0.85 && Math.abs(xx) < 0.6 * sc ? BR[2] : DISK);
     }
     for (const sg of [-1, 1]) {
-      const ex = x + sg * 2.3 * sc, ey = fy - 0.6 * sc, er = Math.max(1.2, 1.25 * sc);
-      for (let yy = -er; yy <= er; yy++) for (let xx = -er; xx <= er; xx++) if (xx * xx + yy * yy <= er * er) P(ex + xx, ey + yy, (xx * xx + yy * yy) < er * er * 0.3 ? [16, 10, 12] : hot ? [255, 150, 40] : [242, 196, 32]);
-      if (sc > 1.5) P(ex - er * 0.4, ey - er * 0.4, [255, 255, 255]);
+      const ex = x + sg * 2.3 * sc, ey = fy - 0.4 * sc, er = Math.max(1.3, 1.35 * sc);
+      for (let yy = -er; yy <= er; yy++) for (let xx = -er; xx <= er; xx++) if (xx * xx + yy * yy <= er * er) P(ex + xx, ey + yy, (xx * xx + yy * yy) < er * er * 0.3 ? [16, 10, 12] : [255, 168, 30]);
+      // the hard brow: a dark V over each eye
+      for (let k = 0; k <= 3 * sc; k++) P(ex - sg * er + sg * k * 0.9, ey - er - 1 - (3 * sc - k) * 0.35, RIM);
     }
     for (let k = 0; k < Math.max(2, 2 * sc); k++) P(x - 0.5, fy + 1.4 * sc + k * 0.6, [60, 44, 36]);
-    for (const sg of [-1, 1]) for (let k = 0; k < Math.max(2, sc * 1.6); k++) P(x + sg * (3.2 * sc + k * 0.4), fy - 4 * sc - k, BR[0]);
+    // tall ear tufts
+    for (const sg of [-1, 1]) for (let k = 0; k < Math.max(3, sc * 3); k++) { P(x + sg * (3 * sc + k * 0.5), fy - 4 * sc - k, BR[0]); P(x + sg * (3 * sc + k * 0.5) - sg, fy - 4 * sc - k + 1, BR[1]); }
   }
-  AI.pueo = function (e, dt, t, P, L, api, d) {
-    const lowNow = e.state === "low" || (e.state === "swoop" && e.z < 14);
-    e.untouchable = !lowNow; e.hideBar = e.untouchable;
+  // a pueo on its perch: the concept's sprite, scaled up a little, head turning now and then
+  function drawPerched(ctx, x, y, t, fl, ph) { const S2 = img("e_owl"), s = 1.25, src = fl ? tinted(S2) : S2; ctx.fillStyle = "rgba(10,12,16,0.3)"; ctx.beginPath(); ctx.ellipse(Math.round(x), Math.round(y), 8, 2.5, 0, 0, TAU); ctx.fill(); const flip = Math.sin(t * 0.7 + ph) > 0.6 ? -1 : 1; ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.scale(flip, 1); ctx.drawImage(src, Math.round((-S2.width * s) / 2), Math.round(-S2.height * s), Math.round(S2.width * s), Math.round(S2.height * s)); ctx.restore(); }
+  AI.pueo = function (e, dt, t, P, L, api, d, live) {
+    const low = e.z < 16;
+    e.untouchable = !low || e.state === "perch"; e.hideBar = e.untouchable;
     e.cd -= dt;
     const fly = (tx, ty, sp) => { const dx = tx - e.x, dy = ty - e.y, l = Math.hypot(dx, dy); if (l > 1) { const m = Math.min(l, sp * dt); e.x += (dx / l) * m; e.y += (dy / l) * m; e.face = dx >= 0 ? 1 : -1; } return l; };
+    const flock = e.tribe ? (live || []).filter((o) => o.type === "pueo" && o.tribe === e.tribe && !o.dead && o.state !== "perch") : [e];
+    const F = e.tribe ? FLOCKS[e.tribe] || (FLOCKS[e.tribe] = { next: t + 3, kind: 0 }) : null;
     if (e.state === "perch" || e.state === "idle") {
-      e.state = "perch"; e.z = Math.max(0, e.z - dt * 60);
-      if (e.alerted && e.cd <= 0 && d < 210) { e.st = 0; if (Math.random() < 0.55) { e.state = "drop"; e.z = 0; } else { e.state = "glare"; sfx(api, "screech"); } }
-    } else if (e.state === "drop") {
-      // up over you, and a stone falls
-      e.z = Math.min(44, e.z + dt * 80); const l = fly(P.x, P.y - 4, 130);
-      if (l < 12 || e.st > 2.2) { L.fx.push({ kind: "rock", x: P.x + rnd(-6, 6), y: P.y + rnd(-4, 4), t: 0, dur: 0.95, R: 15, dmg: 1 }); sfx(api, "throw"); e.state = "return"; e.st = 0; }
-    } else if (e.state === "glare") { e.aim = Math.atan2(P.y - e.y, P.x - e.x); if (e.st > 0.55) { e.state = "swoop"; e.st = 0; e.hitSet = {}; e.z = 30; e.tx = P.x + Math.cos(e.aim) * 40; e.ty = P.y + Math.sin(e.aim) * 30; } }
-    else if (e.state === "swoop") {
-      e.z = Math.max(6, e.z - dt * 90); const l = fly(e.tx, e.ty, 250);
-      hitAny(e, e.x, e.y - e.z * 0.3 - 6, 15, 1, e.hitSet, "talons");
+      e.state = "perch"; e.z = 14;
+      if ((e.alerted || d < 210) && d < 230 && Level.sight(e.x, e.y - 20, P.x, P.y - 10) || e.alerted && d < 160) { e.alerted = true; e.state = "launch"; e.st = 0; sfx(api, "screech"); for (const o of live || []) if (o.type === "pueo" && o.tribe && o.tribe === e.tribe && o.state === "perch") { o.alerted = true; o.state = "launch"; o.st = -rnd(0.1, 0.5); } }
+    } else if (e.state === "launch") { if (e.st > 0) { e.z = Math.min(44, e.z + dt * 90); if (e.st > 0.4) { e.state = e.rock ? "bomb" : "hunt"; e.st = 0; } } }
+    else if (e.state === "bomb") {
+      // straight over you with a stone in its talons, and let go
+      e.z = Math.min(44, e.z + dt * 60); const Q = e.tq && !e.tq.dead ? e.tq : P; const l = fly(Q.x + (Q.vx || 0) * 0.3, Q.y - 2 + (Q.vy || 0) * 0.3, 150);
+      if (l < 10 || e.st > 2.6) { e.rock = 0; L.fx.push({ kind: "rock", x: Q.x + (Q.vx || 0) * 0.5 + rnd(-6, 6), y: Q.y + (Q.vy || 0) * 0.5 + rnd(-4, 4), t: 0, dur: 0.95, R: 15, dmg: 1 }); sfx(api, "throw"); e.state = "hunt"; e.st = 0; e.cd = rnd(1.6, 2.6); e.tq = null; }
+    } else if (e.state === "hunt") {
+      // it stays near: wheeling round you, just out of reach
+      e.z += (34 - e.z) * Math.min(1, dt * 2); e.orbA += dt * 0.9 * (e.ph > 3 ? 1 : -1);
+      fly(P.x + Math.cos(e.orbA) * 62, P.y + Math.sin(e.orbA) * 44, 95);
+      if (F && flock.length > 1) {
+        // the flock attacks together: all bombing at once (those still carrying stones), or swooping in turn
+        if (t > F.next) { F.next = t + rnd(4.5, 6.5); F.kind = (F.kind + 1) % 2; flock.forEach((o, k) => { if (o.state !== "hunt") return; const Q = (E.alive || [])[k % Math.max(1, (E.alive || []).length)] || P; if (F.kind === 0 && o.rearm) { o.rock = 1; o.rearm = 0; o.state = "bomb"; o.tq = Q; o.st = 0; } else { o.state = "glare"; o.st = -k * 0.22; o.tq = Q; } }); sfx(api, "screech"); }
+        if (Math.random() < dt * 0.08) e.rearm = 1;
+      } else if (e.cd <= 0) { e.state = "glare"; e.st = 0; e.tq = P; }
+    } else if (e.state === "glare") {
+      e.z += (34 - e.z) * Math.min(1, dt * 2);
+      if (e.st > 0.5) { const Q = e.tq && !e.tq.dead ? e.tq : P; e.aim = Math.atan2(Q.y - e.y, Q.x - e.x); e.state = "swoop"; e.st = 0; e.hitSet = {}; e.tx = Q.x + Math.cos(e.aim) * 44; e.ty = Q.y + Math.sin(e.aim) * 34; sfx(api, "wispSwoop"); }
+    } else if (e.state === "swoop") {
+      e.z = Math.max(5, e.z - dt * 100); const l = fly(e.tx, e.ty, 245);
+      hitAny(e, e.x, e.y - e.z * 0.3 - 6, 16, 1, e.hitSet, "talons");
       if (l < 6) { e.state = "low"; e.st = 0; }
-    } else if (e.state === "low") { e.z = 8 + Math.sin(t * 8) * 2; fly(e.x + Math.cos(t) * 10, e.y, 20); if (e.st > 1.2) { e.state = "return"; e.st = 0; } }
-    else if (e.state === "return") { e.z = Math.min(44, e.z + dt * 70); const l = fly(e.perch.x, e.perch.y + 14, 140); if (l < 4) { e.state = "perch"; e.cd = rnd(2, 3.5); } }
+    } else if (e.state === "low") { e.z = 8 + Math.sin(t * 8) * 2; fly(e.x + Math.cos(t) * 10, e.y, 20); if (e.st > 1.1) { e.state = "hunt"; e.st = 0; e.cd = rnd(2.2, 3.4); } }
+    if (e.state !== "perch" && Math.hypot(e.x - P.x, e.y - P.y) > 360) { e.state = "hunt"; }
   };
   E.DRAW.pueo = (e, ctx, ox, oy, t, g, introY, fl) => {
-    const x = e.x - ox, y = e.y - oy, flying = e.state !== "perch";
-    if (flying) { ctx.fillStyle = "rgba(10,12,16,0.28)"; ctx.beginPath(); ctx.ellipse(Math.round(x), Math.round(y), 10 - Math.min(6, e.z / 8), 3, 0, 0, TAU); ctx.fill(); }
-    drawOwl(ctx, x, y - (flying ? e.z : 14), t, 1, flying, t * (e.state === "swoop" ? 6 : 12), fl, e.face, false);
-    if (e.state === "glare") telegraph(ctx, x, y - 40, t);
+    const x = e.x - ox, y = e.y - oy;
+    if (e.state === "perch") { drawPerched(ctx, x, y, t, fl, e.ph); return; }
+    ctx.fillStyle = "rgba(10,12,16,0.28)"; ctx.beginPath(); ctx.ellipse(Math.round(x), Math.round(y), 12 - Math.min(6, e.z / 8), 3, 0, 0, TAU); ctx.fill();
+    drawOwl(ctx, x, y - e.z, t, 1.3, t * (e.state === "swoop" ? 6 : e.state === "glare" ? 18 : 11) + e.ph, fl, e.rock && (e.state === "bomb" || e.state === "launch"));
+    if (e.state === "glare") { telegraph(ctx, x, y - e.z - 34, t); if (g) for (const sg of [-1, 1]) glow(g, x + sg * 3, y - e.z - 15, 8, "255,170,40", 0.6); }
   };
 
-  // ================================================================== Pueo-Ahi, Lord of the Thermals
-  ST.pueoboss = { hp: 1150, r: 16, mat: "flesh", kb: 0, boss: true, big: 20, fly: true, name: "PUEO-AHI, LORD OF THE THERMALS", colors: ["#c8642a", "#ffd080", "#6a3018"] };
-  E.SETUP.pueoboss = (e) => { e.z = 14; e.home = { x: e.x, y: e.y }; e.cd = 2; e.va = 0; e.hideBar = true; e.fly = true; e.summoned = false; };
-  AI.pueoboss = function (e, dt, t, P, L, api, d) {
-    const fury = e.hp < e.max / 2;
-    if (!e.announced && e.alerted) { e.announced = true; L.banner = { title: e.name, t0: t }; sfx(api, "screech"); }
-    const high = e.z > 30;
-    e.untouchable = high; e.armor = e.state === "grounded" ? 1.4 : 1;
-    const fly = (tx, ty, sp) => { const dx = tx - e.x, dy = ty - e.y, l = Math.hypot(dx, dy); if (l > 1) { const m = Math.min(l, sp * dt); e.x += (dx / l) * m; e.y += (dy / l) * m; e.face = dx >= 0 ? 1 : -1; } return l; };
-    const ventsNear = () => (L.vents || []).slice().sort((a, b) => Math.hypot(a.x - e.x, a.y - e.y) - Math.hypot(b.x - e.x, b.y - e.y));
-    e.cd -= dt;
-    if (fury && !e.summoned) { e.summoned = true; for (let k = 0; k < 2; k++) { const o = E.spawn("pueo", e.home.x + (k ? 120 : -120), e.home.y - 90, 0, L); if (o) { o.alerted = true; L.enemies.push(o); } } L.banner = { title: "THE PUEO ANSWER HIS CALL", t0: t }; }
-    if (e.state === "idle" || e.state === "hover") {
-      e.state = "hover"; e.z += (14 - e.z) * Math.min(1, dt * 3);
-      fly(P.x + Math.cos(t * 0.6) * 70, P.y + 26 + Math.sin(t * 0.8) * 16, fury ? 70 : 50);
+  // ================================================================== Pāpaʻi-Loa, the giant spider crab (L2 boss)
+  ST.spidercrab = { hp: 1150, r: 26, mat: "wood", kb: 0, boss: true, big: 30, name: "PĀPAʻI-LOA, THE GIANT SPIDER CRAB", colors: ["#d86a3a", "#f4e0c8", "#8a3018"] };
+  // eight stilt legs, four a side, and two long claw arms; every foot is planted and steps on its own
+  // (right side: from forward-up round to back-down; the left side mirrors it)
+  const LEGS = [];
+  for (const side of [-1, 1]) [-0.95, -0.35, 0.25, 0.85].forEach((a, k) => LEGS.push({ a: side > 0 ? a : Math.PI - a, side, k, reach: 78 - Math.abs(k - 1.5) * 6 }));
+  E.SETUP.spidercrab = (e) => { e.hideBar = true; e.cd = 2.5; e.va = 0; e.feet = null; e.called = 0; e.claw = 0; };
+  function crabFeet(e, dt) {
+    const ca = Math.cos(e.va), sa = Math.sin(e.va);
+    const home = (L2) => ({ x: e.x + Math.cos(L2.a + e.va) * L2.reach, y: e.y + Math.sin(L2.a + e.va) * L2.reach * 0.75 });
+    if (!e.feet) e.feet = LEGS.map((L2) => { const h = home(L2); return { x: h.x, y: h.y, fx: h.x, fy: h.y, lift: 0, u: 1 }; });
+    let stepping = e.feet.filter((f) => f.u < 1).length;
+    e.feet.forEach((f, i) => {
+      const h = home(LEGS[i]);
+      if (f.stab) { f.u = 1; return; }
+      if (f.u < 1) { f.u = Math.min(1, f.u + dt / 0.16); f.x = f.fx + (f.tx - f.fx) * f.u; f.y = f.fy + (f.ty - f.fy) * f.u; f.lift = Math.sin(f.u * Math.PI) * 10; if (f.u >= 1) f.lift = 0; }
+      else if (Math.hypot(h.x - f.x, h.y - f.y) > 22 && stepping < 3 && (i % 2) === ((e.t * 4) | 0) % 2) { f.fx = f.x; f.fy = f.y; f.tx = h.x + (h.x - f.x) * 0.4; f.ty = h.y + (h.y - f.y) * 0.4; f.u = 0; stepping++; }
+    });
+    void ca; void sa;
+  }
+  AI.spidercrab = function (e, dt, t, P, L, api, d, live) {
+    const fury = e.hp < e.max / 2, toP = Math.atan2(P.y - e.y, P.x - e.x), heroes = E.alive || [];
+    if (!e.announced && e.alerted) { e.announced = true; L.banner = { title: e.name, t0: t }; sfx(api, "clack"); }
+    e.cd -= dt; e.armor = 1;
+    const walk = (a, sp) => { e.moving = tryMove(e, Math.cos(a) * sp * dt, Math.sin(a) * sp * dt); };
+    // calls the crabs of the atoll at half health and again at a quarter
+    if ((e.hp < e.max * 0.5 && e.called < 1) || (e.hp < e.max * 0.25 && e.called < 2)) { e.called++; for (let k = 0; k < 2 + heroes.length; k++) { const a = (k / (2 + heroes.length)) * TAU, c = E.spawn(k % 3 === 2 ? "spitcrab" : "crab", e.x + Math.cos(a) * 70, e.y + Math.sin(a) * 50, 990 + e.called, L); if (c && !Level.solidAt(c.x, c.y)) { c.alerted = true; c.enter = "burst"; c.introT = 0.9; L.enemies.push(c); } } L.banner = { title: "THE CRABS ANSWER", t0: t }; sfx(api, "warcry"); }
+    e.va += angDiff(Math.cos(toP) >= 0 ? 0 : Math.PI, e.va) * 0;  // it always faces the camera, crab-wise; legs fan both ways
+    if (e.state === "idle" || e.state === "stalk") {
+      e.state = "stalk";
+      const want = d > 120 ? toP : d < 70 ? toP + Math.PI : toP + Math.PI / 2 * (Math.sin(t * 0.5) > 0 ? 1 : -1);
+      walk(want, fury ? 46 : 36);
       if (e.cd <= 0) {
         const r = Math.random(); e.st = 0;
-        if (fury && r < 0.2) { e.state = "firestorm"; e.dropT = 0; sfx(api, "screech"); }
-        else if (r < 0.38) { e.state = "windFeathers"; e.volleys = 0; }
-        else if (r < 0.58) { e.state = "updraft"; e.queued = false; sfx(api, "screech"); }
-        else if (r < 0.8) { e.state = "rise"; sfx(api, "screech"); }
-        else { e.state = "windGale"; }
+        if (r < 0.3) { e.state = "stabs"; e.n = 0; }
+        else if (r < 0.52 && d < 140) { e.state = "windSweep"; e.aim = toP; sfx(api, "warcry"); }
+        else if (r < 0.72) { e.state = "windScuttle"; e.aim = toP + (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2; sfx(api, "clack"); }
+        else if (r < 0.86 || !fury) { e.state = "windFoam"; sfx(api, "inhale"); }
+        else { e.state = "windPound"; sfx(api, "warcry"); }
       }
-    } else if (e.state === "windFeathers") {
-      // wings drawn back, then burning feathers fanned at the nearest hero
-      if (e.st > 0.55 + e.volleys * 0.4) { const Q = nearest(e.x, e.y) || P, a0 = Math.atan2(Q.y - (e.y - e.z), Q.x - e.x), n = fury ? 11 : 9; for (let k = 0; k < n; k++) { const a = a0 + (k - (n - 1) / 2) * 0.14 + (e.volleys % 2 ? 0.07 : 0); L.shots.push({ kind: "feather", x: e.x, y: e.y - e.z, vx: Math.cos(a) * 170, vy: Math.sin(a) * 170, t: 0, life: 2.2, r: 7 }); } sfx(api, "wispShed"); e.volleys++; }
-      if (e.volleys >= (fury ? 3 : 2)) { e.state = "hover"; e.cd = rnd(1.4, 2.2); }
-    } else if (e.state === "updraft") {
-      // up on the vents' heat, out of reach, and the vents go off in a wave from beneath it
-      e.z = Math.min(70, e.z + dt * 60);
-      if (!e.queued && e.z > 40) { e.queued = true; ventsNear().forEach((v, i) => window.Sea && Sea.erupt(v, 0.6 + i * (fury ? 0.22 : 0.32))); }
-      if (e.st > 3.4) { e.state = "hover"; e.cd = rnd(1.2, 2); }
-    } else if (e.state === "rise") {
-      e.z = Math.min(64, e.z + dt * 90); fly(P.x, P.y, 90);
-      if (e.st > 0.7) { e.state = "mark"; e.st = 0; const Q = nearest(e.x, e.y) || P; e.tx = Q.x; e.ty = Q.y; L.fx.push({ kind: "mark", x: e.tx, y: e.ty, t: 0, dur: 0.85, R: 26 }); }
-    } else if (e.state === "mark") { fly(e.tx, e.ty, 60); if (e.st > 0.85) { e.state = "dive"; e.st = 0; e.hitSet = {}; } }
-    else if (e.state === "dive") {
-      e.z = Math.max(0, e.z - dt * 260); fly(e.tx, e.ty, 220);
-      if (e.z <= 0) { hitAny(e, e.x, e.y - 6, 24, 2, e.hitSet, "talons"); L.fx.push({ kind: "quake", x: e.x, y: e.y, t: 0, dur: 0.5, R: 64, dmg: fury ? 2 : 1 }); sfx(api, "stone"); Combat.shake = 1; e.state = "grounded"; e.st = 0; }
-    } else if (e.state === "grounded") { e.z = 0; if (e.st > (fury ? 1.2 : 1.7)) { e.state = "hover"; e.cd = rnd(1, 1.8); } }
-    else if (e.state === "windGale") { if (e.st > 0.6) { for (const q of E.alive || []) { const dq = Math.hypot(q.x - e.x, q.y - e.y); if (dq < 130) q._api.hurt(1, e.x, e.y, "gale"); } for (let k = 0; k < 30; k++) Combat.addPart({ x: e.x + rnd(-20, 20), y: e.y - e.z + rnd(-6, 6), vx: rnd(-160, 160), vy: rnd(-40, 80), drag: 2, life: 0.8, col: k % 2 ? "#ffd080" : "#ff8a3a", size: 1, kind: "ember", glow: true }); sfx(api, "wispPulse"); e.state = "hover"; e.cd = rnd(1.4, 2.2); } }
-    else if (e.state === "firestorm") {
-      // circling out of reach, raining molten stones on everyone
-      e.z = Math.min(60, e.z + dt * 70); fly(e.home.x + Math.cos(t * 1.2) * 110, e.home.y + Math.sin(t * 1.2) * 60, 140);
-      e.dropT -= dt; if (e.dropT <= 0) { e.dropT = 0.45; for (const q of E.alive || []) L.fx.push({ kind: "rock", x: q.x + rnd(-12, 12), y: q.y + rnd(-8, 8), t: 0, dur: 1.0, R: 18, dmg: 1, hot: 1 }); }
-      if (e.st > 3.6) { e.state = "hover"; e.cd = rnd(1.2, 2); }
-    }
+    } else if (e.state === "stabs") {
+      // one leg after another lifted high and driven down where you stand
+      const gap = fury ? 0.42 : 0.55;
+      if (e.st > e.n * gap && e.n < (fury ? 5 : 3)) { for (const q of heroes) { const x2 = q.x + (q.vx || 0) * 0.3, y2 = q.y + (q.vy || 0) * 0.3; L.fx.push({ kind: "stab", x: x2, y: y2, t: 0, dur: 0.6, R: 15, dmg: 2 }); const f = e.feet && e.feet.reduce((b, ff) => (!b || Math.hypot(ff.x - x2, ff.y - y2) < Math.hypot(b.x - x2, b.y - y2) ? ff : b), null); if (f) { f.stab = { x: x2, y: y2, t0: t }; } } e.n++; sfx(api, "clack"); }
+      if (e.feet) for (const f of e.feet) if (f.stab && t - f.stab.t0 > 0.75) { f.x = f.stab.x; f.y = f.stab.y; f.stab = null; }
+      if (e.st > (fury ? 5 : 3) * gap + 0.8) { e.state = "stalk"; e.cd = rnd(1.4, 2.2); if (e.feet) for (const f of e.feet) f.stab = null; }
+    } else if (e.state === "windSweep") { e.claw = Math.min(1, e.st / 0.7); e.aim += angDiff(toP, e.aim) * Math.min(1, dt * 2); if (e.st > 0.7) { e.state = "sweep"; e.st = 0; e.hitSet = {}; sfx(api, "spearSweep"); } }
+    else if (e.state === "sweep") {
+      // the long claw swung in a wide arc
+      const u = e.st / 0.35, a = e.aim - 1.3 + u * 2.6; e.clawA = a; e.claw = 1;
+      for (const q of heroes) { const k = keyOf(q); if (e.hitSet[k]) continue; const dq = Math.hypot(q.x - e.x, q.y - e.y); if (dq < 112 && dq > 20 && Math.abs(angDiff(Math.atan2(q.y - e.y, q.x - e.x), a)) < 0.35 && q._api.hurt(2, e.x, e.y, "claw")) e.hitSet[k] = 1; }
+      if (e.st > 0.35) { e.state = "stalk"; e.claw = 0; e.cd = rnd(1.2, 2); }
+    } else if (e.state === "windScuttle") { if (e.st > 0.6) { e.state = "scuttle"; e.st = 0; e.hitSet = {}; } }
+    else if (e.state === "scuttle") {
+      // sideways at a run, trampling whatever's in the way
+      walk(e.aim, 220); hitAny(e, e.x, e.y - 8, 34, 2, e.hitSet, "trample");
+      if (!e.moving || e.st > 1) { e.state = "spent"; e.st = 0; Combat.shake = Math.min(1, Combat.shake + 0.3); sfx(api, "stone"); }
+    } else if (e.state === "spent") { e.armor = 1.4; if (e.st > 0.9) { e.state = "stalk"; e.cd = rnd(1, 1.6); } }
+    else if (e.state === "windFoam") { if (e.st > 0.6) { const n = fury ? 16 : 12; for (let k = 0; k < n; k++) { const a = (k / n) * TAU + t; L.shots.push({ kind: "bubble", x: e.x, y: e.y - 16, vx: Math.cos(a) * 80, vy: Math.sin(a) * 64, t: 0, life: 3.2, r: 8 }); } sfx(api, "splash"); e.state = "stalk"; e.cd = rnd(1.4, 2.2); } }
+    else if (e.state === "windPound") { e.claw = Math.min(1, e.st / 0.6); if (e.st > 0.7) { e.state = "pound"; e.st = 0; for (const sg of [-1, 1]) L.fx.push({ kind: "quake", x: e.x + sg * 40, y: e.y + 10, t: 0, dur: 0.55, R: 80, dmg: 1 }); sfx(api, "stone"); Combat.shake = 1; } }
+    else if (e.state === "pound") { if (e.st > 0.8) { e.state = "stalk"; e.claw = 0; e.cd = rnd(1.2, 2); } }
+    crabFeet(e, dt);
   };
-  E.DRAW.pueoboss = (e, ctx, ox, oy, t, g, introY, fl) => {
-    const x = e.x - ox, y = e.y - oy, flying = e.state !== "grounded";
-    ctx.fillStyle = "rgba(10,12,16,0.32)"; ctx.beginPath(); ctx.ellipse(Math.round(x), Math.round(y), 30 - Math.min(16, e.z / 4), 7, 0, 0, TAU); ctx.fill();
-    const fs = e.state === "windGale" ? t * 30 : e.state === "windFeathers" ? -0.8 : t * (e.z > 30 ? 5 : 8);
-    drawOwl(ctx, x, y - e.z - 4, t, 2.6, flying, fs, fl, e.face, true);
-    if (g) glow(g, x, y - e.z - 30, 90, "255,140,60", 0.45);
-    // heat shimmer streaming off its wings
-    for (let k = 0; k < 8; k++) { const ph = (t * 1.6 + k * 0.13) % 1; px(ctx, x + Math.sin(k * 2.4) * 34 * (1 - ph * 0.3), y - e.z - 20 - ph * 40, 1, 2, `rgba(255,200,120,${(1 - ph) * 0.6})`); }
-    if (e.state === "windFeathers" || e.state === "windGale") telegraph(ctx, x, y - e.z - 70, t);
-    if (e.state === "grounded") for (let k = 0; k < 3; k++) { const a = t * 6 + k * 2.1; px(ctx, x + Math.cos(a) * 14, y - 70 + Math.sin(a) * 3, 2, 2, "#fff4b8"); }
+  E.NET.spidercrab = { ser: (q, o, r1) => { o.cw = Math.round((q.claw || 0) * 100) / 100; if (q.clawA !== undefined) o.ca = Math.round(q.clawA * 100) / 100; if (q.aim !== undefined) o.am2 = Math.round(q.aim * 100) / 100; }, app: (e, o) => { e.claw = o.cw; e.clawA = o.ca; e.aim = o.am2; }, tick: (e, dt) => crabFeet(e, dt) };
+  E.DRAW.spidercrab = (e, ctx, ox, oy, t, g, introY, fl) => {
+    const x = e.x - ox, y = e.y - oy + introY, body = 32, bodyY = y - 24 + Math.sin(t * 2) * 1.5;
+    if (!e.feet) crabFeet(e, 0);
+    const OR = [[120, 36, 20], [176, 66, 34], [216, 106, 58], [240, 150, 96], [250, 206, 170]], c = (col) => (fl ? "#ffffff" : rgb(col));
+    // shadow under the body
+    ctx.fillStyle = "rgba(10,12,16,0.32)"; ctx.beginPath(); ctx.ellipse(Math.round(x), Math.round(y), 34, 9, 0, 0, TAU); ctx.fill();
+    // a leg: thigh up from the body to a high knee, shin down to the foot; orange with pale bands
+    const leg = (f, i, front) => {
+      const LG = LEGS[i], side = LG.side, sx = x + side * 13, sy = bodyY + Math.sin(LG.a) * 12;
+      const fx2 = (f.stab ? f.stab.x : f.x) - ox, fy2 = (f.stab ? f.stab.y : f.y) - oy - f.lift - (f.stab && t - f.stab.t0 < 0.5 ? 26 * Math.sin(Math.min(1, (t - f.stab.t0) / 0.5) * Math.PI) : 0);
+      const kx = sx + (fx2 - sx) * 0.42, ky = Math.min(sy, fy2) - 30 - (LG.k === 1 || LG.k === 2 ? 6 : 0);
+      // each segment: a dark outline, then the shaded limb (lit along its top), pale bands and spines
+      const seg = (ax, ay, bx, by, w0, w1) => {
+        const n = Math.ceil(Math.hypot(bx - ax, by - ay)), nx = -(by - ay) / (n || 1), ny = (bx - ax) / (n || 1);
+        for (const pass of [0, 1]) for (let k = 0; k <= n; k++) {
+          const u = k / n, X = ax + (bx - ax) * u, Y = ay + (by - ay) * u, w = w0 + (w1 - w0) * u, band = ((k / 6) | 0) % 3 === 2;
+          if (pass === 0) { ctx.fillStyle = c([60, 18, 12]); ctx.fillRect(Math.round(X - w / 2 - 1), Math.round(Y - w / 2 - 1), Math.round(w) + 2, Math.round(w) + 2); continue; }
+          ctx.fillStyle = c(band ? OR[4] : OR[2]); ctx.fillRect(Math.round(X - w / 2), Math.round(Y - w / 2), Math.round(w), Math.round(w));
+          ctx.fillStyle = c(band ? OR[4] : OR[3]); ctx.fillRect(Math.round(X - w / 2), Math.round(Y - w / 2), Math.round(w), 1);
+          if (k % 5 === 0 && w > 2.5) { ctx.fillStyle = c(OR[4]); ctx.fillRect(Math.round(X + nx * w * 0.8), Math.round(Y + ny * w * 0.8), 1, 1); }
+        }
+      };
+      if (front === Math.sin(LG.a) > 0) { seg(sx, sy, kx, ky, 5, 4); seg(kx, ky, fx2, fy2, 4, 2); ctx.fillStyle = c(OR[4]); ctx.fillRect(Math.round(kx - 2), Math.round(ky - 2), 4, 3); ctx.fillStyle = c(OR[0]); ctx.fillRect(Math.round(fx2 - 1), Math.round(fy2 - 1), 2, 3); }
+    };
+    e.feet.forEach((f, i) => leg(f, i, false));
+    // the carapace: a rough pear, spined and spotted, with two small eyes on the front horn
+    for (let yy = -body * 0.62; yy <= body * 0.62; yy++) for (let xx = -body * 0.75; xx <= body * 0.75; xx++) {
+      const w = body * 0.75 * (1 - Math.max(0, -yy) / (body * 1.3)), d2 = (xx / w) ** 2 + (yy / (body * 0.62)) ** 2; if (d2 > 1) continue;
+      const lit = -xx / w * 0.3 - yy / (body * 0.62) * 0.6, spot = K.hash2((xx + 40) >> 1, (yy + 40) >> 1, 13) > 0.9;
+      let col = d2 > 0.85 ? OR[0] : spot ? OR[4] : lit > 0.4 ? OR[3] : lit > 0 ? OR[2] : OR[1];
+      if (d2 < 0.85 && K.hash2(xx + 40, yy + 40, 14) > 0.96) col = OR[0];
+      ctx.fillStyle = c(col); ctx.fillRect(Math.round(x + xx), Math.round(bodyY + yy), 1, 1);
+    }
+    for (let k = 0; k < 9; k++) { const a = -Math.PI / 2 + (k - 4) * 0.32, rr = body * 0.6; ctx.fillStyle = c(OR[4]); ctx.fillRect(Math.round(x + Math.cos(a) * rr * 1.1), Math.round(bodyY + Math.sin(a) * rr - 1), 1, 2); }
+    for (const sg of [-1, 1]) { ctx.fillStyle = c(OR[1]); ctx.fillRect(Math.round(x + sg * 3), Math.round(bodyY - body * 0.62 - 3), 1, 3); ctx.fillStyle = "#140c10"; ctx.fillRect(Math.round(x + sg * 3), Math.round(bodyY - body * 0.62 - 4), 1, 1); }
+    // the claw arms: long, jointed, reaching forward (down the screen), one swinging on the sweep
+    for (const sg of [-1, 1]) {
+      const raised = e.claw || 0, swing = e.state === "sweep" && sg === (Math.cos(e.clawA || 0) >= 0 ? 1 : -1);
+      const a = swing ? e.clawA : Math.PI / 2 + sg * 0.5 - raised * sg * 0.3, L1 = 30, L2 = swing ? 74 : 40 + raised * 10;
+      const ax = x + sg * 10, ay = bodyY + 10, ex2 = ax + Math.cos(a - sg * 0.4) * L1, ey2 = ay + Math.sin(a - sg * 0.4) * L1 * 0.7 - raised * 18, hx = ex2 + Math.cos(a) * L2 * 0.8, hy = ey2 + Math.sin(a) * L2 * 0.6;
+      for (const [p0, p1, w] of [[[ax, ay], [ex2, ey2], 6], [[ex2, ey2], [hx, hy], 5]]) { const n = Math.ceil(Math.hypot(p1[0] - p0[0], p1[1] - p0[1])); for (const pass of [0, 1]) for (let k = 0; k <= n; k++) { const u = k / n, X = Math.round(p0[0] + (p1[0] - p0[0]) * u - w / 2), Y = Math.round(p0[1] + (p1[1] - p0[1]) * u - w / 2); if (!pass) { ctx.fillStyle = c([60, 18, 12]); ctx.fillRect(X - 1, Y - 1, w + 2, w + 2); continue; } ctx.fillStyle = c(((k / 6) | 0) % 3 === 2 ? OR[4] : OR[2]); ctx.fillRect(X, Y, w, w); ctx.fillStyle = c(OR[3]); ctx.fillRect(X, Y, w, 1); if (k % 4 === 0) { ctx.fillStyle = c(OR[4]); ctx.fillRect(X + w, Y + 1, 1, 1); } } }
+      // the pincer
+      const open = e.state === "windSweep" || e.state === "windPound" ? 0.5 : 0.18;
+      for (const sg2 of [-1, 1]) { const pa = a + sg2 * open; for (let k = 0; k < 14; k++) { const w = Math.max(2, 5 - k * 0.3); ctx.fillStyle = c([60, 18, 12]); ctx.fillRect(Math.round(hx + Math.cos(pa) * k - w / 2 - 1), Math.round(hy + Math.sin(pa) * k * 0.8 - w / 2 - 1), Math.round(w) + 2, Math.round(w) + 2); } for (let k = 0; k < 14; k++) { const w = Math.max(1, 4 - k * 0.3); ctx.fillStyle = c(k > 10 ? OR[4] : k % 4 === 0 ? OR[3] : OR[1]); ctx.fillRect(Math.round(hx + Math.cos(pa) * k - w / 2), Math.round(hy + Math.sin(pa) * k * 0.8 - w / 2), Math.round(w), Math.round(w)); } }
+    }
+    e.feet.forEach((f, i) => leg(f, i, true));
+    if (e.state === "windSweep" || e.state === "windScuttle" || e.state === "windFoam" || e.state === "windPound") telegraph(ctx, x, bodyY - 30, t);
+    if (e.state === "spent") for (let k = 0; k < 3; k++) { const a = t * 6 + k * 2.1; px(ctx, x + Math.cos(a) * 12, bodyY - 26 + Math.sin(a) * 3, 2, 2, "#fff4b8"); }
   };
 
   // ================================================================== network: what guests need to draw these
-  const net = { ser: (q, o, r1) => { if (q.va !== undefined) o.va = Math.round(q.va * 100) / 100; if (q.z !== undefined) o.z = r1(q.z); if (q.untouchable) o.ut = 1; if (q.club !== undefined) o.cl = Math.round(q.club * 100) / 100; if (q.form !== undefined) o.fm = Math.round(q.form * 100) / 100; if (q.spin !== undefined) o.sp = Math.round(q.spin * 10) / 10; },
-    app: (e, o) => { if (o.va !== undefined) e.va = o.va; if (o.z !== undefined) e.nz = o.z; e.untouchable = !!o.ut; if (o.cl !== undefined) e.club = o.cl; if (o.fm !== undefined) e.form = o.fm; if (o.sp !== undefined) e.spin = o.sp; },
-    tick: (e, dt) => { if (e.nz !== undefined) e.z = (e.z || 0) + (e.nz - (e.z || 0)) * Math.min(1, dt * 12); if (e.hist) { e.hist.unshift([e.x, e.y]); if (e.hist.length > 30) e.hist.length = 30; } } };
-  for (const k of ["crab", "hermit", "spitcrab", "brute", "shark", "tshark", "ray", "giantray", "rayling", "pueo", "pueoboss"]) E.NET[k] = net;
+  const net = { ser: (q, o, r1) => { if (q.va !== undefined) o.va = Math.round(q.va * 100) / 100; if (q.z !== undefined) o.z = r1(q.z); if (q.untouchable) o.ut = 1; if (q.form !== undefined) o.fm = Math.round(q.form * 100) / 100; if (q.aim !== undefined) o.am2 = Math.round(q.aim * 100) / 100; if (q.rock) o.rk = 1; if (q.stranded) o.sd = 1; },
+    app: (e, o) => { if (o.va !== undefined) e.va = o.va; if (o.z !== undefined) e.nz = o.z; e.untouchable = !!o.ut; if (o.fm !== undefined) e.form = o.fm; if (o.am2 !== undefined) e.aim = o.am2; e.rock = o.rk ? 1 : 0; e.stranded = !!o.sd; },
+    tick: (e, dt) => { if (e.nz !== undefined) e.z = (e.z || 0) + (e.nz - (e.z || 0)) * Math.min(1, dt * 12); if (e.hist) { e.hist.unshift([e.x, e.y]); if (e.hist.length > 36) e.hist.length = 36; } } };
+  for (const k of ["crab", "spitcrab", "brute", "shark", "bigshark", "tshark", "ray", "giantray", "rayling", "pueo"]) E.NET[k] = net;
 })();

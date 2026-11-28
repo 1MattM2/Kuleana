@@ -11,7 +11,7 @@
 (function () {
   const Sea = (window.Sea = {});
   const T = 32;
-  const pk = (c) => PAL.pk(c), R = () => PAL.R;
+  const pk = (c) => PAL.pk(c), R = () => PAL.R, A = () => Level.assets();
   const mix = (a, b, f) => { const ar = a & 255, ag = (a >>> 8) & 255, ab = (a >>> 16) & 255; return (255 << 24) | ((ab + (((b >>> 16) & 255) - ab) * f) << 16) | ((ag + (((b >>> 8) & 255) - ag) * f) << 8) | (ar + ((b & 255) - ar) * f); };
 
   // ---------------------------------------------------------------- the water map
@@ -41,7 +41,7 @@
     const waterDist = new Uint8Array(N), landDist = new Uint8Array(N), oceanMask = new Uint8Array(N), nearOcean = new Uint8Array(N);
     for (let i = 0; i < N; i++) {
       if (wterr[i] === 0) { oceanMask[i] = 1; waterDist[i] = Math.min(255, Math.max(1, Math.min(depth[i] * 1.15, toLand[i] * 1.6 + 1))) | 0; }
-      else { landDist[i] = Math.min(255, toWater[i]) | 0; if (toWater[i] < 10 && terr[i] === TT.SAND) nearOcean[i] = 1; }
+      else { landDist[i] = Math.min(255, toWater[i]) | 0; if (toWater[i] < 10 && (terr[i] === TT.SAND || terr[i] === TT.CORAL)) nearOcean[i] = 1; }
     }
     return { W, H, terr: wterr, waterDist, landDist, oceanMask, nearOcean, sea: true };
   };
@@ -158,9 +158,19 @@
   H.driftwood = (p, L, o, x, y) => { const seed = ((p.x * 3 + p.y * 5) | 0) % 3, img = art("dw" + seed, () => makeDriftwood(seed + 4)); o.draw = (ctx, ox, oy) => ctx.drawImage(img, Math.round(x - 17 - ox), Math.round(y - 7 - oy)); o.solids = [[x - 14, y - 3, x + 14, y + 1]]; };
   // corals live under the water layer's surface: drawn by drawUnder, not y-sorted with things above water
   H.coral = (p, L, o, x, y) => { const kinds = ["branch", "brain", "fan", "table"], kind = p.c || kinds[((p.x * 7 + p.y * 13) | 0) % 4], seed = ((p.x * 3 + p.y * 17) | 0) % 5; (L.under || (L.under = [])).push({ kind: "coral", x, y, img: art("co" + kind + seed, () => makeCoral(kind, seed + 1)), ph: (x + y) % 6 }); o.draw = () => {}; };
+  // the concept's reef flora, living in the shallows: seagrass meadows that sway in the swell, coral
+  // clusters, tube sponges and brain coral, all seen through the water
+  const FLORA = { seagrass: ["f_seagrass", "f_grass1"], coralmix: ["f_coralmix"], sponge: ["f_sponges", "f_sponge"], brain: ["f_brain"] };
+  for (const k of Object.keys(FLORA)) H[k] = (p, L, o, x, y) => {
+    const names = FLORA[k], name = names[((p.x * 7 + p.y * 3) | 0) % names.length], im = A().img[name]; if (!im) { o.draw = () => {}; return; }
+    const sway = k === "seagrass" ? art("fb" + name, () => Props.bendFrames(im, 2, 7)) : null;
+    (L.under || (L.under = [])).push({ kind: "flora", x, y, img: im, sway, ph: (x * 0.37 + y * 0.11) % 6, flip: ((p.x * 5 + p.y) | 0) % 2 });
+    o.draw = () => {};
+  };
   // thermal vents: the chimney stands above the water, its mats and glow lie beneath
   H.vent = (p, L, o, x, y) => {
-    const v = { x, y, state: "idle", st: Math.random() * 3, next: 3 + Math.random() * 5, hit: {}, mats: art("mats" + (((p.x + p.y) | 0) % 3), () => makeMats(((p.x + p.y) | 0) % 3)), bub: [] };
+    const vk = p.vk !== undefined ? p.vk : ((p.x * 3 + p.y) | 0) % 3;
+    const v = { x, y, vk, state: "idle", st: Math.random() * 3, next: 3 + Math.random() * 5, hit: {}, mats: art("mats" + vk, () => makeMats(vk)), bub: [] };
     (L.vents || (L.vents = [])).push(v); (L.under || (L.under = [])).push({ kind: "vent", v, x, y });
     o.draw = (ctx, ox, oy, t, g) => drawVent(v, ctx, ox, oy, t, g);
     o.solids = [[x - 7, y - 5, x + 7, y + 2]];
@@ -169,8 +179,15 @@
   // ---------------------------------------------------------------- thermal vents
   // mineral mats around a vent, like a hot spring's rings: teal at the cool edge, gold, orange, then a
   // deep rust ring at the mouth, dithered so they melt into the water
+  // three kinds of vent, after the concept: rust and gold, violet, and an electric blue-teal
+  const VENT_KINDS = [
+    { rings: [[0.3, [150, 60, 30]], [0.48, [236, 120, 40]], [0.66, [250, 196, 70]], [0.82, [120, 200, 140]], [1, [60, 170, 180]]], glow: "255,150,60", mouth: [255, 200, 110] },
+    { rings: [[0.3, [70, 30, 90]], [0.48, [150, 70, 190]], [0.66, [210, 140, 240]], [0.82, [120, 170, 230]], [1, [70, 150, 200]]], glow: "200,120,255", mouth: [240, 200, 255] },
+    { rings: [[0.3, [20, 50, 90]], [0.48, [40, 120, 220]], [0.66, [120, 210, 250]], [0.82, [110, 230, 210]], [1, [60, 180, 190]]], glow: "110,190,255", mouth: [210, 240, 255] },
+  ];
+  Sea.VENT_KINDS = VENT_KINDS;
   function makeMats(seed) {
-    const R0 = 34, P = painter(R0 * 2, R0 * 2), rings = [[0.3, [150, 60, 30]], [0.48, [236, 120, 40]], [0.66, [250, 196, 70]], [0.82, [120, 200, 140]], [1, [60, 170, 180]]];
+    const R0 = 34, P = painter(R0 * 2, R0 * 2), rings = VENT_KINDS[seed % 3].rings;
     for (let y = 0; y < R0 * 2; y++) for (let x = 0; x < R0 * 2; x++) {
       const dx = x + 0.5 - R0, dy = (y + 0.5 - R0) / 0.62, rr = (Math.hypot(dx, dy) + (K.noise(x / 6 + seed, y / 6) - 0.5) * 8) / R0;
       if (rr > 1) continue;
@@ -185,10 +202,11 @@
     // the chimney: a squat cone of basalt with a glowing mouth
     for (let yy = -9; yy <= 2; yy++) { const hw = 3 + (yy + 9) * 0.55; for (let xx = -Math.round(hw); xx <= Math.round(hw); xx++) { const d = xx / hw; ctx.fillStyle = PAL.css(yy === -9 ? OB[1] : d < -0.4 ? OB[4] : d < 0.3 ? OB[3] : OB[2]); ctx.fillRect(x + xx, y + yy, 1, 1); } }
     ctx.fillStyle = PAL.css(FI[heat > 0.7 ? 4 : 3]); ctx.fillRect(x - 2, y - 10, 5, 2); ctx.fillStyle = PAL.css(FI[2]); ctx.fillRect(x - 1, y - 8, 3, 3);
-    if (g) Level.glowAt(g, x, y - 9, 26 + heat * 30, "255,150,60", 0.35 + heat * 0.45);
+    const VK = VENT_KINDS[v.vk || 0];
+    if (g) { Level.glowAt(g, x, y - 9, 26 + heat * 30, VK.glow, 0.35 + heat * 0.45); Level.glowAt(g, x, y, 50, VK.glow, 0.18); }
     // steam curling up and drifting with the wind
-    for (let k = 0; k < 6; k++) {
-      const u = ((t * 0.5 + k / 6 + v.x * 0.01) % 1), sx = x + Math.sin(u * 5 + k) * 4 + u * 10 * (K.W ? K.W.x : 0.3), sy = y - 12 - u * 34, r2 = 2 + u * 5, a = (1 - u) * (0.45 + heat * 0.3);
+    for (let k = 0; k < 9; k++) {
+      const u = ((t * 0.42 + k / 9 + v.x * 0.01) % 1), sx = x + Math.sin(u * 5 + k) * 4 + u * 14 * (K.W ? K.W.x : 0.3), sy = y - 12 - u * 56, r2 = 2 + u * 7, a = (1 - u) * (0.4 + heat * 0.3);
       ctx.fillStyle = `rgba(236,240,244,${a.toFixed(2)})`; ctx.fillRect(Math.round(sx - r2), Math.round(sy - r2 * 0.6), Math.round(r2 * 2), Math.round(r2 * 1.2));
     }
     // the geyser: a white column of boiling water with spray falling from its crown
@@ -205,7 +223,15 @@
     if (!L.under) return;
     for (const u of L.under) {
       if (u.x < ox - 60 || u.x > ox + LW + 60 || u.y < oy - 50 || u.y > oy + LH + 50) continue;
-      if (u.kind === "coral") {
+      if (u.kind === "flora") {
+        // through the water: dimmed and cooled, the grass leaning with the swell, light rippling over it
+        const im = u.sway ? u.sway.frames[Math.max(0, Math.min(u.sway.frames.length - 1, Math.round((Math.sin(t * 1.3 + u.ph) * 0.5 + 0.5) * (u.sway.frames.length - 1))))] : u.img, w = im.width, h = im.height;
+        ctx.globalAlpha = 0.9;
+        if (u.flip) { ctx.save(); ctx.translate(Math.round(u.x - ox), 0); ctx.scale(-1, 1); ctx.drawImage(im, Math.round(-w / 2), Math.round(u.y - h + 2 - oy)); ctx.restore(); }
+        else ctx.drawImage(im, Math.round(u.x - w / 2 - ox), Math.round(u.y - h + 2 - oy));
+        ctx.globalAlpha = 1;
+        if (((t * 2 + u.ph) | 0) % 5 === 0) { ctx.fillStyle = "rgba(220,250,250,0.35)"; ctx.fillRect(Math.round(u.x - w / 2 - ox + ((t * 9) % w)), Math.round(u.y - h * 0.6 - oy), 3, 1); }
+      } else if (u.kind === "coral") {
         // seen through moving water: a little transparent, swaying, with light rippling over it
         ctx.globalAlpha = 0.74; ctx.drawImage(u.img, Math.round(u.x - 15 - ox + Math.sin(t * 0.9 + u.ph) * 0.6), Math.round(u.y - 20 - oy)); ctx.globalAlpha = 1;
         if (((t * 3 + u.ph) | 0) % 4 === 0) { ctx.fillStyle = "rgba(220,250,250,0.35)"; ctx.fillRect(Math.round(u.x - 8 - ox + ((t * 7) % 16)), Math.round(u.y - 12 - oy), 3, 1); }
@@ -218,6 +244,77 @@
           ctx.fillStyle = ph > 0.85 ? "rgba(255,255,255,0.9)" : "rgba(210,246,250,0.7)";
           ctx.fillRect(Math.round(v.x + Math.cos(a) * rr * (1 - ph) - ox), Math.round(v.y + Math.sin(a) * rr * 0.5 - ph * 6 - oy), ph > 0.85 ? 2 : 1, 1);
         }
+      }
+    }
+  };
+  // ---------------------------------------------------------------- fish
+  // schools of small fish pass through the open water now and then: dark silhouettes under the surface,
+  // turning together. Each fish follows the school's heading with its own offset and a little wobble.
+  // Everything here is decoration, run on every machine from a shared seed and the clock.
+  function school(x, y, a, n, sp, spread) { const r = Math.random; return { x, y, a, sp, life: 0, fish: Array.from({ length: n }, () => ({ u: (r() - 0.5) * spread * 1.6, v: (r() - 0.5) * spread, ph: r() * 6, s: 0.7 + r() * 0.6 })) }; }
+  const wet2 = (L, x, y) => { const v = Level.tileAt(x, y); return v === 12 || v === 13 || v === 11; };
+  Sea.fish = function (L, dt, t) {
+    const F = L.fishS || (L.fishS = { list: [], next: 2 });
+    F.next -= dt;
+    if (F.next <= 0 && F.list.length < (L.def.fish || 3)) {
+      F.next = 6 + Math.random() * 8;
+      // enter from a random point of open water near the camera, heading across it
+      const cam = Level.camHint || { x: L.W / 2, y: L.H / 2 };
+      for (let k = 0; k < 30; k++) { const a = Math.random() * Math.PI * 2, x = cam.x + Math.cos(a) * 300, y = cam.y + Math.sin(a) * 200; if (Level.tileAt(x, y) !== 13 && Level.tileAt(x, y) !== 12) continue; F.list.push(school(x, y, a + Math.PI + (Math.random() - 0.5) * 0.8, 14 + ((Math.random() * 18) | 0), 22 + Math.random() * 14, 22)); break; }
+    }
+    for (const s of F.list) {
+      s.life += dt;
+      // turn away from the shallows and the shore, and drift on
+      const ahead = (d) => wet2(L, s.x + Math.cos(s.a) * d, s.y + Math.sin(s.a) * d) && Level.tileAt(s.x + Math.cos(s.a) * d, s.y + Math.sin(s.a) * d) !== 11;
+      if (!ahead(40)) s.a += dt * 2.2; else s.a += Math.sin(t * 0.4 + s.fish.length) * dt * 0.2;
+      s.x += Math.cos(s.a) * s.sp * dt; s.y += Math.sin(s.a) * s.sp * dt;
+    }
+    F.list = F.list.filter((s) => s.life < 40 && s.x > -100 && s.y > -100 && s.x < L.W + 100 && s.y < L.H + 100);
+    // the frenzy's great school: it mills about its centre, and bolts away from a lunging shark
+    const B = L.school;
+    if (B && B.active) {
+      B.t += dt;
+      const tx = B.cx + Math.cos(B.t * 0.35) * B.rx * 0.5, ty = B.cy + Math.sin(B.t * 0.5) * B.ry * 0.4;
+      B.x += (tx - B.x) * Math.min(1, dt * 0.8); B.y += (ty - B.y) * Math.min(1, dt * 0.8);
+      if (B.scare && t - B.scare.t < 0.8) { const a = Math.atan2(B.y - B.scare.y, B.x - B.scare.x); B.x += Math.cos(a) * 70 * dt; B.y += Math.sin(a) * 70 * dt; }
+    }
+  };
+  function drawSchool(ctx, s, ox, oy, t, L, alpha, mill) {
+    const ca = Math.cos(s.a), sa = Math.sin(s.a);
+    for (const f of s.fish) {
+      let x, y, a;
+      if (mill) { const ang = t * (0.6 + f.s * 0.3) * (f.ph > 3 ? 1 : -1) + f.ph * 7, rr = 14 + Math.abs(f.u) * 1.6 + Math.sin(t + f.ph) * 6; x = s.x + Math.cos(ang) * rr; y = s.y + Math.sin(ang) * rr * 0.7; a = ang + (f.ph > 3 ? Math.PI / 2 : -Math.PI / 2); if (s.scare && t - s.scare.t < 0.8) { const k = 1 - (t - s.scare.t) / 0.8, sa2 = Math.atan2(y - s.scare.y, x - s.scare.x); x += Math.cos(sa2) * 30 * k; y += Math.sin(sa2) * 30 * k; a = sa2; } }
+      else { const wob = Math.sin(t * 2 + f.ph) * 2; x = s.x + ca * f.u - sa * (f.v + wob); y = s.y + sa * f.u + ca * (f.v + wob); a = s.a + Math.sin(t * 3 + f.ph) * 0.2; }
+      if (!wet2(L, x, y)) continue;
+      const X = Math.round(x - ox), Y = Math.round(y - oy), fx = Math.cos(a), fy = Math.sin(a), len = 3 + f.s * 1.4;
+      ctx.fillStyle = `rgba(6,26,40,${alpha})`;
+      for (let k = -len; k <= len * 0.6; k++) ctx.fillRect(Math.round(X + fx * k), Math.round(Y + fy * k), 1, 1);
+      ctx.fillRect(Math.round(X - fx * (len - 1) - fy), Math.round(Y - fy * (len - 1) + fx), 1, 1); ctx.fillRect(Math.round(X - fx * (len - 1) + fy), Math.round(Y - fy * (len - 1) - fx), 1, 1);
+      if (((t * 4 + f.ph * 3) | 0) % 9 === 0) { ctx.fillStyle = `rgba(200,240,250,${alpha})`; ctx.fillRect(Math.round(X + fx), Math.round(Y + fy), 1, 1); }
+    }
+  }
+  Sea.drawFish = function (ctx, L, ox, oy, LW, LH, t) {
+    for (const s of (L.fishS && L.fishS.list) || []) { if (s.x < ox - 80 || s.x > ox + LW + 80 || s.y < oy - 80 || s.y > oy + LH + 80) continue; drawSchool(ctx, s, ox, oy, t, L, 0.34 * Math.min(1, s.life / 2, (40 - s.life) / 3), false); }
+    const B = L.school; if (B && B.active) drawSchool(ctx, B, ox, oy, t, L, 0.42, true);
+  };
+  // a feeding frenzy (Level 1's open water): the great school arrives, and the sharks follow it in
+  Sea.frenzyStart = function (L, a) { const [x0, y0, x1, y1] = a.rect.map((v) => v * 32); const cx = (x0 + x1 + 32) / 2, cy = (y0 + y1 + 32) / 2; L.school = school(cx, cy, 0, 130, 0, 30); Object.assign(L.school, { active: true, cx, cy, rx: (x1 - x0) / 2, ry: (y1 - y0) / 2, t: 0 }); };
+  Sea.frenzyEnd = function (L) { if (L.school) L.school.active = false; };
+  Sea.frenzyTick = function (a, L, t, heroes, api) {
+    const [x0, y0, x1, y1] = a.rect.map((v) => v * 32), np = heroes.length, el = t - a.t0;
+    a.live = a.live.filter((e) => !e.dead);
+    const n = (k) => a.live.filter((e) => e.type === k).length;
+    const want = { shark: 2 + np + (el > 24 ? 1 : 0), bigshark: el < 12 ? 0 : el < 30 ? 1 : 1 + (np > 1 ? 1 : 0) };
+    if (t > (a.spawnT || 0)) {
+      a.spawnT = t + 1.6;
+      for (const k of ["bigshark", "shark"]) if (n(k) < want[k]) {
+        // in from the edge of the frenzy, out in the deeper water, away from the heroes
+        for (let tries = 0; tries < 40; tries++) {
+          const side = (Math.random() * 4) | 0, u = Math.random(), x = side < 2 ? (side ? x1 + 16 : x0 + 16) : x0 + (x1 - x0) * u, y = side >= 2 ? (side === 2 ? y0 + 16 : y1 + 16) : y0 + (y1 - y0) * u;
+          const w = Level.tileAt(x, y); if (w !== 12 && w !== 13) continue; if (heroes.some((q) => Math.hypot(q.x - x, q.y - y) < 120)) continue;
+          const e = Enemies.spawn(k, x, y, 0, L); if (!e) break; e.alerted = true; e.enter = "scurry"; e.introT = 0.9; L.enemies.push(e); a.live.push(e); break;
+        }
+        break;
       }
     }
   };
