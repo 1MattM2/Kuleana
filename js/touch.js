@@ -43,7 +43,7 @@
     d.addEventListener("pointerup", up); d.addEventListener("pointercancel", up);
     el.appendChild(d);
   }
-  for (const [label, code, r] of [["MENU", "Escape", 10], ["CO-OP", "KeyC", 60]]) {
+  for (const [label, code, r] of [["MENU", "Escape", 10], ["CO-OP", "KeyC", 60], ["INV", "KeyI", 110]]) {
     const d = document.createElement("div"); d.className = "tb sm"; d.textContent = label;
     Object.assign(d.style, { right: `calc(${r}px + env(safe-area-inset-right))`, top: `calc(8px + env(safe-area-inset-top))`, width: "46px" });
     d.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); key("keydown", code); setTimeout(() => key("keyup", code), 60); });

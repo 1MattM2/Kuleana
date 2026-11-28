@@ -87,34 +87,38 @@
   };
 
   // ---------------------------------------------------------------- Makani's trades
-  // Heals to carry (H to use), elemental shards, talismans (one-use elemental super attacks, T to
+  // Prices: a common shell is worth about 1, an uncommon about 6, a rare about 25. Heals to carry (H), elemental shards, talismans (one-use elemental super attacks, T to
   // unleash, Y to choose which), and the bestiary. Prices climb with what an item is worth: everyday
   // things cost common shells, strong ones want an uncommon shell too, the best a rare one.
   Gear.TALISMANS = {
-    t_fire: { name: "Ahi talisman", el: "fire", desc: "A nova of fire bursts out all round you." },
-    t_storm: { name: "Uila talisman", el: "storm", desc: "Lightning strikes the six nearest foes." },
-    t_water: { name: "Kai talisman", el: "water", desc: "A wave crashes ahead of you and hurls foes back." },
-    t_magma: { name: "Pele talisman", el: "magma", desc: "The ground erupts beneath every foe near you." },
-    t_tribal: { name: "Kū talisman", el: "tribal", desc: "War drums: foes near you reel and your momentum surges." },
-    t_star: { name: "Hōkū talisman", el: "celestial", desc: "Stars fall on every foe in sight." },
+    // each unleashes its element's weapon special, grander: wider (where the special is small) and harder
+    t_fire: { name: "Ahi talisman", el: "fire", weapon: "firestaff", r: 1.5, desc: "Unleashes the Wheel of Pele, grander." },
+    t_storm: { name: "Uila talisman", el: "storm", weapon: "storm", r: 1, desc: "Unleashes the Tempest (already vast), harder." },
+    t_water: { name: "Kai talisman", el: "water", weapon: "tide", r: 1.5, desc: "Unleashes the Riptide, grander." },
+    t_magma: { name: "Pele talisman", el: "magma", weapon: "maul", r: 1.5, desc: "Unleashes the Eruption, grander." },
+    t_tribal: { name: "Kū talisman", el: "tribal", weapon: "kakau", r: 1.3, desc: "Unleashes the Awakening, grander." },
+    t_star: { name: "Hōkū talisman", el: "celestial", weapon: "starfall", r: 1.2, desc: "Unleashes the Heavens, grander." },
   };
   Gear.SHOP = [
-    { id: "tonic", kind: "heal", name: "ʻŌhelo tonic", desc: "Heals two hearts. Carry up to 5 (H to drink).", cap: 5, cost: { clam: 3 } },
-    { id: "salve", kind: "heal", name: "Noni salve", desc: "Heals you fully. Carry up to 3.", cap: 3, cost: { limpet: 2, cone: 1 } },
-    { id: "shard_tribal", kind: "shard", el: "tribal", name: "Tribal shard", desc: "Chipped from a tiki's mask.", cost: { clam: 4, auger: 2 } },
-    { id: "shard_fire", kind: "shard", el: "fire", name: "Fire shard", desc: "Still warm in the hand.", cost: { limpet: 4, cone: 1 } },
-    { id: "shard_magma", kind: "shard", el: "magma", name: "Magma shard", desc: "Glows like a coal.", cost: { auger: 3, triton: 1 } },
-    { id: "shard_water", kind: "shard", el: "water", name: "Water shard", desc: "Cool, with the sea inside it.", cost: { clam: 3, miter: 1 } },
-    { id: "shard_storm", kind: "shard", el: "storm", name: "Storm shard", desc: "It hums against your palm.", cost: { limpet: 3, cone: 1, miter: 1 } },
-    { id: "t_fire", kind: "talisman", cap: 3, cost: { auger: 2, cone: 1 } },
-    { id: "t_storm", kind: "talisman", cap: 3, cost: { limpet: 2, miter: 1 } },
-    { id: "t_water", kind: "talisman", cap: 3, cost: { clam: 2, miter: 1 } },
-    { id: "t_magma", kind: "talisman", cap: 3, cost: { auger: 2, triton: 1 } },
-    { id: "t_tribal", kind: "talisman", cap: 3, cost: { clam: 3, cone: 1 } },
-    { id: "t_star", kind: "talisman", cap: 2, cost: { helmet: 1, cone: 1 } },
-    { id: "book", kind: "book", name: "Moʻolelo of Beasts", desc: "A bestiary: what every creature is, and how it fights. (Settings > Bestiary)", cost: { trumpet: 1, triton: 1 } },
+    { id: "tonic", kind: "heal", name: "ʻŌhelo tonic", desc: "Heals two hearts. Carry up to 5 (H to drink).", cap: 5, cost: { clam: 3, limpet: 2 } },
+    { id: "salve", kind: "heal", name: "Noni salve", desc: "Heals you fully. Carry up to 3.", cap: 3, cost: { limpet: 4, auger: 3, cone: 1 } },
+    { id: "shard_tribal", kind: "shard", el: "tribal", name: "Tribal shard", desc: "Chipped from a tiki's mask.", cost: { clam: 6, auger: 3 } },
+    { id: "shard_fire", kind: "shard", el: "fire", name: "Fire shard", desc: "Still warm in the hand.", cost: { limpet: 6, cone: 1 } },
+    { id: "shard_magma", kind: "shard", el: "magma", name: "Magma shard", desc: "Glows like a coal.", cost: { auger: 5, triton: 1 } },
+    { id: "shard_water", kind: "shard", el: "water", name: "Water shard", desc: "Cool, with the sea inside it.", cost: { clam: 6, miter: 1 } },
+    { id: "shard_storm", kind: "shard", el: "storm", name: "Storm shard", desc: "It hums against your palm.", cost: { limpet: 4, cone: 1, miter: 1 } },
+    { id: "t_fire", kind: "talisman", cap: 3, cost: { auger: 4, cone: 2 } },
+    { id: "t_storm", kind: "talisman", cap: 3, cost: { limpet: 4, miter: 2 } },
+    { id: "t_water", kind: "talisman", cap: 3, cost: { clam: 4, miter: 2 } },
+    { id: "t_magma", kind: "talisman", cap: 3, cost: { auger: 4, triton: 2 } },
+    { id: "t_tribal", kind: "talisman", cap: 3, cost: { clam: 5, cone: 2 } },
+    { id: "t_star", kind: "talisman", cap: 2, cost: { helmet: 1, cone: 2 } },
+    { id: "book", kind: "book", name: "Moʻolelo of Beasts", desc: "A bestiary: what every creature is, and how it fights. (Settings > Bestiary)", cost: { trumpet: 1, triton: 3 } },
   ];
   for (const it of Gear.SHOP) if (it.kind === "talisman") Object.assign(it, { name: Gear.TALISMANS[it.id].name, desc: Gear.TALISMANS[it.id].desc + " One use (T)." });
+  Gear.FIXED = ["tonic", "salve", "book"];
+  Gear.rerollStock = () => { const pool = Gear.SHOP.filter((it) => !Gear.FIXED.includes(it.id)), shards = pool.filter((it) => it.kind === "shard"), tal = pool.filter((it) => it.kind === "talisman"); const pick = (a, n) => a.slice().sort(() => Math.random() - 0.5).slice(0, n).map((it) => it.id); S.stock = pick(shards, 2).concat(pick(tal, 2)); };
+  Gear.shopList = () => { if (!S.stock || !S.stock.length) Gear.rerollStock(); return Gear.SHOP.filter((it) => Gear.FIXED.includes(it.id) || S.stock.includes(it.id)); };
   Gear.soldOut = (it) => (it.kind === "book" ? S.book : it.cap ? (S.items[it.id] || 0) >= it.cap : false);
   Gear.canBuy = (it) => !Gear.soldOut(it) && Object.entries(it.cost).every(([k, n]) => S.shells[k] >= n);
   Gear.buy = (it) => {
@@ -123,14 +127,32 @@
     if (it.kind === "shard") S.shards[it.el]++; else if (it.kind === "book") S.book = true; else { S.items[it.id] = (S.items[it.id] || 0) + 1; if (it.kind === "talisman") S.pick = it.id; }
     Gear.changed(); return true;
   };
+  // gold: coins the creatures carry; saved for building the village (the first buildings arrive by rescue)
+  Gear.addGold = (n) => { S.gold += n; Gear.changed(); };
+  Gear.gold = () => S.gold;
+  Gear.shellTotal = () => Object.values(S.shells).reduce((a, b) => a + b, 0);
   Gear.addShell = (k, n) => { if (!Gear.SHELLS[k]) return; S.shells[k] += n || 1; Gear.changed(); };
   Gear.count = (id) => S.items[id] || 0;
+  Gear.PACK = 2;
+  Gear.PERISH = () => ["tonic", "salve"].concat(Object.keys(Gear.TALISMANS));
+  Gear.pack = () => S.pack;
+  Gear.packFree = (id) => Gear.count(id) - S.pack.filter((q) => q === id).length;   // units not already packed
+  Gear.packAdd = (id) => { if (S.pack.length >= Gear.PACK || Gear.packFree(id) <= 0) return false; S.pack.push(id); Gear.changed(); return true; };
+  Gear.packRemove = (i) => { S.pack.splice(i, 1); Gear.changed(); };
+  // keep the pack honest, and fill empty slots (heals first) when nobody chose
+  Gear.packTidy = (fill) => { const want = {}; S.pack = S.pack.filter((id) => { want[id] = (want[id] || 0) + 1; return want[id] <= Gear.count(id); }); if (fill) for (const id of Gear.PERISH()) while (S.pack.length < Gear.PACK && Gear.packFree(id) > 0) S.pack.push(id); };
+  Gear.units = () => Gear.PERISH().reduce((n, id) => n + Gear.count(id), 0);
+  // in battle only what's packed can be used; elsewhere, anything you carry
+  Gear.battle = false;
+  const takeFrom = (id) => { if (!S.items[id]) return false; if (Gear.battle) { const i = S.pack.indexOf(id); if (i < 0) return false; S.pack.splice(i, 1); } S.items[id]--; return true; };
+  const usable = (id) => S.items[id] > 0 && (!Gear.battle || S.pack.includes(id));
   // drink a heal: the tonic first, the salve if there's no tonic or you're nearly out
-  Gear.takeHeal = (hp, max) => { const useSalve = S.items.salve && (!S.items.tonic || hp <= 2 || max - hp > 6); const id = useSalve ? "salve" : S.items.tonic ? "tonic" : null; if (!id) return 0; S.items[id]--; Gear.changed(); return id === "salve" ? max : 4; };
+  Gear.takeHeal = (hp, max) => { const useSalve = usable("salve") && (!usable("tonic") || hp <= 2 || max - hp > 6); const id = useSalve ? "salve" : usable("tonic") ? "tonic" : null; if (!id || !takeFrom(id)) return 0; Gear.changed(); return id === "salve" ? max : 4; };
   // the talisman in hand, and choosing another
-  Gear.pick = () => { if (S.pick && S.items[S.pick]) return S.pick; const k = Object.keys(Gear.TALISMANS).find((q) => S.items[q]); S.pick = k || null; return S.pick; };
-  Gear.nextPick = () => { const ks = Object.keys(Gear.TALISMANS).filter((q) => S.items[q]); if (!ks.length) return null; S.pick = ks[(ks.indexOf(S.pick) + 1) % ks.length]; Gear.changed(); return S.pick; };
-  Gear.spend = (id) => { if (!S.items[id]) return false; S.items[id]--; Gear.changed(); return true; };
+  Gear.pick = () => { if (S.pick && usable(S.pick)) return S.pick; const k = Object.keys(Gear.TALISMANS).find((q) => usable(q)); S.pick = k || null; return S.pick; };
+  Gear.nextPick = () => { const ks = Object.keys(Gear.TALISMANS).filter((q) => usable(q)); if (!ks.length) return null; S.pick = ks[(ks.indexOf(S.pick) + 1) % ks.length]; Gear.changed(); return S.pick; };
+  Gear.spend = (id) => { if (!takeFrom(id)) return false; Gear.changed(); return true; };
+  Gear.hasHeal = () => usable("tonic") || usable("salve");
   // the bestiary: who you've met, and how many you've beaten
   Gear.noteKill = (type) => { S.kills[type] = (S.kills[type] || 0) + 1; };
   Gear.hasBook = () => !!S.book;
@@ -163,11 +185,11 @@
   };
 
   // ---------------------------------------------------------------- state
-  const fresh = () => ({ shards: Object.fromEntries(Gear.ORDER.map((k) => [k, 0])), armors: [], worn: null, village: { built: [], rescued: [] }, shells: Object.fromEntries(Object.keys(Gear.SHELLS).map((k) => [k, 0])), charms: { heart: 0, whet: 0, luck: 0 }, items: {}, pick: null, book: false, kills: {} });
+  const fresh = () => ({ shards: Object.fromEntries(Gear.ORDER.map((k) => [k, 0])), armors: [], worn: null, village: { built: [], rescued: [] }, shells: Object.fromEntries(Object.keys(Gear.SHELLS).map((k) => [k, 0])), charms: { heart: 0, whet: 0, luck: 0 }, items: {}, pick: null, book: false, kills: {}, pack: [], stock: [], gold: 0, beach: null, beachDue: false });
   let S = fresh();
   Gear.state = () => S;
   Gear.reset = () => { S = fresh(); Gear.changed(); };
-  Gear.load = (d) => { S = fresh(); if (d) { Object.assign(S.shards, d.shards || {}); S.armors = (d.armors || []).filter((k) => Gear.ARMOR[k]); S.worn = Gear.ARMOR[d.worn] ? d.worn : null; S.village = { built: (d.village && d.village.built) || [], rescued: (d.village && d.village.rescued) || [] }; Object.assign(S.shells, d.shells || {}); Object.assign(S.charms, d.charms || {}); S.items = d.items || {}; S.pick = d.pick || null; S.book = !!d.book; S.kills = d.kills || {}; } Gear.changed(); };
+  Gear.load = (d) => { S = fresh(); if (d) { Object.assign(S.shards, d.shards || {}); S.armors = (d.armors || []).filter((k) => Gear.ARMOR[k]); S.worn = Gear.ARMOR[d.worn] ? d.worn : null; S.village = { built: (d.village && d.village.built) || [], rescued: (d.village && d.village.rescued) || [] }; Object.assign(S.shells, d.shells || {}); Object.assign(S.charms, d.charms || {}); S.items = d.items || {}; S.pick = d.pick || null; S.book = !!d.book; S.kills = d.kills || {}; S.pack = d.pack || []; S.stock = d.stock || []; S.gold = d.gold || 0; S.beach = d.beach || null; S.beachDue = !!d.beachDue; } Gear.changed(); };
   Gear.snapshot = () => JSON.parse(JSON.stringify(S));
   Gear.onChange = null;
   Gear.changed = () => { Gear.onChange && Gear.onChange(); window.Menu && Menu.refresh && Menu.refresh(); };

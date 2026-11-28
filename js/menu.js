@@ -7,7 +7,7 @@
     ["Move", "W A S D  /  Arrow keys"], ["Run", "Shift (hold)"], ["Attack", "J  /  Left click. Press again mid-swing to chain a combo"],
     ["Dodge roll", "Space  /  K  /  Right click. Roll just as a blow lands for a perfect dodge"],
     ["Switch weapon", "Q  /  R  /  Mouse wheel"], ["Pick a weapon", "1 – 9, 0"], ["Talk / use", "E  /  Enter"],
-    ["Ultimate", "Land 3 combo finishers, then finish again"], ["Mute", "M"], ["Settings", "Esc"], ["Co-op", "C"],
+    ["Ultimate", "Land 3 combo finishers, then finish again"], ["Heal (from your items)", "H"], ["Talisman (super attack)", "T  (Y to choose)"], ["Inventory", "I"], ["Mute", "M"], ["Settings", "Esc"], ["Co-op", "C"],
   ];
   const MENU_KEYS = [["Open / close", "Esc"], ["Next / previous tab", "Tab  /  Shift+Tab  (or ← →)"], ["Co-op tab", "C"], ["Join with a code", "Type it, then Enter"], ["Buttons", "Click"]];
 

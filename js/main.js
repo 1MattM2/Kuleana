@@ -110,6 +110,8 @@
     if (window.Title && Title.open) return;
     if (e.target && e.target.tagName === "INPUT") return;          // typing a join code
     if (window.Menu && Menu.open) { if (!e.repeat) Menu.key(e); for (const k in keys) keys[k] = false; return; }
+    if (invUI.open) { if (!e.repeat && (e.code === "Escape" || e.code === "KeyI")) invUI.open = false; for (const k in keys) keys[k] = false; e.preventDefault(); return; }
+    if (e.code === "KeyI" && !e.repeat && !dialog && !globe.open && !loadoutUI.open && !shopUI.open && !forgeUI.open) { invUI.open = true; return; }
     if (shopUI.open) { if (!e.repeat) shopKey(e.code); for (const k in keys) keys[k] = false; e.preventDefault(); return; }
     if (forgeUI.open) { if (!e.repeat) forgeKey(e.code); for (const k in keys) keys[k] = false; e.preventDefault(); return; }
     if (loadoutUI.open) { if (!e.repeat) loadoutKey(e.code); for (const k in keys) keys[k] = false; e.preventDefault(); return; }
@@ -131,7 +133,7 @@
     if (e.code.startsWith("Arrow") || e.code === "Space" || e.code === "Tab") e.preventDefault();
   });
   addEventListener("keyup", (e) => (keys[e.code] = false));
-  addEventListener("pointerdown", (e) => { if (window.Title && Title.open) return; window.Ambience && Ambience.start(); if (window.Menu && Menu.open) return; if (shopUI.open) { shopTap(e); return; } if (forgeUI.open) { forgeTap(e); return; } if (loadoutUI.open) { loadoutTap(e); return; } if (globe.open) { globeTap(e); return; } if (e.pointerType !== "mouse" || player.dead) return; if (e.button === 0 && !dialog && fade.dir === 0) Combat.attack(); if (e.button === 2 && !dialog && fade.dir === 0) startRoll(); });
+  addEventListener("pointerdown", (e) => { if (window.Title && Title.open) return; window.Ambience && Ambience.start(); if (window.Menu && Menu.open) return; if (invUI.open) { invUI.open = false; return; } if (shopUI.open) { shopTap(e); return; } if (forgeUI.open) { forgeTap(e); return; } if (loadoutUI.open) { loadoutTap(e); return; } if (globe.open) { globeTap(e); return; } if (e.pointerType !== "mouse" || player.dead) return; if (e.button === 0 && !dialog && fade.dir === 0) Combat.attack(); if (e.button === 2 && !dialog && fade.dir === 0) startRoll(); });
   addEventListener("contextmenu", (e) => e.preventDefault());
   addEventListener("wheel", (e) => Combat.cycle(e.deltaY > 0 ? 1 : -1), { passive: true });
   addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
@@ -205,7 +207,7 @@
       case "atk": {
         if (id === mySlot()) break;
         if (Net.isHost()) Net.send(m, id);
-        const q = mates.get(id); if (q && isHere(q)) Combat.ghost(q, m.w, m.m, m.a, Net.isHost());
+        const q = mates.get(id); if (q && isHere(q)) { if (m.b) Combat.unleash(q, m.w, m.a, m.b[0], m.b[1], Net.isHost()); else Combat.ghost(q, m.w, m.m, m.a, Net.isHost()); }
         break;
       }
       case "snap": if (Net.isGuest() && scene === "level" && Level.cur && Level.cur.name === m.lv) { Enemies.applySnap(Level.cur, m.en); Level.applySnap(Level.cur, m.lvl, time); for (const k of m.sfx || []) Ambience.sfx && Ambience.sfx(k); } break;
@@ -214,6 +216,7 @@
       case "heal": player.hp = Math.min(player.maxHp, player.hp + m.n); break;
       case "shard": gotShard(m.el); break;
       case "shell": gotShell(m.k); break;
+      case "gold": gotGold(m.n); break;
       case "blast": if (Net.isHost()) { const q = mates.get(m.id !== undefined ? m.id : from); if (q) Combat.blast(q, m.x, m.y, m.r, m.o, true); } break;
       case "tp": player.x = m.x; player.y = m.y; if (blocked(player.x, player.y)) unstick(); break;
       case "banner": banner = { title: m.title, sub: m.sub || "", t0: time }; break;
@@ -279,6 +282,7 @@
   const levelApi = {
     hurt: hurtPlayer,
     sfx: (k) => { Ambience.sfx && Ambience.sfx(k); if (window.Net && Net.isHost()) sfxQ.push(k); },
+    gold: (n, q) => { if (q && q.isRemote) { Net.sendTo(q.slot, { t: "gold", n }); return; } gotGold(n); },
     shell: (k, q) => { if (q && q.isRemote) { Net.sendTo(q.slot, { t: "shell", k }); return; } gotShell(k); },
     shard: (el, q) => { if (q && q.isRemote) { Net.sendTo(q.slot, { t: "shard", el }); return; } gotShard(el); },
     heal: (n, q) => { if (q && q.isRemote) { Net.sendTo(q.slot, { t: "heal", n }); return; } player.hp = Math.min(player.maxHp, player.hp + n); healT = time; },
@@ -287,17 +291,30 @@
     hurtRemote: (q, d, sx, sy, src) => { if (q.dead || q.hitInv > 0) return false; Net.sendTo(q.slot, { t: "hurt", d, x: sx, y: sy, s: src }); if (q.rolling || q.inv) return false; q.hitInv = 0.9; return true; },
   };
   let healT = -9, regenT = 0, metMakani = false;
-  // shells washed up on the island's beaches: a few each time you come back to the shore
+  // shells washed up on the island's beaches. The tide brings a new lot only after a real expedition
+  // (at least halfway through a level): a third of the time the beach is bare; otherwise 1-5 shells,
+  // mostly one or two. Each is common 70% of the time, uncommon 25%, rare 5% (kinds split evenly).
+  // Uncollected shells stay where they are, and are saved with the game.
   const beach = [];
-  function washShells() {
-    if (!World.terr || !World.landDist) return;
-    for (let k = beach.length - 1; k >= 0; k--) if (beach[k].got) beach.splice(k, 1);
-    for (let tries = 0; tries < 400 && beach.length < 6; tries++) {
+  const BEACH = { bare: 0.35, counts: [30, 28, 22, 13, 7] };
+  function rollBeach() {
+    beach.length = 0;
+    if (!World.terr || !World.landDist || Math.random() < BEACH.bare) { Gear.state().beach = []; return; }
+    let w = Math.random() * BEACH.counts.reduce((a, b) => a + b, 0), n = 1; for (const c of BEACH.counts) { if (w < c) break; w -= c; n++; }
+    for (let tries = 0; tries < 600 && beach.length < n; tries++) {
       const x = 40 + Math.random() * (World.W - 80), y = 40 + Math.random() * (World.H - 80), i = (y | 0) * World.W + (x | 0);
       if (World.terr[i] !== World.SAND || World.landDist[i] > 14 || World.landDist[i] < 4 || blockedIsland(x, y)) continue;
-      const r = Math.random(); beach.push({ x, y, k: Gear.randomShell(r < 0.9 ? 0 : 1) });
+      const r = Math.random(); beach.push({ x: Math.round(x), y: Math.round(y), k: Gear.randomShell(r < 0.7 ? 0 : r < 0.95 ? 1 : 2) });
     }
+    Gear.state().beach = beach.map((b) => ({ x: b.x, y: b.y, k: b.k }));
   }
+  function washShells() {
+    const S = Gear.state();
+    if (S.beachDue) { S.beachDue = false; rollBeach(); return; }
+    beach.length = 0; for (const b of S.beach || []) beach.push({ x: b.x, y: b.y, k: b.k });
+  }
+  // a level counts as an expedition once at least half its arenas are cleared
+  Level.onProgress = (L) => { const n = L.arenas.length, done = L.arenas.filter((a) => a.state === "done").length; if (n && done >= Math.ceil(n / 2)) Gear.state().beachDue = true; };
   const blockedIsland = (x, y) => { for (const b of Props.colliders) if (x > b[0] - 6 && x < b[2] + 6 && y > b[1] - 6 && y < b[3] + 6) return true; return false; };
   function useHeal() {
     if (player.hp >= player.maxHp) return;
@@ -305,20 +322,17 @@
     player.hp = Math.min(player.maxHp, player.hp + n); healT = time; Ambience.sfx && Ambience.sfx("berry");
     for (let k = 0; k < 14; k++) Combat.addPart({ x: player.x + (Math.random() - 0.5) * 14, y: player.y - Math.random() * 24, vx: 0, vy: -30, g: -10, life: 0.8, col: k % 2 ? "#ff8a8a" : "#ffffff", size: 1, kind: "ember", glow: true });
   }
-  // a talisman: a one-use elemental super attack
+  // a talisman: a one-use super attack: its element's weapon special, grander
   function useTalisman() {
-    const k = Gear.pick(); if (!k || !Gear.spend(k)) return;
-    const Tm = Gear.TALISMANS[k], E = Gear.ELEMENTS[Tm.el], x = player.x, y = player.y - 10, P2 = (o) => Combat.addPart(o);
-    const blast = (bx, by, r, o) => { Combat.blast(player, bx, by, r, o); if (window.Net && Net.isGuest()) Net.send({ t: "blast", id: mySlot(), x: Math.round(bx), y: Math.round(by), r, o }); };
-    banner = { title: Tm.name.toUpperCase(), sub: "", t0: time };
+    const k = Gear.pick(); if (!k) return;
+    const Tm = Gear.TALISMANS[k], E = Gear.ELEMENTS[Tm.el], wi = Combat.indexOf(Tm.weapon); if (wi < 0 || !Gear.spend(k)) return;
+    const a = player.dir === "left" ? Math.PI : player.dir === "up" ? -Math.PI / 2 : player.dir === "down" ? Math.PI / 2 : 0;
+    Combat.unleash(player, wi, a, Tm.r, 1.6, true);
+    if (window.Net && Net.active()) Net.send({ t: "atk", id: mySlot(), w: wi, m: -1, a: Math.round(a * 1000) / 1000, b: [Tm.r, 1.6] });
+    banner = { title: Tm.name.toUpperCase(), sub: Combat.weapons[wi].ult.name, t0: time };
     Combat.flash = 0.6; Combat.flashCol = E.glow; Combat.shake = 1;
-    if (k === "t_fire") { blast(x, y, 96, { dmg: 60, burn: 1 }); for (let i = 0; i < 80; i++) { const a = Math.random() * 6.28, sp = 60 + Math.random() * 160; P2({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.7, drag: 2, life: 0.8, col: ["#ffb63c", "#ec561c", "#fff4b8"][i % 3], size: 2, kind: "ember", glow: true }); } Ambience.sfx && (Ambience.sfx("fire"), Ambience.sfx("boom")); }
-    else if (k === "t_storm") { const foes = Combat.targets.filter((d) => !d.dead && !d.untouchable).sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y)).slice(0, 6); foes.forEach((d, i) => setTimeout(() => { Combat.blast(player, d.x, d.y - 10, 14, { dmg: 45, shock: 1 }); if (window.Net && Net.isGuest()) Net.send({ t: "blast", id: mySlot(), x: Math.round(d.x), y: Math.round(d.y - 10), r: 14, o: { dmg: 45, shock: 1 } }); for (let j = 0; j < 22; j++) P2({ x: d.x + (Math.random() - 0.5) * 6, y: d.y - 10 - j * 6, vx: 0, vy: 0, life: 0.25, col: j % 2 ? "#ffffff" : "#a8c4ff", size: 2, kind: "spark", glow: true }); Ambience.sfx && Ambience.sfx("thunder"); }, i * 90)); }
-    else if (k === "t_water") { const a0 = player.dir === "left" ? Math.PI : player.dir === "up" ? -Math.PI / 2 : player.dir === "down" ? Math.PI / 2 : 0; for (let s2 = 1; s2 <= 4; s2++) { const bx = x + Math.cos(a0) * s2 * 28, by = y + Math.sin(a0) * s2 * 22; setTimeout(() => { blast(bx, by, 34, { dmg: 22 }); for (let j = 0; j < 16; j++) P2({ x: bx + (Math.random() - 0.5) * 40, y: by, vx: Math.cos(a0) * 80, vy: -60 - Math.random() * 60, g: 260, life: 0.7, col: j % 2 ? "#e8f8ff" : "#5ab8ff", size: 2, kind: "drop", glow: true }); }, s2 * 70); } for (const d of Combat.targets) if (!d.dead && Math.hypot(d.x - x, d.y - y) < 150) { d.kx = Math.cos(a0) * 260; d.ky = Math.sin(a0) * 200; } Ambience.sfx && Ambience.sfx("water"); }
-    else if (k === "t_magma") { for (const d of Combat.targets.filter((q) => !q.dead && !q.untouchable && Math.hypot(q.x - x, q.y - y) < 160)) { setTimeout(() => { Combat.blast(player, d.x, d.y - 6, 26, { dmg: 50, burn: 1 }); if (window.Net && Net.isGuest()) Net.send({ t: "blast", id: mySlot(), x: Math.round(d.x), y: Math.round(d.y - 6), r: 26, o: { dmg: 50, burn: 1 } }); for (let j = 0; j < 24; j++) P2({ x: d.x + (Math.random() - 0.5) * 16, y: d.y, vx: (Math.random() - 0.5) * 60, vy: -80 - Math.random() * 120, g: 240, life: 0.9, col: ["#ff6a2a", "#ffb63c", "#3a2020"][j % 3], size: 2, kind: "debris", glow: j % 3 < 2 }); }, Math.random() * 300); } Ambience.sfx && (Ambience.sfx("stone"), Ambience.sfx("boom")); }
-    else if (k === "t_tribal") { blast(x, y, 110, { dmg: 28 }); for (const d of Combat.targets) if (!d.dead && Math.hypot(d.x - x, d.y - y) < 110) d.stun = Math.max(d.stun || 0, 2); Combat.momentum = 100; for (let i = 0; i < 5; i++) setTimeout(() => Ambience.sfx && Ambience.sfx("drum"), i * 140); }
-    else if (k === "t_star") { const foes = Combat.targets.filter((d) => !d.dead && !d.untouchable && Math.abs(d.x - player.x) < VW / 2 + 20 && Math.abs(d.y - player.y) < VH / 2 + 20); foes.forEach((d, i) => setTimeout(() => { Combat.blast(player, d.x, d.y - 10, 20, { dmg: 70, flash: 0.2 }); if (window.Net && Net.isGuest()) Net.send({ t: "blast", id: mySlot(), x: Math.round(d.x), y: Math.round(d.y - 10), r: 20, o: { dmg: 70 } }); for (let j = 0; j < 16; j++) P2({ x: d.x - 40 + j * 2.5, y: d.y - 90 + j * 5, vx: 0, vy: 0, life: 0.3, col: j > 12 ? "#ffffff" : "#c8b4ff", size: 2, kind: "spark", glow: true }); Ambience.sfx && Ambience.sfx("hitStar"); }, i * 120)); }
   }
+  function gotGold(n) { Gear.addGold(n); Combat.nums.push({ x: player.x, y: player.y - 40, v: "+" + n + " gold", crit: n >= 20, t0: Combat.clock, col: "#ffd84a" }); Ambience.sfx && Ambience.sfx("clack"); }
   function gotShell(k) {
     Gear.addShell(k); const sh = Gear.SHELLS[k];
     Combat.nums.push({ x: player.x, y: player.y - 44, v: "+" + sh.name, crit: sh.tier === 2, t0: Combat.clock, col: ["#f4e6c8", "#9ae0ff", "#ffd27a"][sh.tier] });
@@ -360,15 +374,62 @@
     const z = Level.ZONES[globe.zone], name = z.levels[globe.sel];
     if (!name || !Level.unlocked.has(name)) { Ambience.sfx && Ambience.sfx("guard"); return; }
     globe.open = false; Level.dest = name;
-    if (Combat.unlocked.size > Combat.LOADOUT_MAX) { openLoadout(name); return; }
+    // a real choice to make (more than five weapons, more than one suit, or items to pack)? prepare first
+    if (Combat.unlocked.size > Combat.LOADOUT_MAX || Gear.state().armors.length >= 2 || Gear.units() >= 2) { openLoadout(name); return; }
+    Gear.packTidy(true);
     Ambience.sfx && Ambience.sfx("portal"); goTo(name);
+  }
+  // ------------------------------------------------------------------ the inventory (I)
+  // What you carry: weapons in hand and all you own, the armour you wear, your purse (gold and every
+  // shell), your shards, and your items with the two packed for battle.
+  const invUI = { open: false };
+  function drawInventory(t) {
+    const u = SCALE, pw = Math.min(VW - 12, 440), ph = Math.min(VH - 12, 250), px0 = Math.round((VW - pw) / 2), py0 = Math.round((VH - ph) / 2);
+    const R = (c, x, y, w, h) => { sctx.fillStyle = c; sctx.fillRect(x * u, y * u, w * u, h * u); };
+    const T2 = (txt, x, y, size, col, al) => { sctx.font = `${size * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = col; sctx.textAlign = al || "left"; sctx.fillText(txt, x * u, y * u); };
+    sctx.fillStyle = "rgba(8,6,14,0.6)"; sctx.fillRect(0, 0, screen.width, screen.height);
+    R("#1a1220", px0, py0, pw, ph); R("#c08a3e", px0 + 1, py0 + 1, pw - 2, ph - 2); R("#221828", px0 + 2, py0 + 2, pw - 4, ph - 4);
+    sctx.textBaseline = "top"; sctx.imageSmoothingEnabled = false;
+    T2("INVENTORY", VW / 2, py0 + 6, 10, "#ffe08a", "center");
+    const colW = Math.floor((pw - 24) / 2), lx = px0 + 10, rx = lx + colW + 8;
+    // weapons in hand
+    let y = py0 + 22; T2("IN HAND", lx, y, 6, "#a89880"); y += 9;
+    Combat.loadout.forEach((id, k) => { const w = Combat.weapons[Combat.indexOf(id)], x = lx + k * 32; R(w.col, x, y, 30, 30); R("#2c2030", x + 1, y + 1, 28, 28); sctx.drawImage(w.icon, (x + 1) * u, (y + 1) * u, 28 * u, 28 * u); T2(String(k + 1), x + 3, y + 2, 6, w.col); });
+    y += 34; const cw = Combat.weapons[Combat.cur]; T2(cw.name, lx, y, 7, "#fff6dc"); T2(cw.cls + (cw.ult ? "  ·  special: " + cw.ult.name : ""), lx, y + 9, 5, cw.col);
+    // every weapon you own
+    y += 20; T2(`ALL WEAPONS  (${Combat.unlocked.size})`, lx, y, 6, "#a89880"); y += 9;
+    Combat.weapons.forEach((w, i) => { if (!Combat.unlocked.has(w.id)) return; const k = [...Combat.unlocked].indexOf(w.id), x = lx + (k % 9) * 21, yy = y + Math.floor(k / 9) * 21; R("#3a2e3c", x, yy, 20, 20); sctx.drawImage(w.icon, (x + 1) * u, (yy + 1) * u, 18 * u, 18 * u); });
+    // armour
+    y = py0 + 154; T2("ARMOUR", lx, y, 6, "#a89880"); y += 9;
+    const A2 = Gear.worn();
+    if (A2) { R(PAL.css(A2.pal.V), lx, y, 14, 18); R(PAL.css(A2.pal.v), lx + 1, y + 1, 12, 16); R(PAL.css(A2.pal.l), lx + 1, y + 1, 4, 16); T2(A2.name, lx + 20, y + 1, 7, "#fff6dc"); }
+    else T2("Island clothes", lx + 2, y + 1, 7, "#a89880");
+    const st = Gear.stats(); T2(`${player.maxHp / 2} hearts${st.block ? `  ·  ${Math.round(st.block * 100)}% block` : ""}${st.speed !== 1 ? `  ·  +${Math.round((st.speed - 1) * 100)}% speed` : ""}${st.el ? `  ·  ${Gear.ELEMENTS[st.el].name} weapons +${Math.round((st.elMul - 1) * 100)}%` : ""}`, lx + 20, y + 11, 5, "#c8b890");
+    if (A2) T2(A2.desc, lx, y + 22, 5, "#a89880");
+    // the purse: gold and every shell
+    y = py0 + 22; T2("PURSE", rx, y, 6, "#a89880"); y += 10;
+    R("#140c16", rx, y, 9, 9); R("#e8b830", rx + 1, y + 1, 7, 7); R("#fff0a0", rx + 2, y + 2, 3, 3); T2(`${Gear.gold()} gold`, rx + 13, y + 1, 7, "#ffe08a");
+    y += 14;
+    Object.entries(Gear.SHELLS).forEach(([k, sh], i) => { const x = rx + (i % 2) * (colW / 2), yy = y + Math.floor(i / 2) * 15; sctx.drawImage(Gear.shellArt(k), x * u, yy * u, 13 * u, 13 * u); T2(`${Gear.state().shells[k]}  ${sh.name}`, x + 15, yy + 3, 5, ["#f4e6c8", "#9ae0ff", "#ffd27a"][sh.tier]); });
+    y += 64;
+    // shards
+    T2("SHARDS", rx, y, 6, "#a89880"); y += 9;
+    Gear.ORDER.forEach((el, i) => { const E = Gear.ELEMENTS[el], x = rx + (i % 5) * (colW / 5), yy = y + Math.floor(i / 5) * 11; R(E.col, x, yy + 1, 4, 6); T2(String(Gear.state().shards[el]), x + 7, yy, 6, Gear.state().shards[el] ? "#fff6dc" : "#5a4a58"); });
+    y += 26;
+    // items, and the pack
+    T2("ITEMS", rx, y, 6, "#a89880"); y += 9;
+    let ix = rx; for (const id of Gear.PERISH()) { const n = Gear.count(id); if (!n) continue; itemIcon(hudTmp(), id, 0, 0); sctx.drawImage(hudTmpC, 0, 0, 16, 16, ix * u, y * u, 16 * u, 16 * u); T2(String(n), ix + 17, y + 6, 6, "#fff6dc"); ix += 28; }
+    if (ix === rx) T2("none", rx, y + 4, 6, "#5a4a58");
+    T2(`packed for battle: ${Gear.pack().map(itemName).join(", ") || "nothing"}`, rx, y + 20, 5, "#c8b890");
+    T2(TOUCH ? "Tap to close" : "I or Esc to close", VW / 2, py0 + ph - 10, 5, "#a89880", "center");
+    sctx.textAlign = "left";
   }
   // ------------------------------------------------------------------ Makani's shop
   const shopUI = { open: false, sel: 0, hit: [], msg: "", msgT: -9, top: 0 };
   function openShop() { shopUI.open = true; shopUI.msg = ""; Ambience.sfx && Ambience.sfx("equip"); }
-  function shopBuy(i) { const it = Gear.SHOP[i]; if (Gear.buy(it)) { shopUI.msg = `Mahalo! The ${it.name} is yours.`; Ambience.sfx && Ambience.sfx("pickup"); Game.save(); } else { shopUI.msg = Gear.soldOut(it) ? "You can't carry any more of that." : "Not enough shells for that."; Ambience.sfx && Ambience.sfx("guard"); } shopUI.msgT = time; }
+  function shopBuy(i) { const it = Gear.shopList()[i]; if (Gear.buy(it)) { shopUI.msg = `Mahalo! The ${it.name} is yours.`; Ambience.sfx && Ambience.sfx("pickup"); Game.save(); } else { shopUI.msg = Gear.soldOut(it) ? "You can't carry any more of that." : "Not enough shells for that."; Ambience.sfx && Ambience.sfx("guard"); } shopUI.msgT = time; }
   function shopKey(code) {
-    const n = Gear.SHOP.length;
+    const n = Gear.shopList().length;
     if (code === "Escape" || code === "KeyQ") shopUI.open = false;
     else if (code === "ArrowDown" || code === "KeyS") shopUI.sel = (shopUI.sel + 1) % n;
     else if (code === "ArrowUp" || code === "KeyW") shopUI.sel = (shopUI.sel + n - 1) % n;
@@ -379,7 +440,7 @@
     for (const h of shopUI.hit) if (gx > h.x && gx < h.x + h.w && gy > h.y && gy < h.y + h.h) { if (h.close) shopUI.open = false; else if (h.i === shopUI.sel) shopBuy(h.i); else shopUI.sel = h.i; return; }
   }
   function drawShop(t) {
-    const u = SCALE, items = Gear.SHOP, RH = 15, rows = Math.max(4, Math.min(items.length, Math.floor((VH - 92) / RH))), pw = Math.min(VW - 16, 360), ph = 74 + rows * RH, px0 = Math.round((VW - pw) / 2), py0 = Math.round((VH - ph) / 2);
+    const u = SCALE, items = Gear.shopList(), RH = 15, rows = Math.max(4, Math.min(items.length, Math.floor((VH - 92) / RH))), pw = Math.min(VW - 16, 360), ph = 74 + rows * RH, px0 = Math.round((VW - pw) / 2), py0 = Math.round((VH - ph) / 2);
     if (shopUI.sel < shopUI.top) shopUI.top = shopUI.sel; if (shopUI.sel >= shopUI.top + rows) shopUI.top = shopUI.sel - rows + 1;
     const R = (c, x, y, w, h) => { sctx.fillStyle = c; sctx.fillRect(x * u, y * u, w * u, h * u); };
     sctx.fillStyle = "rgba(6,8,12,0.5)"; sctx.fillRect(0, 0, screen.width, screen.height);
@@ -462,60 +523,97 @@
   }
   // ------------------------------------------------------------------ choosing your five
   // Before Kahu Lā sends you, if you own more than five weapons: pick which five to carry.
-  const loadoutUI = { open: false, sel: 0, dest: null, hit: [], msgT: -9, msg: "" };
-  function openLoadout(dest) { loadoutUI.open = true; loadoutUI.dest = dest; loadoutUI.sel = 0; loadoutUI.msg = ""; Ambience.sfx && Ambience.sfx("equip"); }
-  const owned = () => Combat.weapons.map((w, i) => i).filter((i) => Combat.unlocked.has(Combat.weapons[i].id));
+  // Before Kahu Lā sends you: choose your five weapons, the armour to wear, and the two items to pack.
+  const loadoutUI = { open: false, sec: 0, sel: [0, 0, 0, 0], dest: null, hit: [], msgT: -9, msg: "" };
+  const prepLists = () => {
+    const weapons = Combat.weapons.map((w, i) => i).filter((i) => Combat.unlocked.has(Combat.weapons[i].id));
+    const armors = [null].concat(Gear.NORMAL.concat(Gear.ORDER.map((k) => Gear.ELEMENTS[k].cloth)).filter((k) => Gear.hasArmor(k)));
+    const items = Gear.PERISH().filter((id) => Gear.count(id) > 0);
+    return [weapons, armors, items, Gear.pack()];
+  };
+  function openLoadout(dest) { loadoutUI.open = true; loadoutUI.dest = dest; loadoutUI.sec = 0; loadoutUI.sel = [0, 0, 0, 0]; loadoutUI.msg = ""; Gear.packTidy(true); Ambience.sfx && Ambience.sfx("equip"); }
+  const itemName = (id) => (id === "tonic" ? "ʻŌhelo tonic" : id === "salve" ? "Noni salve" : Gear.TALISMANS[id].name);
+  function prepAct(sec, i) {
+    const L = prepLists();
+    if (sec === 0) toggleEquip(L[0][i]);
+    else if (sec === 1) { Gear.wear(L[1][i]); Ambience.sfx && Ambience.sfx("equip"); }
+    else if (sec === 2) { if (!Gear.packAdd(L[2][i])) { loadoutUI.msg = Gear.pack().length >= Gear.PACK ? "Both slots are full: take something out first" : "None left to pack"; loadoutUI.msgT = time; } else Ambience.sfx && Ambience.sfx("equip"); }
+    else if (sec === 3 && L[3][i]) { Gear.packRemove(i); Ambience.sfx && Ambience.sfx("equip"); }
+  }
   function toggleEquip(i) {
     const id = Combat.weapons[i].id, L = Combat.loadout, k = L.indexOf(id);
     if (k >= 0) { if (L.length <= 1) { loadoutUI.msg = "Carry at least one weapon"; loadoutUI.msgT = time; return; } L.splice(k, 1); }
     else { if (L.length >= Combat.LOADOUT_MAX) { loadoutUI.msg = "Five at most: put one down first"; loadoutUI.msgT = time; return; } L.push(id); }
     Combat.ensureOpen(); Ambience.sfx && Ambience.sfx("equip");
   }
-  function setOut() { loadoutUI.open = false; Combat.ensureOpen(); Ambience.sfx && Ambience.sfx("portal"); if (loadoutUI.dest) goTo(loadoutUI.dest); }
+  function setOut() { loadoutUI.open = false; Combat.ensureOpen(); Gear.packTidy(false); Ambience.sfx && Ambience.sfx("portal"); if (loadoutUI.dest) goTo(loadoutUI.dest); }
   function loadoutKey(code) {
-    const list = owned(), n = list.length, cols = Math.min(6, n);
+    const L = prepLists(), sec = loadoutUI.sec, n = Math.max(1, sec === 3 ? Gear.PACK : L[sec].length);
     if (code === "Escape" || code === "KeyQ") { loadoutUI.open = false; openGlobe(); }
-    else if (code === "ArrowRight" || code === "KeyD") loadoutUI.sel = (loadoutUI.sel + 1) % n;
-    else if (code === "ArrowLeft" || code === "KeyA") loadoutUI.sel = (loadoutUI.sel + n - 1) % n;
-    else if (code === "ArrowDown" || code === "KeyS") loadoutUI.sel = Math.min(n - 1, loadoutUI.sel + cols);
-    else if (code === "ArrowUp" || code === "KeyW") loadoutUI.sel = Math.max(0, loadoutUI.sel - cols);
-    else if (code === "KeyE" || code === "KeyJ") toggleEquip(list[loadoutUI.sel]);
+    else if (code === "ArrowRight" || code === "KeyD") loadoutUI.sel[sec] = (loadoutUI.sel[sec] + 1) % n;
+    else if (code === "ArrowLeft" || code === "KeyA") loadoutUI.sel[sec] = (loadoutUI.sel[sec] + n - 1) % n;
+    else if (code === "ArrowDown" || code === "KeyS") loadoutUI.sec = (sec + 1) % 4;
+    else if (code === "ArrowUp" || code === "KeyW") loadoutUI.sec = (sec + 3) % 4;
+    else if (code === "KeyE" || code === "KeyJ") prepAct(sec, Math.min(loadoutUI.sel[sec], n - 1));
     else if (code === "Enter" || code === "Space") setOut();
   }
   function loadoutTap(e) {
     const gx = (e.clientX * (screen.width / innerWidth)) / SCALE, gy = (e.clientY * (screen.height / innerHeight)) / SCALE;
-    for (const h of loadoutUI.hit) if (gx > h.x && gx < h.x + h.w && gy > h.y && gy < h.y + h.h) { if (h.go) setOut(); else if (h.back) { loadoutUI.open = false; openGlobe(); } else { loadoutUI.sel = h.k; toggleEquip(h.i); } return; }
+    for (const h of loadoutUI.hit) if (gx > h.x && gx < h.x + h.w && gy > h.y && gy < h.y + h.h) { if (h.go) setOut(); else if (h.back) { loadoutUI.open = false; openGlobe(); } else { loadoutUI.sec = h.sec; loadoutUI.sel[h.sec] = h.i; prepAct(h.sec, h.i); } return; }
   }
   function drawLoadout(t) {
-    const u = SCALE, list = owned(), n = list.length, cols = Math.min(6, n), rows = Math.ceil(n / cols), C2 = 34;
-    const pw = Math.max(240, cols * C2 + 40), ph = 96 + rows * C2, px0 = Math.round((VW - pw) / 2), py0 = Math.round((VH - ph) / 2);
-    sctx.fillStyle = "rgba(8,6,14,0.55)"; sctx.fillRect(0, 0, screen.width, screen.height);
+    const u = SCALE, L = prepLists(), C2 = 31, perRow = Math.min(12, Math.max(6, L[0].length)), wRows = Math.ceil(L[0].length / perRow);
+    const pw = Math.min(VW - 12, Math.max(300, perRow * C2 + 24)), ph = 70 + wRows * C2 + 30 + 34 + 34, px0 = Math.round((VW - pw) / 2), py0 = Math.max(4, Math.round((VH - ph) / 2));
     const R = (c, x, y, w, h) => { sctx.fillStyle = c; sctx.fillRect(x * u, y * u, w * u, h * u); };
+    const T2 = (txt, x, y, size, col, al) => { sctx.font = `${size * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = col; sctx.textAlign = al || "left"; sctx.fillText(txt, x * u, y * u); };
+    sctx.fillStyle = "rgba(8,6,14,0.55)"; sctx.fillRect(0, 0, screen.width, screen.height);
     R("#1a1220", px0, py0, pw, ph); R("#c08a3e", px0 + 1, py0 + 1, pw - 2, ph - 2); R("#221828", px0 + 2, py0 + 2, pw - 4, ph - 4);
-    sctx.textBaseline = "top"; sctx.textAlign = "center";
-    sctx.font = `${10 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#ffe08a"; sctx.fillText("CHOOSE YOUR FIVE", (VW / 2) * u, (py0 + 8) * u);
-    sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#c8b890"; sctx.fillText(`${Combat.loadout.length} / ${Combat.LOADOUT_MAX} carried  -  bound for ${Level.DEFS[loadoutUI.dest] ? Level.DEFS[loadoutUI.dest].title : ""}`, (VW / 2) * u, (py0 + 22) * u);
+    sctx.textBaseline = "top";
+    T2("PREPARE", VW / 2, py0 + 5, 10, "#ffe08a", "center");
+    T2(`bound for ${Level.DEFS[loadoutUI.dest] ? Level.DEFS[loadoutUI.dest].title : ""}`, VW / 2, py0 + 17, 6, "#c8b890", "center");
     loadoutUI.hit = [];
-    const gx0 = Math.round(VW / 2 - (cols * C2) / 2);
-    list.forEach((i, k) => {
-      const w = Combat.weapons[i], x = gx0 + (k % cols) * C2, y = py0 + 34 + Math.floor(k / cols) * C2, eq = Combat.loadout.indexOf(w.id), sel = k === loadoutUI.sel;
-      R(sel ? "#ffffff" : eq >= 0 ? w.col : "#3a2e3c", x, y, 32, 32); R(eq >= 0 ? "#2c2030" : "#161018", x + 1, y + 1, 30, 30);
-      sctx.globalAlpha = eq >= 0 ? 1 : 0.45; sctx.imageSmoothingEnabled = false; sctx.drawImage(w.icon, (x + 2) * u, (y + 2) * u, w.icon.width * u, w.icon.height * u); sctx.globalAlpha = 1;
-      if (eq >= 0) { sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = w.col; sctx.textAlign = "left"; sctx.fillText(String(eq + 1), (x + 3) * u, (y + 2) * u); sctx.textAlign = "center"; }
-      loadoutUI.hit.push({ x, y, w: 32, h: 32, i, k });
+    const head = (sec, txt, y) => { if (loadoutUI.sec === sec) R("rgba(255,210,122,0.12)", px0 + 4, y - 2, pw - 8, 11); T2(txt, px0 + 8, y, 6, loadoutUI.sec === sec ? "#ffe08a" : "#a89880"); };
+    // weapons
+    let y = py0 + 30; head(0, `WEAPONS  ${Combat.loadout.length}/${Combat.LOADOUT_MAX} carried`, y); y += 10;
+    const gx0 = Math.round(VW / 2 - (Math.min(perRow, L[0].length) * C2) / 2);
+    L[0].forEach((i, k) => {
+      const w = Combat.weapons[i], x = gx0 + (k % perRow) * C2, yy = y + Math.floor(k / perRow) * C2, eq = Combat.loadout.indexOf(w.id), sel = loadoutUI.sec === 0 && k === loadoutUI.sel[0];
+      R(sel ? "#ffffff" : eq >= 0 ? w.col : "#3a2e3c", x, yy, 30, 30); R(eq >= 0 ? "#2c2030" : "#161018", x + 1, yy + 1, 28, 28);
+      sctx.globalAlpha = eq >= 0 ? 1 : 0.45; sctx.imageSmoothingEnabled = false; sctx.drawImage(w.icon, (x + 1) * u, (yy + 1) * u, 28 * u, 28 * u); sctx.globalAlpha = 1;
+      if (eq >= 0) T2(String(eq + 1), x + 3, yy + 2, 6, w.col);
+      loadoutUI.hit.push({ x, y: yy, w: 30, h: 30, sec: 0, i: k });
     });
-    const sw = Combat.weapons[list[loadoutUI.sel]] || Combat.weapons[0], by = py0 + 38 + rows * C2;
-    sctx.font = `${8 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#fff6dc"; sctx.fillText(sw.name, (VW / 2) * u, by * u);
-    sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = sw.col; sctx.fillText(sw.cls, (VW / 2) * u, (by + 10) * u);
-    const msg = time - loadoutUI.msgT < 2 ? loadoutUI.msg : TOUCH ? "Tap to carry / put down" : "E carry / put down   Enter set out   Esc back";
-    sctx.fillStyle = time - loadoutUI.msgT < 2 ? "#ffb08a" : "#a89880"; sctx.fillText(msg, (VW / 2) * u, (by + 22) * u);
-    // set out / back buttons
-    const bw = 56, bx = px0 + pw - bw - 8, byy = py0 + ph - 18;
-    R("#c08a3e", bx, byy, bw, 12); R("#2e1e24", bx + 1, byy + 1, bw - 2, 10); sctx.fillStyle = "#ffe08a"; sctx.fillText("SET OUT", (bx + bw / 2) * u, (byy + 2) * u);
-    R("#6a5a6a", px0 + 8, byy, 40, 12); R("#1e161e", px0 + 9, byy + 1, 38, 10); sctx.fillStyle = "#c8b890"; sctx.fillText("BACK", (px0 + 28) * u, (byy + 2) * u);
-    loadoutUI.hit.push({ x: bx, y: byy, w: bw, h: 12, go: 1 }, { x: px0 + 8, y: byy, w: 40, h: 12, back: 1 });
+    y += wRows * C2 + 4;
+    // armour
+    head(1, "ARMOUR", y); y += 11;
+    let ax = px0 + 8;
+    L[1].forEach((k, i) => {
+      const A2 = k ? Gear.ARMOR[k] : null, name = A2 ? A2.name : "None", wd = Math.min(90, 16 + name.length * 4.2), on = Gear.wornId() === k, sel = loadoutUI.sec === 1 && i === loadoutUI.sel[1];
+      if (ax + wd > px0 + pw - 6) return;
+      R(sel ? "#ffffff" : on ? "#ffd27a" : "#4a3a50", ax, y, wd, 14); R(on ? "#3a2a1e" : "#1a1220", ax + 1, y + 1, wd - 2, 12);
+      if (A2) { R(PAL.css(A2.pal.v), ax + 3, y + 3, 5, 8); R(PAL.css(A2.pal.l), ax + 3, y + 3, 2, 8); }
+      T2(name, ax + (A2 ? 10 : 4), y + 3, 6, on ? "#ffe08a" : "#e8dcc8");
+      loadoutUI.hit.push({ x: ax, y, w: wd, h: 14, sec: 1, i }); ax += wd + 3;
+    });
+    y += 20;
+    // items to pack, and the pack
+    head(2, "ITEMS  (each unit you take fills a slot)", y); y += 11;
+    let ix = px0 + 8;
+    L[2].forEach((id, i) => { const sel = loadoutUI.sec === 2 && i === loadoutUI.sel[2]; if (sel) R("#ffffff", ix - 1, y - 1, 18, 18); itemIcon(sctx === hctx ? hctx : hudTmp(), id, 0, 0); sctx.drawImage(hudTmpC, 0, 0, 16, 16, ix * u, y * u, 16 * u, 16 * u); T2(`${Gear.packFree(id)}`, ix + 17, y + 6, 6, "#fff6dc"); loadoutUI.hit.push({ x: ix, y, w: 16, h: 16, sec: 2, i }); ix += 30; });
+    if (!L[2].length) T2("Nothing to pack: Makani sells heals and talismans", ix, y + 4, 6, "#7a6a78");
+    y += 20;
+    head(3, `PACK  ${Gear.pack().length}/${Gear.PACK}`, y); y += 11;
+    for (let i = 0; i < Gear.PACK; i++) { const id = Gear.pack()[i], x = px0 + 8 + i * 70, sel = loadoutUI.sec === 3 && i === loadoutUI.sel[3]; R(sel ? "#ffffff" : "#4a3a50", x - 1, y - 1, 66, 18); R("#1a1220", x, y, 64, 16); if (id) { itemIcon(hudTmp(), id, 0, 0); sctx.drawImage(hudTmpC, 0, 0, 16, 16, x * u, y * u, 16 * u, 16 * u); T2(itemName(id), x + 18, y + 5, 5, "#e8dcc8"); } else T2("empty", x + 18, y + 5, 5, "#5a4a58"); loadoutUI.hit.push({ x, y, w: 64, h: 16, sec: 3, i }); }
+    const msg = time - loadoutUI.msgT < 2 ? loadoutUI.msg : TOUCH ? "Tap to choose" : "W/S section   A/D choose   E pick / drop   Enter set out";
+    T2(msg, VW / 2, py0 + ph - 11, 6, time - loadoutUI.msgT < 2 ? "#ffb08a" : "#a89880", "center");
+    const bw = 50, bx = px0 + pw - bw - 6, byy = py0 + 4;
+    R("#c08a3e", bx, byy, bw, 12); R("#2e1e24", bx + 1, byy + 1, bw - 2, 10); T2("SET OUT", bx + bw / 2, byy + 2, 6, "#ffe08a", "center");
+    R("#6a5a6a", px0 + 6, byy, 34, 12); R("#1e161e", px0 + 7, byy + 1, 32, 10); T2("BACK", px0 + 23, byy + 2, 6, "#c8b890", "center");
+    loadoutUI.hit.push({ x: bx, y: byy, w: bw, h: 12, go: 1 }, { x: px0 + 6, y: byy, w: 34, h: 12, back: 1 });
     sctx.textAlign = "left";
   }
+  let hudTmpC = null, hudTmpX = null;
+  const hudTmp = () => { if (!hudTmpC) [hudTmpC, hudTmpX] = K.canvas(16, 16); hudTmpX.clearRect(0, 0, 16, 16); return hudTmpX; };
   function globeTap(e) {
     const gx = (e.clientX * (screen.width / innerWidth)) / SCALE, gy = (e.clientY * (screen.height / innerHeight)) / SCALE;
     for (const p of globe.pins) if (Math.abs(gx - p.x) < p.w && Math.abs(gy - p.y) < p.h) { if (p.close) { globe.open = false; return; } if (globe.sel === p.i) travel(); else globe.sel = p.i; return; }
@@ -607,7 +705,9 @@
     const el = Gear.ELEMENT_OF[d.type]; if (el && Math.random() < Gear.dropChance()) Level.dropShard(x + 8, y, el, time);
     // shells: now and then a common one; great beasts carry rare ones
     if (d.boss) { const drops = [[2, 1], [1, 2], [0, 3]]; let k = 0; for (const [tier, n] of drops) for (let i = 0; i < n; i++, k++) Level.dropShell(x + Math.cos(k * 1.3) * 20, y + Math.sin(k * 1.3) * 12, Gear.randomShell(tier), time); }
-    else if (d.type !== "runner" && d.type !== "rayling") { const r = Math.random(); if (r < 0.025) Level.dropShell(x - 8, y, Gear.randomShell(1), time); else if (r < 0.12) Level.dropShell(x - 8, y, Gear.randomShell(0), time); }
+    else if (d.type !== "runner" && d.type !== "rayling") { const r = Math.random(); if (r < 0.012) Level.dropShell(x - 8, y, Gear.randomShell(1), time); else if (r < 0.06) Level.dropShell(x - 8, y, Gear.randomShell(0), time); }
+    // coins: a few from most creatures, a hoard from the great ones
+    if (d.type !== "runner" && d.type !== "rayling" && (d.boss || Math.random() < 0.4)) Level.dropGold(x + 4, y + 4, d.boss ? 25 + ((Math.random() * 10) | 0) : 1 + ((Math.random() * 3) | 0), time);
     Gear.noteKill(d.type);
   };
   Combat.onHeal = (n) => { player.hp = Math.min(player.maxHp, player.hp + n); healT = time; };
@@ -649,7 +749,7 @@
       player.moving = true;
       return;
     }
-    if (dialog || globe.open || loadoutUI.open || forgeUI.open || shopUI.open || fade.dir === 1 || Combat.busy) { player.moving = false; player.frame = Combat.busy ? 2 : 0; return; }
+    if (dialog || globe.open || loadoutUI.open || forgeUI.open || shopUI.open || invUI.open || fade.dir === 1 || Combat.busy) { player.moving = false; player.frame = Combat.busy ? 2 : 0; return; }
     let ix = 0, iy = 0;
     if (keys.KeyA || keys.ArrowLeft) ix -= 1;
     if (keys.KeyD || keys.ArrowRight) ix += 1;
@@ -791,7 +891,7 @@
         scene = "dojo"; player.x = Dojo.ENTRY.x; player.y = Dojo.ENTRY.y; player.dir = "up";
         banner = { title: "HALE KOA", sub: "The Warriors' Training Hut", t0: time + 0.3 };
       } else {
-        scene = "island"; washShells();
+        scene = "island"; washShells(); if (fade.from === "level") Gear.rerollStock();   // Makani has new stock each time you come home
         const back = fade.from === "dojo" ? World.hutDoor : fade.from === "forge" ? Forge.door() : fade.from === "level" ? { x: World.templeDoor.x, y: World.templeDoor.y + 22 } : World.caveMouth;
         player.x = back.x; player.y = back.y + 14; player.dir = "down";
       }
@@ -852,7 +952,7 @@
       if (d < bd) { bd = d; best = n; }
     }
     const stallNear = !Gear.rescued("vendor") && World.stall && Math.hypot(World.stall.x - player.x, World.stall.y + 10 - player.y) < 48;
-    for (const sh of beach) if (!sh.got && Math.hypot(sh.x - player.x, sh.y - player.y) < 16) { sh.got = true; gotShell(sh.k); }
+    for (const sh of beach) if (!sh.got && Math.hypot(sh.x - player.x, sh.y - player.y) < 16) { sh.got = true; gotShell(sh.k); Gear.state().beach = beach.filter((b) => !b.got).map((b) => ({ x: b.x, y: b.y, k: b.k })); }
     const door = World.templeDoor;
     const nearDoor = Math.hypot(door.x - player.x, door.y - 10 - player.y) < 40;
     if (best) prompt = { x: best.x, y: best.y - 36 };
@@ -1055,7 +1155,7 @@
     let row = 0;
     for (const q of mates.values()) {
       if (time - q.seen > 3) continue;
-      const y = 24 + row * 8, col = SLOT_COL[q.slot] || "#f2c040"; row++;
+      const y = 34 + row * 8, col = SLOT_COL[q.slot] || "#f2c040"; row++;
       ctx.fillStyle = col; ctx.fillRect(6, y + 2, 2, 3); ctx.fillRect(8, y + 1, 1, 1);
       for (let k = 0; k < q.maxHp / 2; k++) {
         const v = q.hp - k * 2, x = 12 + k * 7;
@@ -1073,7 +1173,14 @@
       ctx.fillStyle = q.dead && Math.floor(time * 4) % 2 ? "#ff5a4a" : col; ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(-3, -3); ctx.lineTo(-3, 3); ctx.fill(); ctx.restore();
     }
   }
+  // an item's little icon: a red gourd for heals, the talisman's glyph in its element's colour
+  function itemIcon(ctx, id, x, y) {
+    ctx.fillStyle = "#140c16"; ctx.fillRect(x, y, 16, 16); ctx.fillStyle = "#3a2a3e"; ctx.fillRect(x + 1, y + 1, 14, 14);
+    if (id === "tonic" || id === "salve") { ctx.fillStyle = "#8a5a30"; ctx.fillRect(x + 6, y + 3, 4, 2); ctx.fillStyle = id === "salve" ? "#e8d8a0" : "#c84a5a"; ctx.fillRect(x + 4, y + 5, 8, 8); ctx.fillStyle = id === "salve" ? "#fff8e0" : "#ff9aa8"; ctx.fillRect(x + 5, y + 6, 2, 3); return; }
+    const E = Gear.ELEMENTS[Gear.TALISMANS[id].el]; ctx.fillStyle = E.col; ctx.fillRect(x + 1, y + 1, 14, 14); ctx.fillStyle = "#140c16"; ctx.fillRect(x + 3, y + 3, 10, 10); ctx.fillStyle = E.col; ctx.fillRect(x + 6, y + 4, 4, 8); ctx.fillRect(x + 4, y + 6, 8, 4); ctx.fillStyle = "#ffffff"; ctx.fillRect(x + 7, y + 7, 2, 2);
+  }
   function drawItems(ctx) {
+    if (Gear.battle) { const pk2 = Gear.pack(); itemsHud = null; for (let i = 0; i < Gear.PACK; i++) { const x = VW - 8 - (Gear.PACK - i) * 18; if (pk2[i]) itemIcon(ctx, pk2[i], x, 6); else { ctx.fillStyle = "#140c16"; ctx.fillRect(x, 6, 16, 16); ctx.fillStyle = "#241a26"; ctx.fillRect(x + 1, 7, 14, 14); } } return; }
     const nt = Gear.count("tonic"), ns = Gear.count("salve"), pk = Gear.pick();
     let x = VW - 8, y = 6;
     if (pk) { const E = Gear.ELEMENTS[Gear.TALISMANS[pk].el]; x -= 18; ctx.fillStyle = "#140c16"; ctx.fillRect(x, y, 16, 16); ctx.fillStyle = E.col; ctx.fillRect(x + 1, y + 1, 14, 14); ctx.fillStyle = "#140c16"; ctx.fillRect(x + 3, y + 3, 10, 10); ctx.fillStyle = E.col; ctx.fillRect(x + 6, y + 4, 4, 8); ctx.fillRect(x + 4, y + 6, 8, 4); ctx.fillStyle = "#ffffff"; ctx.fillRect(x + 7, y + 7, 2, 2); }
@@ -1081,8 +1188,16 @@
     itemsHud = { x, y, nt, ns, pk };
   }
   let itemsHud = null;
+  // gold and shells, under the hearts
+  function drawPurse(ctx) {
+    const y = scene === "level" || Combat.momentum > 0 ? 22 : 16, x = 6;
+    ctx.fillStyle = "#140c16"; ctx.fillRect(x, y, 7, 7); ctx.fillStyle = "#e8b830"; ctx.fillRect(x + 1, y + 1, 5, 5); ctx.fillStyle = "#fff0a0"; ctx.fillRect(x + 2, y + 2, 2, 2); ctx.fillStyle = "#a87818"; ctx.fillRect(x + 4, y + 4, 2, 2);
+    ctx.drawImage(Gear.shellArt("clam"), x + 40, y - 3);
+    purseHud = { x, y };
+  }
+  let purseHud = null;
   function drawHearts(ctx) {
-    drawMateHUD(ctx); drawItems(ctx);
+    drawMateHUD(ctx); drawItems(ctx); drawPurse(ctx);
     const blink = player.inv > 0 && Math.floor(time * 12) % 2;
     for (let k = 0; k < player.maxHp / 2; k++) {
       const v = player.hp - k * 2, x = 6 + k * 9;
@@ -1268,7 +1383,7 @@
   function barSlots() { return Combat.allUnlocked && !Combat.loadout.includes(Combat.weapons[Combat.cur].id) ? Combat.loadout.concat([Combat.weapons[Combat.cur].id]) : Combat.loadout; }
   function barRect() { const n = barSlots().length, w = n * SLOT + 4; return { n, w, x: Math.round(VW / 2 - w / 2), y: VH - 36 }; }
   function drawCombatHUD(ctx) {
-    if (dialog || globe.open || loadoutUI.open || forgeUI.open || shopUI.open) return;
+    if (dialog || globe.open || loadoutUI.open || forgeUI.open || shopUI.open || invUI.open) return;
     const w = Combat.weapons[Combat.cur], B = barRect(), ids = barSlots();
     ctx.fillStyle = "#1a1220"; ctx.fillRect(B.x - 2, B.y - 2, B.w + 4, SLOT + 6);
     ctx.fillStyle = "#c08a3e"; ctx.fillRect(B.x - 1, B.y - 1, B.w + 2, SLOT + 4);
@@ -1293,6 +1408,7 @@
   const hexRGB = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   function drawCombatTexts(u) {
     if (dialog) return;
+    if (purseHud && !globe.open && !loadoutUI.open) { sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.textAlign = "left"; sctx.fillStyle = "#ffe08a"; sctx.fillText(String(Gear.gold()), (purseHud.x + 10) * u, (purseHud.y) * u); sctx.fillStyle = "#f4e6c8"; sctx.fillText(String(Gear.shellTotal()), (purseHud.x + 55) * u, (purseHud.y) * u); }
     if (itemsHud && !globe.open && !loadoutUI.open) {
       const I = itemsHud; sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.textAlign = "right"; sctx.fillStyle = "#fff6dc";
       if (I.pk) sctx.fillText(String(Gear.count(I.pk)), (VW - 9) * u, (I.y + 10) * u);
@@ -1456,6 +1572,7 @@
     if (loadoutUI.open) drawLoadout(t);
     if (forgeUI.open) drawForgeUI(t);
     if (shopUI.open) drawShop(t);
+    if (invUI.open) drawInventory(t);
     if (fade.a > 0) { sctx.fillStyle = `rgba(2,3,8,${Math.min(1, fade.a)})`; sctx.fillRect(0, 0, screen.width, screen.height); }
   }
 
@@ -1577,7 +1694,7 @@
     if (hintTimer > 0 && !dialog) {
       sctx.globalAlpha = Math.min(1, hintTimer);
       sctx.font = `${7 * u}px 'Pixelify Sans', monospace`;
-      const msg = TOUCH ? "Left thumb: move (push far to run)   ATK attack   ROLL dodge   USE talk / revive   WPN weapon" : "WASD move  Shift run  J/Click attack  Space dodge  Q/R weapon  E talk/revive  Esc settings  C co-op";
+      const msg = TOUCH ? "Left thumb: move   ATK attack   ROLL dodge   USE talk / revive   WPN weapon   HEAL / SPR items   INV inventory" : "WASD move  Shift run  J attack  Space dodge  Q/R weapon  E talk  H heal  T talisman  I inventory  Esc settings  C co-op";
       const w = sctx.measureText(msg).width;
       sctx.fillStyle = "rgba(20,14,24,0.7)";
       sctx.fillRect(6 * u, (VH - 58) * u, w + 10 * u, 14 * u);
@@ -1605,6 +1722,7 @@
     last = now;
     if (window.Title && Title.open) { renderTitleSea(now / 1000); requestAnimationFrame(frame); return; }   // the title screen is up: the world waits
     time += dt; playT += dt;
+    Gear.battle = scene === "level" && !!Level.cur && Level.cur.name !== "sanctum";
     const gst = Gear.stats();
     if (gst.regen && scene === "level" && !player.dead && player.hp < player.maxHp) { regenT += dt; if (regenT > gst.regen) { regenT = 0; player.hp = Math.min(player.maxHp, player.hp + 1); healT = time; } } else regenT = 0;
     if (time - saveT > 60) Game.save();
@@ -1703,7 +1821,8 @@
       Level.unlocked = new Set(d ? d.unlocked : ["highlands"]); Level.cleared = new Set(d ? d.clearedList || [] : []);
       Level.heelTaken = d ? !!d.heel : false; Level.portalUnlocked = d ? !!d.portal : false; Level.dest = null;
       Combat.unlocked = new Set(d ? d.weapons : DEFAULT_WEAPONS); Combat.loadout = (d && d.loadout ? d.loadout : [...Combat.unlocked]).slice(0, Combat.LOADOUT_MAX); Combat.cur = d ? d.cur || 0 : 0; Combat.ensureOpen();
-      Gear.load(d && d.gear); applyGear(); beach.length = 0; washShells(); metMakani = false;
+      Gear.load(d && d.gear); applyGear(); metMakani = false;
+      if (!d || !d.gear || !d.gear.beach) rollBeach(); else washShells();
       player.hp = player.maxHp; player.dead = false; player.downed = false;
       scene = "island"; player.x = d ? d.x : World.START.x; player.y = d ? d.y : World.START.y; player.dir = "down";
       if (blocked(player.x, player.y)) unstick();
@@ -1720,6 +1839,6 @@
   Level.onUnlock = ((prev) => (n) => { prev && prev(n); setTimeout(() => Game.save(), 50); })(Level.onUnlock);
   // a weapon won by clearing a zone: every hero gets it
   Level.onReward = (r) => { for (const id of [].concat(r)) { grant(id); if (window.Net && Net.isHost()) Net.send({ t: "sync", gift: id }); } setTimeout(() => Game.save(), 50); };
-  window.__kuleana = { player, cam, keys, mates, rev, goTo: (s) => goTo(s), get scene() { return scene; } };
+  window.__kuleana = { player, cam, keys, mates, rev, ui: () => ({ globe: globe.open, prep: loadoutUI.open, shop: shopUI.open, inv: invUI.open, dialog: !!dialog }), goTo: (s) => goTo(s), get scene() { return scene; } };
   boot().catch((e) => { console.error(e); document.body.insertAdjacentHTML("beforeend", `<pre style="color:#f88;position:fixed;top:0;left:0">${e.stack || e}</pre>`); });
 })();

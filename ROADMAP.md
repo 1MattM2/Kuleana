@@ -1,11 +1,12 @@
 # Kuleana roadmap
 
-Done: 3-player co-op, knockdown/revive, mobile controls, wave/boss scaling, chunked spot loading, Kahu Lā's globe,
-Zone 1 levels 2 (Canopy Passes, with the hydra) and 3 (Scorched Crown, with the Bonfire Hive), surface footsteps,
-the new tiki/temple mask art, held weapons and cave weapon silhouettes.
+Done: Zones 1 and 2 (six levels, four bosses), 3-player co-op, mobile controls, title and saves, the globe,
+shards, armour and cloth, the forge, shells, gold and the shop, battle prep, the inventory, weapon specials.
 
 ## Next
-- More zones on the globe (two "???" islands are waiting in `Level.ZONES`).
-- Shallow water as a level material (the footstep sound is already in: `Ambience.step("water")`, surface type 11).
-- Pre-bake the next likely area in idle time (e.g. the chosen globe destination) to make arrivals instant.
-- A save system for weapons and progress beyond the unlocked-levels list.
+- Zones 3-6 (globe has room). First-land weapons are planned: Koa Blade (3), Makau Kaula (4), Pololū (5), Koʻi (6);
+  armour suits 3-6 (Koa Bark Mail, Niho Mano Coat, ʻAhu ʻUla, Obsidian Guard) on each second land; a rescue on
+  each third land.
+- Creatures for the elements not yet represented (glowing water, blood, celestial, stone), so their shards drop.
+- Building the village with gold: plots are already staked on the island (Gear.PLOTS).
+- The Ember Heel: currently only in the dojo; give it a home (a later fire land).
