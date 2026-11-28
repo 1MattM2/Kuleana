@@ -1066,7 +1066,7 @@
     const HD = World.hutDoor;
     if (Math.abs(player.x - HD.x) < 9 && player.y - HD.y < -2 && player.y - HD.y > -16) { goTo("dojo"); pressedE = false; return; }
     const FD = Forge.door();
-    if (FD && Math.abs(player.x - FD.x) < 10 && player.y - FD.y < -2 && player.y - FD.y > -16) { goTo("forge"); pressedE = false; return; }
+    if (FD && ((Math.abs(player.x - FD.x) < 10 && player.y - FD.y < -2 && player.y - FD.y > -16) || (pressedE && Math.hypot(player.x - FD.x, player.y - FD.y) < 36))) { goTo("forge"); pressedE = false; return; }
     const plot = Forge.plotAt(player.x, player.y);
     if (plot && !dialog) { prompt = { x: plot.x, y: plot.y - 44 }; if (pressedE) { dialog = { name: plot.name, lines: plot.who === "smith" ? ["Stakes and rope mark out a building site.", "\"Forge, when the smith comes home,\" says the sign."] : ["Stakes and rope mark out a building site.", "One day, someone will build here."], i: 0, start: performance.now() }; pressedE = false; return; } }
     const nearHut = Math.hypot(player.x - HD.x, player.y - HD.y) < 30;

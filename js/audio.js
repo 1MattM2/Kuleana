@@ -72,12 +72,12 @@
     // a slightly larger audio buffer than the default: a stall on the main thread (building an area, a
     // busy fight) no longer starves the sound card, which is what made the sound cut in and out
     const touch = window.TouchPad && TouchPad.enabled;
-    try { ac = new AC({ latencyHint: touch ? "playback" : 0.08 }); } catch (e) { ac = new AC(); }
+    try { ac = new AC({ latencyHint: touch ? "playback" : 0.12 }); } catch (e) { ac = new AC(); }   // a deeper buffer rides out stalls
     Amb.started = true;
     // every node a sound builds is counted (see the budget in Amb.sfx)
     for (const m of ["createGain", "createBiquadFilter", "createBufferSource", "createOscillator", "createStereoPanner", "createWaveShaper", "createDelay"]) { const f = ac[m] && ac[m].bind(ac); if (f) ac[m] = (...a) => { Amb._made(); return f(...a); }; }
     master = gain(0);
-    const lim = ac.createDynamicsCompressor(); lim.threshold.value = -1; lim.knee.value = 0; lim.ratio.value = 12; lim.attack.value = 0.001; lim.release.value = 0.3;
+    const lim = ac.createDynamicsCompressor(); lim.threshold.value = -2; lim.knee.value = 4; lim.ratio.value = 6; lim.attack.value = 0.003; lim.release.value = 0.12;   // (gentler: a hard, slow limiter ducked everything after a big hit)
     master.connect(lim); lim.connect(ac.destination);
     set(master.gain, Amb.muted ? 0 : 0.7 * Amb.volume, 0.08);
     // small outdoor "space" for the birds
@@ -439,7 +439,7 @@
   // The same sound twice within 30ms is one sound.
   const lastKind = {}, live = [];
   let made = 0, liveNodes = 0;
-  const BUDGET = 520, KEEP = { hurt: 1, hit: 1, crit: 1, boom: 1, heal: 1, pickup: 1 };
+  const BUDGET = 760, KEEP = { hurt: 1, hit: 1, crit: 1, boom: 1, heal: 1, pickup: 1 };
   const allow = (kind) => {
     const now = ac.currentTime;
     if (lastKind[kind] !== undefined && now - lastKind[kind] < 0.03) return false;

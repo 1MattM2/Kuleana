@@ -803,6 +803,8 @@
       if (terr(x, y) === World.SAND && World.terrAt(x, y - 8) === World.GRASS) objs.push(tinyObj(tufts[(r() * tufts.length) | 0], x | 0, y | 0));
     }
 
+    // keep the ground in front of the forge's plot clear (no palm before its door)
+    { const fx = 44.5 * T, fy = 23.2 * T; for (let i = objs.length - 1; i >= 0; i--) { const o = objs[i]; if (o.y !== undefined && Math.abs(o.x - fx) < 70 && o.y > fy - 50 && o.y < fy + 80 && !o.critter) objs.splice(i, 1); } }
     Props.objects = objs;
     Props.colliders = objs.filter((o) => o.box).map((o) => o.box);
 
