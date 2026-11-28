@@ -32,6 +32,7 @@
   // buttons: [label, key code, right, bottom, size, hold?]
   const B = [
     ["ATK", "KeyJ", 22, 30, 74], ["ROLL", "Space", 106, 18, 58], ["USE", "KeyE", 32, 116, 56, true], ["WPN", "KeyR", 104, 92, 48],
+    ["HEAL", "KeyH", 166, 18, 40], ["SPR", "KeyT", 170, 66, 40],
   ];
   for (const [label, code, r, b, size, hold] of B) {
     const d = document.createElement("div"); d.className = "tb"; d.textContent = label;

@@ -69,34 +69,39 @@
     for (const k of ["down", "up", "side", "left"]) heroSil[k] = heroFrames[k].map((pair) => pair.map(sil));
   }
 
-  // co-op heroes: the same warrior, told apart by headband and kapa vest. Slot 0 (the host) wears the
-  // island red, slot 1 sun-gold and red, slot 2 sea-teal and violet.
+  // co-op heroes: the same warrior, told apart by headband (and a pip over the head). Slot 0 (the
+  // host) wears the island red, slot 1 sun-gold, slot 2 sea-teal. The vest is the armour you wear.
   const SLOT_COL = ["#e8644c", "#f2c040", "#5ad0c8"];
-  const slotFrames = [null, {}, {}];
-  const SLOT_PAL = [null, { r: [236, 170, 50], R: [176, 108, 34], v: [150, 40, 44], V: [100, 26, 34], l: [206, 90, 80] }, { r: [80, 206, 196], R: [40, 132, 132], v: [92, 62, 164], V: [58, 36, 112], l: [146, 116, 214] }];
-  function buildPartner() {
-    for (let s = 1; s < 3; s++) {
-      const PP = Object.assign({}, C.PAL, SLOT_PAL[s]), F = slotFrames[s];
-      for (const dir of ["down", "up", "side"]) {
-        F[dir] = [];
-        for (let f = 0; f < 4; f++) {
-          const pair = [];
-          for (let tv = 0; tv < 2; tv++) {
-            const [c, ctx] = K.canvas(24, 32), bob = f === 1 || f === 3 ? 1 : 0, swing = f === 1 ? 1 : f === 3 ? -1 : 0;
-            K.pixmap(ctx, C.LEGS[dir][f], PP, 0, 25); K.pixmap(ctx, C.HERO[dir], PP, 0, bob);
-            for (const [x, y, ch] of C.TAILS[dir][tv]) { ctx.fillStyle = K.css(PP[ch]); ctx.fillRect(x, y + bob, 1, 1); }
-            if (dir === "side") K.pixmap(ctx, C.ARM_SIDE, PP, 11 + swing, 17 + bob, false, 4);
-            else { K.pixmap(ctx, C.ARM_L, PP, 2, 17 + bob + swing, false, 4); K.pixmap(ctx, C.ARM_R, PP, 18, 17 + bob - swing, false, 4); }
-            pair.push(c);
-          }
-          F[dir].push(pair);
+  const SLOT_PAL = [{}, { r: [236, 170, 50], R: [176, 108, 34] }, { r: [80, 206, 196], R: [40, 132, 132] }];
+  const outfitFrames = new Map();
+  function buildFrames(PP) {
+    const F = {};
+    for (const dir of ["down", "up", "side"]) {
+      F[dir] = [];
+      for (let f = 0; f < 4; f++) {
+        const pair = [];
+        for (let tv = 0; tv < 2; tv++) {
+          const [c, ctx] = K.canvas(24, 32), bob = f === 1 || f === 3 ? 1 : 0, swing = f === 1 ? 1 : f === 3 ? -1 : 0;
+          K.pixmap(ctx, C.LEGS[dir][f], PP, 0, 25); K.pixmap(ctx, C.HERO[dir], PP, 0, bob);
+          for (const [x, y, ch] of C.TAILS[dir][tv]) { ctx.fillStyle = K.css(PP[ch]); ctx.fillRect(x, y + bob, 1, 1); }
+          if (dir === "side") K.pixmap(ctx, C.ARM_SIDE, PP, 11 + swing, 17 + bob, false, 4);
+          else { K.pixmap(ctx, C.ARM_L, PP, 2, 17 + bob + swing, false, 4); K.pixmap(ctx, C.ARM_R, PP, 18, 17 + bob - swing, false, 4); }
+          pair.push(c);
         }
+        F[dir].push(pair);
       }
-      F.left = F.side.map((p) => p.map((c) => K.flipped(c)));
     }
-    slotFrames[0] = heroFrames;
+    F.left = F.side.map((p) => p.map((c) => K.flipped(c)));
+    return F;
   }
-  const framesFor = (slot) => slotFrames[slot] || heroFrames;
+  function buildPartner() {}
+  const framesFor = (slot, outfit) => {
+    const key = (slot || 0) + ":" + (outfit || "");
+    if (key === "0:") return heroFrames;
+    let F = outfitFrames.get(key);
+    if (!F) { const A2 = outfit && window.Gear && Gear.ARMOR[outfit]; F = buildFrames(Object.assign({}, C.PAL, SLOT_PAL[slot] || {}, A2 ? A2.pal : {})); outfitFrames.set(key, F); }
+    return F;
+  };
 
   // ------------------------------------------------------------------ input
   const keys = {};
@@ -105,6 +110,8 @@
     if (window.Title && Title.open) return;
     if (e.target && e.target.tagName === "INPUT") return;          // typing a join code
     if (window.Menu && Menu.open) { if (!e.repeat) Menu.key(e); for (const k in keys) keys[k] = false; return; }
+    if (shopUI.open) { if (!e.repeat) shopKey(e.code); for (const k in keys) keys[k] = false; e.preventDefault(); return; }
+    if (forgeUI.open) { if (!e.repeat) forgeKey(e.code); for (const k in keys) keys[k] = false; e.preventDefault(); return; }
     if (loadoutUI.open) { if (!e.repeat) loadoutKey(e.code); for (const k in keys) keys[k] = false; e.preventDefault(); return; }
     if (globe.open) { if (!e.repeat) globeKey(e.code); for (const k in keys) keys[k] = false; e.preventDefault(); return; }
     if (e.code === "Escape" && !e.repeat) { window.Menu && Menu.toggle(true); for (const k in keys) keys[k] = false; return; }
@@ -115,13 +122,16 @@
     if (e.code === "KeyE" || e.code === "Enter") pressedE = true;
     if (e.code === "KeyJ" && !e.repeat && !dialog && fade.dir === 0 && !player.dead) Combat.attack();
     if ((e.code === "Space" || e.code === "KeyK") && !e.repeat && !dialog && fade.dir === 0 && !player.dead) startRoll();
+    if (e.code === "KeyH" && !e.repeat && !player.dead) useHeal();
+    if (e.code === "KeyT" && !e.repeat && !player.dead && !dialog && fade.dir === 0) useTalisman();
+    if (e.code === "KeyY" && !e.repeat) { const k = Gear.nextPick(); if (k) Combat.nums.push({ x: player.x, y: player.y - 44, v: Gear.TALISMANS[k].name, crit: false, t0: Combat.clock, col: Gear.ELEMENTS[Gear.TALISMANS[k].el].col }); }
     if (e.code === "KeyQ" && !e.repeat) Combat.cycle(-1);
     if (e.code === "KeyR" && !e.repeat) Combat.cycle(1);
     if (/^Digit[1-5]$/.test(e.code)) Combat.selectSlot(+e.code.slice(5) - 1);
     if (e.code.startsWith("Arrow") || e.code === "Space" || e.code === "Tab") e.preventDefault();
   });
   addEventListener("keyup", (e) => (keys[e.code] = false));
-  addEventListener("pointerdown", (e) => { if (window.Title && Title.open) return; window.Ambience && Ambience.start(); if (window.Menu && Menu.open) return; if (loadoutUI.open) { loadoutTap(e); return; } if (globe.open) { globeTap(e); return; } if (e.pointerType !== "mouse" || player.dead) return; if (e.button === 0 && !dialog && fade.dir === 0) Combat.attack(); if (e.button === 2 && !dialog && fade.dir === 0) startRoll(); });
+  addEventListener("pointerdown", (e) => { if (window.Title && Title.open) return; window.Ambience && Ambience.start(); if (window.Menu && Menu.open) return; if (shopUI.open) { shopTap(e); return; } if (forgeUI.open) { forgeTap(e); return; } if (loadoutUI.open) { loadoutTap(e); return; } if (globe.open) { globeTap(e); return; } if (e.pointerType !== "mouse" || player.dead) return; if (e.button === 0 && !dialog && fade.dir === 0) Combat.attack(); if (e.button === 2 && !dialog && fade.dir === 0) startRoll(); });
   addEventListener("contextmenu", (e) => e.preventDefault());
   addEventListener("wheel", (e) => Combat.cycle(e.deltaY > 0 ? 1 : -1), { passive: true });
   addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
@@ -136,7 +146,7 @@
     if (TOUCH && TouchPad.mag > 0) { ix = TouchPad.x; iy = TouchPad.y; }
     if (!ix && !iy) { const a = player.dir === "down" ? Math.PI / 2 : player.dir === "up" ? -Math.PI / 2 : player.dir === "left" ? Math.PI : 0; ix = Math.cos(a); iy = Math.sin(a); }
     const l = Math.hypot(ix, iy); player.rollA = Math.atan2(iy / l, ix / l);
-    player.rolling = true; player.rollT = 0; player.rollCd = 0.55;
+    player.rolling = true; player.rollT = 0; player.rollCd = 0.55 * Gear.stats().rollCd;
     Ambience.sfx && Ambience.sfx("roll");
   }
   // damage from enemies. Returns false if avoided (rolling / invulnerable). A hit that lands
@@ -148,8 +158,12 @@
       return false;
     }
     if (player.inv > 0) return false;
+    const g = Gear.incoming(dmg, src);
+    if (g.blocked) { player.inv = 0.35; Combat.nums.push({ x: player.x, y: player.y - 40, v: "BLOCK", crit: false, t0: Combat.clock, col: "#d8e0f0" }); Ambience.sfx && Ambience.sfx("guardHit"); return false; }
+    if (g.dmg <= 0) return false;
+    dmg = g.dmg;
     player.hp -= dmg; player.inv = 0.9; player.hurtT = time;
-    const a = Math.atan2(player.y - sy, player.x - sx); player.kx = Math.cos(a) * 160; player.ky = Math.sin(a) * 130;
+    const kb = Gear.stats().kb, a = Math.atan2(player.y - sy, player.x - sx); player.kx = Math.cos(a) * 160 * kb; player.ky = Math.sin(a) * 130 * kb;
     Combat.shake = Math.min(1, Combat.shake + 0.6); Combat.lastStop = -9; Combat.stopFor(0.06); Combat.flash = 0.3; Combat.flashCol = "255,80,80";
     Combat.loseMomentum(0.35);
     Ambience.sfx && Ambience.sfx("hurt");
@@ -184,7 +198,7 @@
         if (id === mySlot()) break;
         if (Net.isHost()) Net.send(m, id);                // let the other guest see them too
         const q = mateOf(id), jump = Math.hypot(m.x - q.tx, m.y - q.ty) > 90 || q.sc !== m.sc || time - q.seen > 1;
-        Object.assign(q, { tx: m.x, ty: m.y, dir: m.d, frame: m.f, moving: !!m.mv, rolling: !!m.ro, rollA: m.ra, rollT: m.rt, hp: m.hp, maxHp: m.mx, dead: !!m.dd, inv: m.iv, w: m.w, busy: !!m.b, attacking: !!m.b, tier: m.tr, sc: m.sc, lv: m.lv, seen: time, rv: m.rv ?? -1, rp: m.rp || 0 });
+        Object.assign(q, { tx: m.x, ty: m.y, dir: m.d, frame: m.f, moving: !!m.mv, rolling: !!m.ro, rollA: m.ra, rollT: m.rt, hp: m.hp, maxHp: m.mx, dead: !!m.dd, inv: m.iv, w: m.w, busy: !!m.b, attacking: !!m.b, tier: m.tr, sc: m.sc, lv: m.lv, seen: time, rv: m.rv ?? -1, rp: m.rp || 0, outfit: m.o || null });
         if (jump) { q.x = m.x; q.y = m.y; }
         break;
       }
@@ -198,12 +212,15 @@
       case "scene": if (Net.isGuest()) { netGo = true; fade.dir = 0; Level.players = m.n || Net.count(); goTo(m.to); netGo = false; } break;
       case "hurt": hurtPlayer(m.d, m.x, m.y, m.s); break;
       case "heal": player.hp = Math.min(player.maxHp, player.hp + m.n); break;
+      case "shard": gotShard(m.el); break;
+      case "shell": gotShell(m.k); break;
+      case "blast": if (Net.isHost()) { const q = mates.get(m.id !== undefined ? m.id : from); if (q) Combat.blast(q, m.x, m.y, m.r, m.o, true); } break;
       case "tp": player.x = m.x; player.y = m.y; if (blocked(player.x, player.y)) unstick(); break;
       case "banner": banner = { title: m.title, sub: m.sub || "", t0: time }; break;
       case "revive":   // a partner held you up for long enough: back on your feet with half your hearts
         if (player.dead && player.downed) { player.dead = false; player.downed = false; player.hp = Math.ceil(player.maxHp / 2); player.inv = 2; banner = { title: "REVIVED", sub: (m.by || "A partner") + " got you back up", t0: time }; Ambience.sfx && Ambience.sfx("berry"); }
         break;
-      case "sync": if (m.un) for (const n of m.un) Level.unlock(n); if (m.portal) { Level.portalUnlocked = true; if (Level.cur) Level.cur.portalOpen = true; } if (m.gift) Combat.gain(m.gift); if (m.heel) { Level.heelTaken = true; Combat.gain(Level.DEFS.highlands.shrine.unlock); if (Level.cur) Level.cur.shrineTaken = true; } break;
+      case "sync": if (m.un) for (const n of m.un) Level.unlock(n); if (m.portal) { Level.portalUnlocked = true; if (Level.cur) Level.cur.portalOpen = true; } if (m.gift) grant(m.gift); if (m.heel) { Level.heelTaken = true; Combat.gain(Level.DEFS.highlands.shrine.unlock); if (Level.cur) Level.cur.shrineTaken = true; } break;
       case "act":     // a guest asks the host to do something that changes the shared world
         if (!Net.isHost()) break;
         if (m.k === "go" && (!Level.DEFS[m.to] || m.to === "sanctum" || Level.unlocked.has(m.to) || scene === "level")) goTo(m.to);
@@ -232,7 +249,7 @@
     for (const q of mates.values()) { q.hitInv = Math.max(0, q.hitInv - dt); const k = Math.min(1, dt * 12); q.x += (q.tx - q.x) * k; q.y += (q.ty - q.y) * k; }
     if (time > netSendT) {
       netSendT = time + 0.05;
-      Net.send({ t: "p", id: mySlot(), sc: scene, lv: scene === "level" ? Level.cur.name : null, x: Math.round(player.x * 10) / 10, y: Math.round(player.y * 10) / 10, d: player.dir, f: player.frame, mv: player.moving ? 1 : 0, ro: player.rolling ? 1 : 0, ra: player.rollA || 0, rt: player.rollT || 0, hp: player.hp, mx: player.maxHp, dd: player.dead ? 1 : 0, iv: player.inv > 0 ? 1 : 0, w: Combat.cur, b: Combat.busy ? 1 : 0, tr: Combat.momTier(), rv: rev.target, rp: Math.round((rev.t / REVIVE_T) * 100) / 100 });
+      Net.send({ t: "p", id: mySlot(), sc: scene, lv: scene === "level" ? Level.cur.name : null, x: Math.round(player.x * 10) / 10, y: Math.round(player.y * 10) / 10, d: player.dir, f: player.frame, mv: player.moving ? 1 : 0, ro: player.rolling ? 1 : 0, ra: player.rollA || 0, rt: player.rollT || 0, hp: player.hp, mx: player.maxHp, dd: player.dead ? 1 : 0, iv: player.inv > 0 ? 1 : 0, w: Combat.cur, b: Combat.busy ? 1 : 0, tr: Combat.momTier(), o: Gear.wornId(), rv: rev.target, rp: Math.round((rev.t / REVIVE_T) * 100) / 100 });
     }
     if (Net.isHost() && scene === "level" && time > netSnapT && fade.dir === 0) {
       netSnapT = time + 1 / 15;
@@ -262,12 +279,62 @@
   const levelApi = {
     hurt: hurtPlayer,
     sfx: (k) => { Ambience.sfx && Ambience.sfx(k); if (window.Net && Net.isHost()) sfxQ.push(k); },
+    shell: (k, q) => { if (q && q.isRemote) { Net.sendTo(q.slot, { t: "shell", k }); return; } gotShell(k); },
+    shard: (el, q) => { if (q && q.isRemote) { Net.sendTo(q.slot, { t: "shard", el }); return; } gotShard(el); },
     heal: (n, q) => { if (q && q.isRemote) { Net.sendTo(q.slot, { t: "heal", n }); return; } player.hp = Math.min(player.maxHp, player.hp + n); healT = time; },
     teleport: (q, x, y) => { if (q.isRemote) Net.sendTo(q.slot, { t: "tp", x, y }); },
     // a partner is hit on the host's screen: tell them (their own roll may still save them)
     hurtRemote: (q, d, sx, sy, src) => { if (q.dead || q.hitInv > 0) return false; Net.sendTo(q.slot, { t: "hurt", d, x: sx, y: sy, s: src }); if (q.rolling || q.inv) return false; q.hitInv = 0.9; return true; },
   };
-  let healT = -9;
+  let healT = -9, regenT = 0, metMakani = false;
+  // shells washed up on the island's beaches: a few each time you come back to the shore
+  const beach = [];
+  function washShells() {
+    if (!World.terr || !World.landDist) return;
+    for (let k = beach.length - 1; k >= 0; k--) if (beach[k].got) beach.splice(k, 1);
+    for (let tries = 0; tries < 400 && beach.length < 6; tries++) {
+      const x = 40 + Math.random() * (World.W - 80), y = 40 + Math.random() * (World.H - 80), i = (y | 0) * World.W + (x | 0);
+      if (World.terr[i] !== World.SAND || World.landDist[i] > 14 || World.landDist[i] < 4 || blockedIsland(x, y)) continue;
+      const r = Math.random(); beach.push({ x, y, k: Gear.randomShell(r < 0.9 ? 0 : 1) });
+    }
+  }
+  const blockedIsland = (x, y) => { for (const b of Props.colliders) if (x > b[0] - 6 && x < b[2] + 6 && y > b[1] - 6 && y < b[3] + 6) return true; return false; };
+  function useHeal() {
+    if (player.hp >= player.maxHp) return;
+    const n = Gear.takeHeal(player.hp, player.maxHp); if (!n) return;
+    player.hp = Math.min(player.maxHp, player.hp + n); healT = time; Ambience.sfx && Ambience.sfx("berry");
+    for (let k = 0; k < 14; k++) Combat.addPart({ x: player.x + (Math.random() - 0.5) * 14, y: player.y - Math.random() * 24, vx: 0, vy: -30, g: -10, life: 0.8, col: k % 2 ? "#ff8a8a" : "#ffffff", size: 1, kind: "ember", glow: true });
+  }
+  // a talisman: a one-use elemental super attack
+  function useTalisman() {
+    const k = Gear.pick(); if (!k || !Gear.spend(k)) return;
+    const Tm = Gear.TALISMANS[k], E = Gear.ELEMENTS[Tm.el], x = player.x, y = player.y - 10, P2 = (o) => Combat.addPart(o);
+    const blast = (bx, by, r, o) => { Combat.blast(player, bx, by, r, o); if (window.Net && Net.isGuest()) Net.send({ t: "blast", id: mySlot(), x: Math.round(bx), y: Math.round(by), r, o }); };
+    banner = { title: Tm.name.toUpperCase(), sub: "", t0: time };
+    Combat.flash = 0.6; Combat.flashCol = E.glow; Combat.shake = 1;
+    if (k === "t_fire") { blast(x, y, 96, { dmg: 60, burn: 1 }); for (let i = 0; i < 80; i++) { const a = Math.random() * 6.28, sp = 60 + Math.random() * 160; P2({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.7, drag: 2, life: 0.8, col: ["#ffb63c", "#ec561c", "#fff4b8"][i % 3], size: 2, kind: "ember", glow: true }); } Ambience.sfx && (Ambience.sfx("fire"), Ambience.sfx("boom")); }
+    else if (k === "t_storm") { const foes = Combat.targets.filter((d) => !d.dead && !d.untouchable).sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y)).slice(0, 6); foes.forEach((d, i) => setTimeout(() => { Combat.blast(player, d.x, d.y - 10, 14, { dmg: 45, shock: 1 }); if (window.Net && Net.isGuest()) Net.send({ t: "blast", id: mySlot(), x: Math.round(d.x), y: Math.round(d.y - 10), r: 14, o: { dmg: 45, shock: 1 } }); for (let j = 0; j < 22; j++) P2({ x: d.x + (Math.random() - 0.5) * 6, y: d.y - 10 - j * 6, vx: 0, vy: 0, life: 0.25, col: j % 2 ? "#ffffff" : "#a8c4ff", size: 2, kind: "spark", glow: true }); Ambience.sfx && Ambience.sfx("thunder"); }, i * 90)); }
+    else if (k === "t_water") { const a0 = player.dir === "left" ? Math.PI : player.dir === "up" ? -Math.PI / 2 : player.dir === "down" ? Math.PI / 2 : 0; for (let s2 = 1; s2 <= 4; s2++) { const bx = x + Math.cos(a0) * s2 * 28, by = y + Math.sin(a0) * s2 * 22; setTimeout(() => { blast(bx, by, 34, { dmg: 22 }); for (let j = 0; j < 16; j++) P2({ x: bx + (Math.random() - 0.5) * 40, y: by, vx: Math.cos(a0) * 80, vy: -60 - Math.random() * 60, g: 260, life: 0.7, col: j % 2 ? "#e8f8ff" : "#5ab8ff", size: 2, kind: "drop", glow: true }); }, s2 * 70); } for (const d of Combat.targets) if (!d.dead && Math.hypot(d.x - x, d.y - y) < 150) { d.kx = Math.cos(a0) * 260; d.ky = Math.sin(a0) * 200; } Ambience.sfx && Ambience.sfx("water"); }
+    else if (k === "t_magma") { for (const d of Combat.targets.filter((q) => !q.dead && !q.untouchable && Math.hypot(q.x - x, q.y - y) < 160)) { setTimeout(() => { Combat.blast(player, d.x, d.y - 6, 26, { dmg: 50, burn: 1 }); if (window.Net && Net.isGuest()) Net.send({ t: "blast", id: mySlot(), x: Math.round(d.x), y: Math.round(d.y - 6), r: 26, o: { dmg: 50, burn: 1 } }); for (let j = 0; j < 24; j++) P2({ x: d.x + (Math.random() - 0.5) * 16, y: d.y, vx: (Math.random() - 0.5) * 60, vy: -80 - Math.random() * 120, g: 240, life: 0.9, col: ["#ff6a2a", "#ffb63c", "#3a2020"][j % 3], size: 2, kind: "debris", glow: j % 3 < 2 }); }, Math.random() * 300); } Ambience.sfx && (Ambience.sfx("stone"), Ambience.sfx("boom")); }
+    else if (k === "t_tribal") { blast(x, y, 110, { dmg: 28 }); for (const d of Combat.targets) if (!d.dead && Math.hypot(d.x - x, d.y - y) < 110) d.stun = Math.max(d.stun || 0, 2); Combat.momentum = 100; for (let i = 0; i < 5; i++) setTimeout(() => Ambience.sfx && Ambience.sfx("drum"), i * 140); }
+    else if (k === "t_star") { const foes = Combat.targets.filter((d) => !d.dead && !d.untouchable && Math.abs(d.x - player.x) < VW / 2 + 20 && Math.abs(d.y - player.y) < VH / 2 + 20); foes.forEach((d, i) => setTimeout(() => { Combat.blast(player, d.x, d.y - 10, 20, { dmg: 70, flash: 0.2 }); if (window.Net && Net.isGuest()) Net.send({ t: "blast", id: mySlot(), x: Math.round(d.x), y: Math.round(d.y - 10), r: 20, o: { dmg: 70 } }); for (let j = 0; j < 16; j++) P2({ x: d.x - 40 + j * 2.5, y: d.y - 90 + j * 5, vx: 0, vy: 0, life: 0.3, col: j > 12 ? "#ffffff" : "#c8b4ff", size: 2, kind: "spark", glow: true }); Ambience.sfx && Ambience.sfx("hitStar"); }, i * 120)); }
+  }
+  function gotShell(k) {
+    Gear.addShell(k); const sh = Gear.SHELLS[k];
+    Combat.nums.push({ x: player.x, y: player.y - 44, v: "+" + sh.name, crit: sh.tier === 2, t0: Combat.clock, col: ["#f4e6c8", "#9ae0ff", "#ffd27a"][sh.tier] });
+    Ambience.sfx && Ambience.sfx(sh.tier ? "pickup" : "berry");
+  }
+  function gotShard(el) {
+    Gear.addShard(el); const E = Gear.ELEMENTS[el], n = Gear.state().shards[el];
+    banner = { title: E.name.toUpperCase() + " SHARD", sub: n >= Gear.COST ? `${n} shards: enough for the forge` : `${n} of ${Gear.COST}`, t0: time };
+    Ambience.sfx && Ambience.sfx("pickup");
+  }
+  // rewards for clearing a level: a weapon, a suit of armour ("armor:id"), or someone rescued ("rescue:who")
+  function grant(id) {
+    if (id.startsWith("armor:")) { const k = id.slice(6), A2 = Gear.ARMOR[k]; if (Gear.gainArmor(k)) banner = { title: A2.name.toUpperCase(), sub: "New armour, worn. Change it in Settings > Gear", t0: time + 2.5 }; }
+    else if (id.startsWith("rescue:")) { const who = id.slice(7); if (Gear.rescue(who)) banner = who === "vendor" ? { title: "MAKANI THE TRADER IS FREE", sub: "He is reopening his stall on your island", t0: time + 5 } : { title: "KAMAKA THE SMITH IS FREE", sub: "He is building his forge on your island", t0: time + 5 }; }
+    else { const w = Combat.weapons.find((q) => q.id === id); if (Combat.gain(id) && w) banner = { title: w.name.toUpperCase(), sub: "A new weapon is yours", t0: time + 2.5 }; }
+  }
   Level.onUnlock = () => { if (window.Net && Net.isHost()) Net.send({ t: "sync", un: [...Level.unlocked] }); };
 
   // ------------------------------------------------------------------ Kahu Lā's globe
@@ -295,6 +362,103 @@
     globe.open = false; Level.dest = name;
     if (Combat.unlocked.size > Combat.LOADOUT_MAX) { openLoadout(name); return; }
     Ambience.sfx && Ambience.sfx("portal"); goTo(name);
+  }
+  // ------------------------------------------------------------------ Makani's shop
+  const shopUI = { open: false, sel: 0, hit: [], msg: "", msgT: -9, top: 0 };
+  function openShop() { shopUI.open = true; shopUI.msg = ""; Ambience.sfx && Ambience.sfx("equip"); }
+  function shopBuy(i) { const it = Gear.SHOP[i]; if (Gear.buy(it)) { shopUI.msg = `Mahalo! The ${it.name} is yours.`; Ambience.sfx && Ambience.sfx("pickup"); Game.save(); } else { shopUI.msg = Gear.soldOut(it) ? "You can't carry any more of that." : "Not enough shells for that."; Ambience.sfx && Ambience.sfx("guard"); } shopUI.msgT = time; }
+  function shopKey(code) {
+    const n = Gear.SHOP.length;
+    if (code === "Escape" || code === "KeyQ") shopUI.open = false;
+    else if (code === "ArrowDown" || code === "KeyS") shopUI.sel = (shopUI.sel + 1) % n;
+    else if (code === "ArrowUp" || code === "KeyW") shopUI.sel = (shopUI.sel + n - 1) % n;
+    else if (code === "KeyE" || code === "Enter" || code === "KeyJ" || code === "Space") shopBuy(shopUI.sel);
+  }
+  function shopTap(e) {
+    const gx = (e.clientX * (screen.width / innerWidth)) / SCALE, gy = (e.clientY * (screen.height / innerHeight)) / SCALE;
+    for (const h of shopUI.hit) if (gx > h.x && gx < h.x + h.w && gy > h.y && gy < h.y + h.h) { if (h.close) shopUI.open = false; else if (h.i === shopUI.sel) shopBuy(h.i); else shopUI.sel = h.i; return; }
+  }
+  function drawShop(t) {
+    const u = SCALE, items = Gear.SHOP, RH = 15, rows = Math.max(4, Math.min(items.length, Math.floor((VH - 92) / RH))), pw = Math.min(VW - 16, 360), ph = 74 + rows * RH, px0 = Math.round((VW - pw) / 2), py0 = Math.round((VH - ph) / 2);
+    if (shopUI.sel < shopUI.top) shopUI.top = shopUI.sel; if (shopUI.sel >= shopUI.top + rows) shopUI.top = shopUI.sel - rows + 1;
+    const R = (c, x, y, w, h) => { sctx.fillStyle = c; sctx.fillRect(x * u, y * u, w * u, h * u); };
+    sctx.fillStyle = "rgba(6,8,12,0.5)"; sctx.fillRect(0, 0, screen.width, screen.height);
+    R("#1a1220", px0, py0, pw, ph); R("#c08a3e", px0 + 1, py0 + 1, pw - 2, ph - 2); R("#231a26", px0 + 2, py0 + 2, pw - 4, ph - 4);
+    sctx.textBaseline = "top"; sctx.textAlign = "center";
+    sctx.font = `${10 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#ffe08a"; sctx.fillText("MAKANI'S TRADES", (VW / 2) * u, (py0 + 6) * u);
+    // your shells along the top
+    const ks = Object.keys(Gear.SHELLS); let sx = px0 + 10;
+    sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.textAlign = "left";
+    for (const k of ks) { sctx.imageSmoothingEnabled = false; sctx.drawImage(Gear.shellArt(k), sx * u, (py0 + 20) * u, 13 * u, 13 * u); sctx.fillStyle = "#fff6dc"; sctx.fillText(String(Gear.state().shells[k]), (sx + 14) * u, (py0 + 24) * u); sx += Math.floor((pw - 20) / ks.length); }
+    shopUI.hit = [{ x: px0 + pw - 14, y: py0 + 4, w: 10, h: 10, close: 1 }];
+    for (let r = 0; r < rows && shopUI.top + r < items.length; r++) {
+      const i = shopUI.top + r, it = items[i], y = py0 + 40 + r * RH, sel = i === shopUI.sel, can = Gear.canBuy(it), out = Gear.soldOut(it);
+      if (sel) R("rgba(255,210,122,0.16)", px0 + 4, y - 1, pw - 8, RH - 1);
+      const col = it.kind === "shard" ? Gear.ELEMENTS[it.el].col : it.kind === "talisman" ? Gear.ELEMENTS[Gear.TALISMANS[it.id].el].col : it.kind === "heal" ? "#ff8a8a" : "#e8d8b0";
+      R(col, px0 + 8, y + 3, 3, 7);
+      sctx.font = `${7 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = out ? "#7a6a6a" : can ? "#fff6dc" : "#b8a8a0"; sctx.fillText(it.name + (it.cap ? `  (${Gear.count(it.id)}/${it.cap})` : out ? "  (owned)" : ""), (px0 + 15) * u, (y + 2) * u);
+      // the price, in shells
+      let cx = px0 + pw - 10;
+      for (const [k, n] of Object.entries(it.cost).reverse()) { cx -= 24; sctx.drawImage(Gear.shellArt(k), cx * u, (y) * u, 13 * u, 13 * u); sctx.fillStyle = Gear.state().shells[k] >= n ? "#9ae69a" : "#e88a7a"; sctx.fillText("x" + n, (cx + 13) * u, (y + 3) * u); }
+      shopUI.hit.push({ x: px0 + 4, y: y - 1, w: pw - 8, h: RH, i });
+    }
+    const it = items[shopUI.sel];
+    sctx.textAlign = "center"; sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#c8b890"; sctx.fillText(it.desc, (VW / 2) * u, (py0 + ph - 26) * u);
+    const msg = time - shopUI.msgT < 2.5 && shopUI.msg ? shopUI.msg : TOUCH ? "Tap to choose, tap again to trade" : "W/S choose   E trade   Esc close";
+    sctx.fillStyle = time - shopUI.msgT < 2.5 ? "#ffd27a" : "#a89880"; sctx.fillText(msg, (VW / 2) * u, (py0 + ph - 13) * u);
+    R("#c08a3e", px0 + pw - 14, py0 + 4, 10, 10); sctx.fillStyle = "#1a1220"; sctx.fillText("x", (px0 + pw - 9) * u, (py0 + 4) * u);
+    sctx.textAlign = "left";
+  }
+  // ------------------------------------------------------------------ the forge's crafting screen
+  // One row per element: its shards, then forge its weapon or weave its cloth (three shards each).
+  const forgeUI = { open: false, row: 0, col: 0, hit: [], msg: "", msgT: -9 };
+  function openForgeUI() { forgeUI.open = true; forgeUI.msg = ""; Ambience.sfx && Ambience.sfx("equip"); }
+  function forgeDo(row, col) {
+    const el = Gear.ORDER[row], E = Gear.ELEMENTS[el], kind = col ? "cloth" : "weapon";
+    if (Gear.craft(el, kind)) { const name = kind === "weapon" ? Combat.weapons.find((w) => w.id === E.weapon).name : Gear.ARMOR[E.cloth].name; forgeUI.msg = `Kamaka hands you the ${name}.`; forgeUI.msgT = time; Ambience.sfx && Ambience.sfx("pickup"); for (let k = 0; k < 20; k++) Forge.sparks.push({ x: Forge.ANVIL.x, y: Forge.ANVIL.y - 15, vx: (Math.random() - 0.5) * 160, vy: -60 - Math.random() * 100, life: 0.7 }); Game.save(); }
+    else { const have = Gear.state().shards[el]; forgeUI.msg = (kind === "weapon" ? Combat.unlocked.has(E.weapon) : Gear.hasArmor(E.cloth)) ? "You already have that." : `You need ${Gear.COST} ${E.name.toLowerCase()} shards (you have ${have}).`; forgeUI.msgT = time; Ambience.sfx && Ambience.sfx("guard"); }
+  }
+  function forgeKey(code) {
+    const n = Gear.ORDER.length;
+    if (code === "Escape" || code === "KeyQ") forgeUI.open = false;
+    else if (code === "ArrowDown" || code === "KeyS") forgeUI.row = (forgeUI.row + 1) % n;
+    else if (code === "ArrowUp" || code === "KeyW") forgeUI.row = (forgeUI.row + n - 1) % n;
+    else if (code === "ArrowLeft" || code === "KeyA" || code === "ArrowRight" || code === "KeyD") forgeUI.col = 1 - forgeUI.col;
+    else if (code === "KeyE" || code === "Enter" || code === "KeyJ" || code === "Space") forgeDo(forgeUI.row, forgeUI.col);
+  }
+  function forgeTap(e) {
+    const gx = (e.clientX * (screen.width / innerWidth)) / SCALE, gy = (e.clientY * (screen.height / innerHeight)) / SCALE;
+    for (const h of forgeUI.hit) if (gx > h.x && gx < h.x + h.w && gy > h.y && gy < h.y + h.h) { if (h.close) forgeUI.open = false; else { forgeUI.row = h.row; forgeUI.col = h.col; forgeDo(h.row, h.col); } return; }
+  }
+  function drawForgeUI(t) {
+    const u = SCALE, n = Gear.ORDER.length, RH = Math.min(17, Math.floor((VH - 70) / n)), pw = Math.min(VW - 16, 330), ph = 48 + n * RH, px0 = Math.round((VW - pw) / 2), py0 = Math.round((VH - ph) / 2);
+    const R = (c, x, y, w, h) => { sctx.fillStyle = c; sctx.fillRect(x * u, y * u, w * u, h * u); };
+    sctx.fillStyle = "rgba(8,4,4,0.55)"; sctx.fillRect(0, 0, screen.width, screen.height);
+    R("#140c0c", px0, py0, pw, ph); R("#8a4a2a", px0 + 1, py0 + 1, pw - 2, ph - 2); R("#1e1416", px0 + 2, py0 + 2, pw - 4, ph - 4);
+    sctx.textBaseline = "top"; sctx.textAlign = "center";
+    sctx.font = `${10 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#ffb06a"; sctx.fillText("KAMAKA'S FORGE", (VW / 2) * u, (py0 + 6) * u);
+    sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = "#c8a890"; sctx.fillText(`${Gear.COST} shards forge a weapon, or weave a cloth set`, (VW / 2) * u, (py0 + 19) * u);
+    forgeUI.hit = [{ x: px0 + pw - 14, y: py0 + 4, w: 10, h: 10, close: 1 }];
+    const cw = Math.round((pw - 110) / 2);
+    Gear.ORDER.forEach((el, r) => {
+      const E = Gear.ELEMENTS[el], y = py0 + 32 + r * RH, have = Gear.state().shards[el], sel = r === forgeUI.row;
+      if (sel) R("rgba(255,170,100,0.12)", px0 + 4, y - 1, pw - 8, RH - 1);
+      R(E.col, px0 + 8, y + 3, 4, 6); R("#ffffff", px0 + 9, y + 3, 1, 2);
+      sctx.textAlign = "left"; sctx.font = `${7 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = have ? "#fff6dc" : "#7a6a6a"; sctx.fillText(E.name, (px0 + 16) * u, (y + 2) * u);
+      sctx.fillStyle = have >= Gear.COST ? "#7cf08a" : "#a89880"; sctx.fillText(`${have}/${Gear.COST}`, (px0 + 78) * u, (y + 2) * u);
+      const wName = (Combat.weapons.find((w) => w.id === E.weapon) || { name: "?" }).name, cName = Gear.ARMOR[E.cloth].name;
+      [[wName, Combat.unlocked.has(E.weapon)], [cName, Gear.hasArmor(E.cloth)]].forEach(([name, owned], c) => {
+        const bx = px0 + 104 + c * (cw + 4), on = sel && forgeUI.col === c, can = !owned && have >= Gear.COST;
+        R(on ? "#ffb06a" : owned ? "#3a5a3a" : can ? "#8a5a3a" : "#3a2c2c", bx, y, cw, RH - 3); R(owned ? "#1e2c1e" : "#24181a", bx + 1, y + 1, cw - 2, RH - 5);
+        sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.fillStyle = owned ? "#9ae69a" : can ? "#ffe0b0" : "#8a7a7a"; sctx.fillText((owned ? "✓ " : "") + name, (bx + 3) * u, (y + 3) * u);
+        forgeUI.hit.push({ x: bx, y, w: cw, h: RH - 3, row: r, col: c });
+      });
+    });
+    sctx.textAlign = "center"; sctx.font = `${6 * u}px 'Pixelify Sans', monospace`;
+    const msg = time - forgeUI.msgT < 2.5 && forgeUI.msg ? forgeUI.msg : TOUCH ? "Tap a weapon or cloth to make it" : "W/S element   A/D weapon or cloth   E make   Esc close";
+    sctx.fillStyle = time - forgeUI.msgT < 2.5 ? "#ffd27a" : "#a89880"; sctx.fillText(msg, (VW / 2) * u, (py0 + ph - 12) * u);
+    R("#8a4a2a", px0 + pw - 14, py0 + 4, 10, 10); sctx.fillStyle = "#1e1416"; sctx.fillText("x", (px0 + pw - 9) * u, (py0 + 4) * u);
+    sctx.textAlign = "left";
   }
   // ------------------------------------------------------------------ choosing your five
   // Before Kahu Lā sends you, if you own more than five weapons: pick which five to carry.
@@ -435,7 +599,18 @@
   }
 
   // fallen enemies sometimes leave an ʻōhelo berry behind
-  Combat.onKill = (d) => { if (scene === "level" && d.type !== "runner" && Math.random() < (d.boss ? 1 : 0.3)) Level.dropBerry(d.type === "vine" ? d.rx : d.x, d.type === "vine" ? d.ry : d.y, time); };
+  Combat.onKill = (d) => {
+    if (scene !== "level") return;
+    const x = d.type === "vine" ? d.rx : d.x, y = d.type === "vine" ? d.ry : d.y;
+    if (d.type !== "runner" && Math.random() < (d.boss ? 1 : 0.3)) Level.dropBerry(x, y, time);
+    // creatures of an element sometimes leave a shard of it
+    const el = Gear.ELEMENT_OF[d.type]; if (el && Math.random() < Gear.dropChance()) Level.dropShard(x + 8, y, el, time);
+    // shells: now and then a common one; great beasts carry rare ones
+    if (d.boss) { const drops = [[2, 1], [1, 2], [0, 3]]; let k = 0; for (const [tier, n] of drops) for (let i = 0; i < n; i++, k++) Level.dropShell(x + Math.cos(k * 1.3) * 20, y + Math.sin(k * 1.3) * 12, Gear.randomShell(tier), time); }
+    else if (d.type !== "runner" && d.type !== "rayling") { const r = Math.random(); if (r < 0.025) Level.dropShell(x - 8, y, Gear.randomShell(1), time); else if (r < 0.12) Level.dropShell(x - 8, y, Gear.randomShell(0), time); }
+    Gear.noteKill(d.type);
+  };
+  Combat.onHeal = (n) => { player.hp = Math.min(player.maxHp, player.hp + n); healT = time; };
   window.__hurt = hurtPlayer;
   const FOOT = [-5, -4, 5, 1];
 
@@ -445,13 +620,14 @@
       for (const [px, py] of [[x0, y0], [x1, y0], [x0, y1], [x1, y1], [x, y0], [x, y1]]) if (Level.solidAt(px, py)) return true;
       return false;
     }
-    if (scene === "cave" || scene === "dojo") {
-      const S = scene === "cave" ? Cave : Dojo;
+    if (scene === "cave" || scene === "dojo" || scene === "forge") {
+      const S = scene === "cave" ? Cave : scene === "forge" ? Forge : Dojo;
       for (const [px, py] of [[x0, y0], [x1, y0], [x0, y1], [x1, y1], [x, y0], [x, y1]]) if (S.solidAt(px, py)) return true;
       return false;
     }
     for (const [px, py] of [[x0, y0], [x1, y0], [x0, y1], [x1, y1], [x, y0], [x, y1]]) if (World.solidAt(px, py)) return true;
     for (const b of Props.colliders) if (x1 > b[0] && x0 < b[2] && y1 > b[1] && y0 < b[3]) return true;
+    for (const b of Forge.islandColliders()) if (x1 > b[0] && x0 < b[2] && y1 > b[1] && y0 < b[3]) return true;
     return false;
   }
 
@@ -473,7 +649,7 @@
       player.moving = true;
       return;
     }
-    if (dialog || globe.open || loadoutUI.open || fade.dir === 1 || Combat.busy) { player.moving = false; player.frame = Combat.busy ? 2 : 0; return; }
+    if (dialog || globe.open || loadoutUI.open || forgeUI.open || shopUI.open || fade.dir === 1 || Combat.busy) { player.moving = false; player.frame = Combat.busy ? 2 : 0; return; }
     let ix = 0, iy = 0;
     if (keys.KeyA || keys.ArrowLeft) ix -= 1;
     if (keys.KeyD || keys.ArrowRight) ix += 1;
@@ -485,7 +661,7 @@
     if (player.moving) player.moveA = Math.atan2(iy, ix);
     if (player.moving) {
       hintTimer = Math.min(hintTimer, 4);
-      const len = Math.hypot(ix, iy), sp = (run ? 140 : 90) * dt * (scene === "level" ? Level.slowAt(player.x, player.y) : 1);
+      const gs = Gear.stats(), len = Math.hypot(ix, iy), sp = (run ? 140 : 90) * dt * gs.speed * (scene === "level" && !gs.waterWalk ? Level.slowAt(player.x, player.y) : 1);
       const dx = (ix / len) * sp, dy = (iy / len) * sp;
       if (!blocked(player.x + dx, player.y)) player.x += dx;
       else if (!blocked(player.x + dx, player.y - Math.abs(dx))) { player.x += dx; player.y -= Math.abs(dx); } // slide round corners
@@ -605,14 +781,18 @@
         // never arrive inside rock or a prop: spiral out to the nearest free footing
         if (blocked(player.x, player.y)) { search: for (let r = 4; r < 160; r += 4) for (let a = 0; a < Math.PI * 2; a += 0.3) { const x = sp.x + Math.cos(a) * r, y = sp.y + Math.sin(a) * r; if (!blocked(x, y)) { player.x = x; player.y = y; break search; } } }
         player.hp = player.maxHp; player.dead = false; player.downed = false;
+        Combat.momentum = Math.max(Combat.momentum, Gear.stats().startMom);
         Level.prev = fade.to;
         banner = { title: L.def.title, sub: L.def.sub, t0: time + 0.3 };
+      } else if (fade.to === "forge") {
+        scene = "forge"; player.x = Forge.ENTRY.x; player.y = Forge.ENTRY.y; player.dir = "up";
+        banner = { title: "KAMAKA'S FORGE", sub: "Shards become weapons and cloth here", t0: time + 0.3 };
       } else if (fade.to === "dojo") {
         scene = "dojo"; player.x = Dojo.ENTRY.x; player.y = Dojo.ENTRY.y; player.dir = "up";
         banner = { title: "HALE KOA", sub: "The Warriors' Training Hut", t0: time + 0.3 };
       } else {
-        scene = "island";
-        const back = fade.from === "dojo" ? World.hutDoor : fade.from === "level" ? { x: World.templeDoor.x, y: World.templeDoor.y + 22 } : World.caveMouth;
+        scene = "island"; washShells();
+        const back = fade.from === "dojo" ? World.hutDoor : fade.from === "forge" ? Forge.door() : fade.from === "level" ? { x: World.templeDoor.x, y: World.templeDoor.y + 22 } : World.caveMouth;
         player.x = back.x; player.y = back.y + 14; player.dir = "down";
       }
       Combat.setTargets(scene === "dojo" ? Dojo.dummies : scene === "level" ? Level.cur.enemies : []);
@@ -638,16 +818,28 @@
       rackHover = Dojo.rackIndexAt(player.x, player.y);
       if (rackHover >= 0) prompt = { x: Dojo.rackPos.x + Dojo.rackSlots[rackHover], y: Dojo.rackPos.y + 50 };
       if (pressedE && rackHover >= 0) {
-        // taking a weapon from the rack keeps it: it joins your inventory (and your loadout, if there's room)
-        const w = Combat.weapons[rackHover], isNew = Combat.gain(w.id);
+        // the rack lends any weapon to practise with here; only the ones you've earned leave with you
+        const w = Combat.weapons[rackHover];
         Combat.select(rackHover);
-        if (isNew) banner = { title: w.name.toUpperCase(), sub: Combat.loadout.includes(w.id) ? "Added to your weapons" : "Added to your weapons. Your loadout is full: choose at Kahu Lā's globe", t0: time };
+        if (!Combat.unlocked.has(w.id)) banner = { title: w.name.toUpperCase(), sub: "Practice only. " + w.unlock, t0: time };
       }
       pressedE = false;
       return;
     }
+    if (scene === "forge") {
+      if (dialog) { if (pressedE) advanceDialog(); pressedE = false; return; }
+      if (player.y > Forge.H - 8) goTo("island");
+      const nf = Forge.near(player.x, player.y);
+      if (nf === "smith") { prompt = { x: Forge.SMITH.x, y: Forge.SMITH.y - 40 }; if (pressedE) openForgeUI(); }
+      else if (nf === "stand") { prompt = { x: Forge.STAND.x, y: Forge.STAND.y - 40 }; if (pressedE && window.Menu) Menu.toggle(true, "gear"); }
+      pressedE = false; return;
+    }
     const HD = World.hutDoor;
     if (Math.abs(player.x - HD.x) < 9 && player.y - HD.y < -2 && player.y - HD.y > -16) { goTo("dojo"); pressedE = false; return; }
+    const FD = Forge.door();
+    if (FD && Math.abs(player.x - FD.x) < 10 && player.y - FD.y < -2 && player.y - FD.y > -16) { goTo("forge"); pressedE = false; return; }
+    const plot = Forge.plotAt(player.x, player.y);
+    if (plot && !dialog) { prompt = { x: plot.x, y: plot.y - 44 }; if (pressedE) { dialog = { name: plot.name, lines: plot.who === "smith" ? ["Stakes and rope mark out a building site.", "\"Forge, when the smith comes home,\" says the sign."] : ["Stakes and rope mark out a building site.", "One day, someone will build here."], i: 0, start: performance.now() }; pressedE = false; return; } }
     const nearHut = Math.hypot(player.x - HD.x, player.y - HD.y) < 30;
     const M = World.caveMouth;
     const mdx = player.x - M.x, mdy = player.y - M.y;
@@ -655,18 +847,24 @@
     const nearCave = Math.hypot(mdx, mdy) < 34;
     let best = null, bd = 34;
     for (const n of World.npcs) {
+      if (n.vendor && !Gear.rescued("vendor")) continue;
       const d = Math.hypot(n.x - player.x, n.y - player.y);
       if (d < bd) { bd = d; best = n; }
     }
+    const stallNear = !Gear.rescued("vendor") && World.stall && Math.hypot(World.stall.x - player.x, World.stall.y + 10 - player.y) < 48;
+    for (const sh of beach) if (!sh.got && Math.hypot(sh.x - player.x, sh.y - player.y) < 16) { sh.got = true; gotShell(sh.k); }
     const door = World.templeDoor;
     const nearDoor = Math.hypot(door.x - player.x, door.y - 10 - player.y) < 40;
     if (best) prompt = { x: best.x, y: best.y - 36 };
+    else if (stallNear) prompt = { x: World.stall.x, y: World.stall.y - 70 };
     else if (nearDoor) prompt = { x: door.x, y: door.y - 52 };
     else if (nearCave) prompt = { x: M.x, y: M.y - 50 };
     else if (nearHut) prompt = { x: HD.x, y: HD.y - 40 };
+    else if (FD && Math.hypot(player.x - FD.x, player.y - FD.y) < 32) prompt = { x: FD.x, y: FD.y - 44 };
     if (pressedE) {
       if (dialog) advanceDialog();
-      else if (best) dialog = { name: best.name, lines: best.lines, i: 0, start: performance.now() };
+      else if (best) dialog = { name: best.name, lines: best.vendor && metMakani ? ["What'll it be? Shells are good here."] : best.lines, i: 0, start: performance.now(), onEnd: best.vendor ? () => { metMakani = true; openShop(); } : null };
+      else if (stallNear) dialog = { name: "An empty stall", lines: ["Dust on the counter, the awning torn.", "Its keeper, Makani, was carried off toward the burning crown of the highlands."], i: 0, start: performance.now() };
       else if (nearCave) goTo("cave");
       else if (nearHut) goTo("dojo");
       else if (nearDoor) goTo("sanctum");
@@ -704,13 +902,13 @@
       takeShrine(true);
     } } }
   }
-  // the Shrine of Kū gives the Kākau Bands (the drum-beat weapon); in co-op both heroes take it up
+  // the Shrine of Kū gives the Newa (the war club); in co-op both heroes take it up
   function takeShrine(here) {
     const L = Level.cur, sh = L.def.shrine; if (!sh) return;
     L.shrineTaken = Level.heelTaken = true; Combat.gain(sh.unlock); Ambience.sfx && Ambience.sfx("pickup");
     if (window.Net && Net.isHost()) Net.send({ t: "sync", heel: 1 });
     const w = Combat.weapons.find((q) => q.id === sh.unlock);
-    if (here || !(window.Net && Net.active())) dialog = { name: "Shrine of Kū", lines: [`You take up the ${w.name}.`, "The drums of the tribe beat in them. (Press Q / R to switch weapons.)"], i: 0, start: performance.now() };
+    if (here || !(window.Net && Net.active())) dialog = { name: "Shrine of Kū", lines: [`You take up the ${w.name}.`, "The war club of Kū settles into your grip. (Press Q / R to switch weapons.)"], i: 0, start: performance.now() };
     else banner = { title: w.name.toUpperCase(), sub: "Your partner woke the Shrine of Kū", t0: time };
   }
 
@@ -875,8 +1073,16 @@
       ctx.fillStyle = q.dead && Math.floor(time * 4) % 2 ? "#ff5a4a" : col; ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(-3, -3); ctx.lineTo(-3, 3); ctx.fill(); ctx.restore();
     }
   }
+  function drawItems(ctx) {
+    const nt = Gear.count("tonic"), ns = Gear.count("salve"), pk = Gear.pick();
+    let x = VW - 8, y = 6;
+    if (pk) { const E = Gear.ELEMENTS[Gear.TALISMANS[pk].el]; x -= 18; ctx.fillStyle = "#140c16"; ctx.fillRect(x, y, 16, 16); ctx.fillStyle = E.col; ctx.fillRect(x + 1, y + 1, 14, 14); ctx.fillStyle = "#140c16"; ctx.fillRect(x + 3, y + 3, 10, 10); ctx.fillStyle = E.col; ctx.fillRect(x + 6, y + 4, 4, 8); ctx.fillRect(x + 4, y + 6, 8, 4); ctx.fillStyle = "#ffffff"; ctx.fillRect(x + 7, y + 7, 2, 2); }
+    if (nt || ns) { x -= 18; ctx.fillStyle = "#140c16"; ctx.fillRect(x, y, 16, 16); ctx.fillStyle = "#3a2a3e"; ctx.fillRect(x + 1, y + 1, 14, 14); ctx.fillStyle = "#8a5a30"; ctx.fillRect(x + 6, y + 3, 4, 2); ctx.fillStyle = "#c84a5a"; ctx.fillRect(x + 4, y + 5, 8, 8); ctx.fillStyle = "#ff9aa8"; ctx.fillRect(x + 5, y + 6, 2, 3); }
+    itemsHud = { x, y, nt, ns, pk };
+  }
+  let itemsHud = null;
   function drawHearts(ctx) {
-    drawMateHUD(ctx);
+    drawMateHUD(ctx); drawItems(ctx);
     const blink = player.inv > 0 && Math.floor(time * 12) % 2;
     for (let k = 0; k < player.maxHp / 2; k++) {
       const v = player.hp - k * 2, x = 6 + k * 9;
@@ -1008,7 +1214,7 @@
   }
   function drawMate(ox, oy, t) { for (const q of matesHere()) drawOneMate(q, ox, oy, t); }
   function drawOneMate(q, ox, oy, t) {
-    const ctx = q.y < player.y ? actx : bctx, x = Math.round(q.x - ox), y = Math.round(q.y - oy), F = framesFor(q.slot);
+    const ctx = q.y < player.y ? actx : bctx, x = Math.round(q.x - ox), y = Math.round(q.y - oy), F = framesFor(q.slot, q.outfit);
     const sh = Props.shadow(7, 2); ctx.globalAlpha = 0.32; ctx.drawImage(sh, x - 7, y - 2); ctx.globalAlpha = 1;
     q.tailT += (1 / 60) * (2 + 7 * K.windStrength(t) + (q.moving ? 4 : 0));
     const fr = F[q.dir] || F.down, img = fr[(q.frame || 0) % 4][Math.floor(q.tailT) % 2];
@@ -1062,7 +1268,7 @@
   function barSlots() { return Combat.allUnlocked && !Combat.loadout.includes(Combat.weapons[Combat.cur].id) ? Combat.loadout.concat([Combat.weapons[Combat.cur].id]) : Combat.loadout; }
   function barRect() { const n = barSlots().length, w = n * SLOT + 4; return { n, w, x: Math.round(VW / 2 - w / 2), y: VH - 36 }; }
   function drawCombatHUD(ctx) {
-    if (dialog || globe.open || loadoutUI.open) return;
+    if (dialog || globe.open || loadoutUI.open || forgeUI.open || shopUI.open) return;
     const w = Combat.weapons[Combat.cur], B = barRect(), ids = barSlots();
     ctx.fillStyle = "#1a1220"; ctx.fillRect(B.x - 2, B.y - 2, B.w + 4, SLOT + 6);
     ctx.fillStyle = "#c08a3e"; ctx.fillRect(B.x - 1, B.y - 1, B.w + 2, SLOT + 4);
@@ -1087,6 +1293,12 @@
   const hexRGB = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   function drawCombatTexts(u) {
     if (dialog) return;
+    if (itemsHud && !globe.open && !loadoutUI.open) {
+      const I = itemsHud; sctx.font = `${6 * u}px 'Pixelify Sans', monospace`; sctx.textAlign = "right"; sctx.fillStyle = "#fff6dc";
+      if (I.pk) sctx.fillText(String(Gear.count(I.pk)), (VW - 9) * u, (I.y + 10) * u);
+      if (I.nt || I.ns) sctx.fillText(I.nt + (I.ns ? "+" + I.ns : ""), (I.x + 15) * u, (I.y + 10) * u);
+      sctx.textAlign = "left";
+    }
     if (globe.open || loadoutUI.open) return;
     // the name of the weapon in hand, over the toolbar
     const w = Combat.weapons[Combat.cur], B = barRect(), nx = VW / 2, ny = B.y - (w.ult ? 22 : 13);
@@ -1130,12 +1342,12 @@
     }
   }
 
-  function renderDojo(t) {
+  function renderDojo(t, forge) {
     const ox = Math.floor(cam.fx), oy = Math.floor(cam.fy);
     const sx = Math.round((cam.fx - ox) * SCALE), sy = Math.round((cam.fy - oy) * SCALE);
     const LW = VW + 1, LH = VH + 1;
     bctx.clearRect(0, 0, LW, LH);
-    Dojo.render(actx, bctx, gctx, ox, oy, LW, LH, t, player.y);
+    (forge ? Forge : Dojo).render(actx, bctx, gctx, ox, oy, LW, LH, t, player.y);
     drawPrompt(bctx, ox, oy, t);
     hctx.clearRect(0, 0, VW, VH);
     drawHearts(hctx);
@@ -1144,7 +1356,7 @@
     drawMate(ox, oy, t);
     if (!player.dead && Combat.behindHero(player)) Combat.drawWeapon(actx, ox, oy, player, scene === "cave");
     sctx.drawImage(layerA, -sx, -sy, LW * SCALE, LH * SCALE);
-    drawHero(t, framesFor(mySlot()));
+    drawHero(t, framesFor(mySlot(), Gear.wornId()));
     sctx.drawImage(layerB, -sx, -sy, LW * SCALE, LH * SCALE);
     composeFx(ox, oy, sx, sy);
     sctx.drawImage(hud, 0, 0, VW * SCALE, VH * SCALE);
@@ -1183,7 +1395,7 @@
     drawMate(ox, oy, t);
     if (!player.dead && Combat.behindHero(player)) Combat.drawWeapon(actx, ox, oy, player, scene === "cave");
     sctx.drawImage(layerA, -sx, -sy, LW * SCALE, LH * SCALE);
-    drawHero(t, framesFor(mySlot()));
+    drawHero(t, framesFor(mySlot(), Gear.wornId()));
     sctx.drawImage(layerB, -sx, -sy, LW * SCALE, LH * SCALE);
     composeFx(ox, oy, sx, sy);
     if (flowT > 0) { sctx.fillStyle = `rgba(120,200,255,${0.12 * Math.min(1, flowT * 4)})`; sctx.fillRect(0, 0, screen.width, screen.height); }
@@ -1237,10 +1449,13 @@
     gctx.clearRect(0, 0, VW + 1, VH + 1);
     if (scene === "cave") renderCave(t);
     else if (scene === "dojo") renderDojo(t);
+    else if (scene === "forge") renderDojo(t, true);
     else if (scene === "level") renderLevel(t);
     else renderIsland(t);
     if (globe.open) drawGlobe(t);
     if (loadoutUI.open) drawLoadout(t);
+    if (forgeUI.open) drawForgeUI(t);
+    if (shopUI.open) drawShop(t);
     if (fade.a > 0) { sctx.fillStyle = `rgba(2,3,8,${Math.min(1, fade.a)})`; sctx.fillRect(0, 0, screen.width, screen.height); }
   }
 
@@ -1256,7 +1471,7 @@
 
     const vis = [];
     const pad = 140;
-    for (const o of Props.objects) {
+    for (const o of Props.objects.concat(Forge.islandObjects(), beach.filter((b) => !b.got).map((b) => ({ x: b.x, y: b.y, shell: b })))) {
       if (o.x < ox - pad || o.x > ox + LW + pad || o.y < oy - 20 || o.y > oy + LH + 160) continue;
       vis.push(o);
     }
@@ -1273,7 +1488,8 @@
         const c = o.critter;
         if (c.kind === "crab") ctx.drawImage(Props.crabFrames[Math.floor(c.frame) % 2], Math.round(c.x - 4 - ox), Math.round(c.y - 5 - oy));
         else ctx.drawImage(Props.butterflyFrames[c.col][Math.floor(t * 9 + c.sp) % 2], Math.round(c.x - 2 - ox), Math.round(c.y - c.z - oy - Math.abs(Math.sin(t * 3 + c.sp)) * 3));
-      } else if (o.kind === "npc") drawNPC(ctx, o, ox, oy, t);
+      } else if (o.kind === "npc") { if (!o.vendor || Gear.rescued("vendor")) drawNPC(ctx, o, ox, oy, t); }
+      else if (o.shell) { const img = Gear.shellArt(o.shell.k); ctx.drawImage(img, Math.round(o.shell.x - 6 - ox), Math.round(o.shell.y - 10 - oy)); if (Math.sin(t * 3 + o.shell.x) > 0.85) { ctx.fillStyle = "#ffffff"; ctx.fillRect(Math.round(o.shell.x + 3 - ox), Math.round(o.shell.y - 11 - oy), 1, 1); } }
       else o.draw(ctx, ox, oy, t);
     }
     ctx = bctx;
@@ -1313,7 +1529,7 @@
     drawMate(ox, oy, t);
     if (!player.dead && Combat.behindHero(player)) Combat.drawWeapon(actx, ox, oy, player, scene === "cave");
     sctx.drawImage(layerA, -sx, -sy, LW * SCALE, LH * SCALE);
-    drawHero(t, framesFor(mySlot()));
+    drawHero(t, framesFor(mySlot(), Gear.wornId()));
     sctx.drawImage(layerB, -sx, -sy, LW * SCALE, LH * SCALE);
     composeFx(ox, oy, sx, sy);
     sctx.drawImage(hud, 0, 0, VW * SCALE, VH * SCALE);
@@ -1389,6 +1605,8 @@
     last = now;
     if (window.Title && Title.open) { renderTitleSea(now / 1000); requestAnimationFrame(frame); return; }   // the title screen is up: the world waits
     time += dt; playT += dt;
+    const gst = Gear.stats();
+    if (gst.regen && scene === "level" && !player.dead && player.hp < player.maxHp) { regenT += dt; if (regenT > gst.regen) { regenT = 0; player.hp = Math.min(player.maxHp, player.hp + 1); healT = time; } } else regenT = 0;
     if (time - saveT > 60) Game.save();
     if (flowT > 0) flowT -= dt;
     // the settings menu pauses solo play (a co-op world keeps going)
@@ -1424,7 +1642,7 @@
     updateParticles(dt, time);
     hintTimer -= dt * (hintTimer > 4 ? 0.5 : 1);
     // camera follows the hero exactly (sub-pixel); see render() for how it stays crisp
-    const SW = scene === "level" ? Level.cur.W : scene === "cave" ? Cave.W : scene === "dojo" ? Dojo.W : World.W, SH = scene === "level" ? Level.cur.H : scene === "cave" ? Cave.H : scene === "dojo" ? Dojo.H : World.H;
+    const SW = scene === "level" ? Level.cur.W : scene === "cave" ? Cave.W : scene === "dojo" ? Dojo.W : scene === "forge" ? Forge.W : World.W, SH = scene === "level" ? Level.cur.H : scene === "cave" ? Cave.H : scene === "dojo" ? Dojo.H : scene === "forge" ? Forge.H : World.H;
     cam.fx = K.clamp(player.x - VW / 2, 0, Math.max(0, SW - VW - 1));
     cam.fy = K.clamp(player.y - 12 - VH / 2, 0, Math.max(0, SH - VH - 1));
     const shk = Combat.shake * Combat.shake * 5;
@@ -1457,7 +1675,7 @@
     Cave.build(A);
     await step(0.82, "Hanging the weapons");
     Combat.init();
-    Dojo.build();
+    Dojo.build(); Forge.build();
     await step(0.9, "Lighting the sun gate");
     Level.init(A); Enemies.init(A);
     Combat.ensureOpen();
@@ -1477,7 +1695,7 @@
   const Game = (window.Game = {
     snapshot() {
       return { v: 1, t: Date.now(), play: playT, where: scene === "level" ? Level.cur.name : "island", x: Math.round(scene === "island" ? player.x : World.START.x), y: Math.round(scene === "island" ? player.y : World.START.y),
-        unlocked: [...Level.unlocked], cleared: Level.cleared.size, clearedList: [...Level.cleared], heel: !!Level.heelTaken, portal: !!Level.portalUnlocked, weapons: [...Combat.unlocked], loadout: [...Combat.loadout], cur: Combat.cur, place: placeName() };
+        unlocked: [...Level.unlocked], cleared: Level.cleared.size, clearedList: [...Level.cleared], heel: !!Level.heelTaken, portal: !!Level.portalUnlocked, weapons: [...Combat.unlocked], loadout: [...Combat.loadout], cur: Combat.cur, gear: Gear.snapshot(), place: placeName() };
     },
     save() { if (!slot || !window.Title || fade.dir !== 0) return; Title.store.set(slot, Game.snapshot()); saveT = time; },
     begin(n, d) {
@@ -1485,6 +1703,7 @@
       Level.unlocked = new Set(d ? d.unlocked : ["highlands"]); Level.cleared = new Set(d ? d.clearedList || [] : []);
       Level.heelTaken = d ? !!d.heel : false; Level.portalUnlocked = d ? !!d.portal : false; Level.dest = null;
       Combat.unlocked = new Set(d ? d.weapons : DEFAULT_WEAPONS); Combat.loadout = (d && d.loadout ? d.loadout : [...Combat.unlocked]).slice(0, Combat.LOADOUT_MAX); Combat.cur = d ? d.cur || 0 : 0; Combat.ensureOpen();
+      Gear.load(d && d.gear); applyGear(); beach.length = 0; washShells(); metMakani = false;
       player.hp = player.maxHp; player.dead = false; player.downed = false;
       scene = "island"; player.x = d ? d.x : World.START.x; player.y = d ? d.y : World.START.y; player.dir = "down";
       if (blocked(player.x, player.y)) unstick();
@@ -1495,9 +1714,12 @@
     },
     quit() { Game.save(); if (window.Net && Net.active()) Net.leave(); window.Title && Title.show(); },
   });
+  // the armour you wear sets your hearts and the combat bonuses
+  function applyGear() { const st = Gear.stats(); player.maxHp = 10 + st.hp; player.hp = Math.min(player.hp, player.maxHp); Gear.applyCombat(); }
+  Gear.onChange = () => { applyGear(); };
   Level.onUnlock = ((prev) => (n) => { prev && prev(n); setTimeout(() => Game.save(), 50); })(Level.onUnlock);
   // a weapon won by clearing a zone: every hero gets it
-  Level.onReward = (id) => { Combat.gain(id); if (window.Net && Net.isHost()) Net.send({ t: "sync", gift: id }); setTimeout(() => Game.save(), 50); };
+  Level.onReward = (r) => { for (const id of [].concat(r)) { grant(id); if (window.Net && Net.isHost()) Net.send({ t: "sync", gift: id }); } setTimeout(() => Game.save(), 50); };
   window.__kuleana = { player, cam, keys, mates, rev, goTo: (s) => goTo(s), get scene() { return scene; } };
   boot().catch((e) => { console.error(e); document.body.insertAdjacentHTML("beforeend", `<pre style="color:#f88;position:fixed;top:0;left:0">${e.stack || e}</pre>`); });
 })();

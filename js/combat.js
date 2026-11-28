@@ -62,6 +62,11 @@
         px(x, "#0e0a0e", 16, gy - 6, 11, 13); px(x, "#3a3036", 17, gy - 5, 9, 11); px(x, "#5a4e52", 17, gy - 5, 9, 2);
         px(x, "#ff8a2a", 19, gy - 3, 1, 3); px(x, "#ffcc4a", 20, gy - 1, 3, 1); px(x, "#ff8a2a", 23, gy, 1, 3); px(x, "#ff5a1a", 21, gy + 2, 2, 1);
         return { c, gx: 4, gy };
+      case "firestaff":
+        px(x, "#1a0c06", 0, gy - 1, 26, 3); px(x, "#8a5228", 0, gy, 26, 1); px(x, "#c88a48", 2, gy - 1, 22, 1);
+        for (let i = 4; i < 24; i += 6) px(x, "#3a1a0c", i, gy - 1, 1, 3);
+        for (const ex of [0, 25]) { px(x, "#ec561c", ex - 1, gy - 3, 3, 4); px(x, "#ffb63c", ex, gy - 4, 1, 4); px(x, "#fff4b8", ex, gy - 2, 1, 1); }
+        return { c, gx: 13, gy };
       case "heel":
         px(x, "#2a0408", 10, gy - 2, 8, 5); px(x, "#ec561c", 11, gy - 1, 6, 3); px(x, "#ffb63c", 12, gy - 1, 4, 2); px(x, "#fff4b8", 13, gy - 1, 2, 1);
         return { c, gx: 14, gy, none: true };
@@ -125,43 +130,43 @@
   // ---------------------------------------------------------------- the arsenal
   // cls = class shown in the HUD; every move: { dur, lunge, start(s) } where s = swing context
   const WEAPONS = [
-    { id: "koa", name: "Koa Blade", cls: "Blade", col: "#9fe2ff", unlock: "Starting weapon", moves: [
+    { id: "koa", name: "Koa Blade", cls: "Blade", col: "#9fe2ff", unlock: "Zone 3, first land", moves: [
       { dur: 0.3, lunge: 7, start: (s) => { arc(s, { span: 2.7, r: 24, W: 8, pal: P.steel, dir: 1, dur: 0.3 }); hitArc(s, 0.07, { range: 42, span: 2.9, dmg: 9 }); sfx("swing"); } },
       { dur: 0.3, lunge: 7, start: (s) => { arc(s, { span: 2.7, r: 24, W: 8, pal: P.steel, dir: -1, dur: 0.3 }); hitArc(s, 0.07, { range: 42, span: 2.9, dmg: 10 }); sfx("swing"); } },
       { dur: 0.6, lunge: 46, dash: true, start: (s) => { iai(s, 84, P.steel); hitLine(s, 0.16, { len: 84, w: 18, dmg: 26, stop: 0.11, shake: 0.6, flash: 0.35 }); sfx("slash"); } },
     ] },
-    { id: "spear", name: "ʻIhe", cls: "Hawaiian · Spear", col: "#ffd36a", unlock: "Market — Makani's stall", moves: [
+    { id: "spear", name: "ʻIhe", cls: "Hawaiian · Spear", col: "#ffd36a", unlock: "Your first weapon", moves: [
       { dur: 0.28, lunge: 10, start: (s) => { thrust(s, 46, P.gold); hitLine(s, 0.06, { len: 50, w: 12, dmg: 9 }); sfx("swing"); } },
       { dur: 0.36, lunge: 6, start: (s) => { thrust(s, 44, P.gold, 0); thrust(s, 50, P.gold, 0.12); hitLine(s, 0.06, { len: 48, w: 12, dmg: 7 }); hitLine(s, 0.18, { len: 54, w: 12, dmg: 8 }); sfx("swing"); sfx("swing", 0.12); } },
       { dur: 0.55, lunge: 0, start: (s) => { arc(s, { span: TAU * 1.05, r: 30, W: 9, pal: P.gold, dir: 1, dur: 0.5, sq: 0.7, from: s.a + Math.PI }); dust(s.x, s.y + 10, 16); hitCircle(s, 0.18, { x: 0, y: 0, r: 46, dmg: 18, shake: 0.4, stop: 0.07 }); sfx("heavy"); } },
     ] },
-    { id: "leiomano", name: "Leiomano", cls: "Hawaiian · Shark-tooth club", col: "#e8e2cc", unlock: "Sea cave — the whale shark's gift", moves: [
+    { id: "leiomano", name: "Leiomano", cls: "Hawaiian · Shark-tooth club", col: "#e8e2cc", unlock: "Clear the Outer Isles (Zone 2)", moves: [
       { dur: 0.32, lunge: 6, start: (s) => { arc(s, { span: 2.5, r: 22, W: 9, pal: P.ivory, dir: 1, dur: 0.32, style: "jag" }); hitArc(s, 0.08, { range: 40, span: 2.7, dmg: 11 }); sfx("swing"); } },
       { dur: 0.32, lunge: 6, start: (s) => { arc(s, { span: 2.5, r: 22, W: 9, pal: P.ivory, dir: -1, dur: 0.32, style: "jag" }); hitArc(s, 0.08, { range: 40, span: 2.7, dmg: 12 }); sfx("swing"); } },
       { dur: 0.58, lunge: 18, start: (s) => { jaw(s, 34); hitCircle(s, 0.26, { fwd: 34, r: 22, dmg: 28, stop: 0.12, shake: 0.6 }); sfx("bite", 0.24); } },
     ] },
-    { id: "pahoa", name: "Pāhoa", cls: "Hawaiian · Dagger", col: "#e8b878", unlock: "Leilani's stall", moves: [
+    { id: "pahoa", name: "Pāhoa", cls: "Hawaiian · Dagger", col: "#e8b878", unlock: "Your first weapon", moves: [
       { dur: 0.16, lunge: 8, start: (s) => { thrust(s, 26, P.koa); hitLine(s, 0.04, { len: 30, w: 10, dmg: 6 }); sfx("slash"); } },
       { dur: 0.16, lunge: 8, start: (s) => { arc(s, { span: 1.7, r: 16, W: 5, pal: P.koa, dir: 1, dur: 0.18, style: "thin" }); hitArc(s, 0.04, { range: 30, span: 2, dmg: 6 }); sfx("slash"); } },
       { dur: 0.16, lunge: 8, start: (s) => { thrust(s, 28, P.koa); hitLine(s, 0.04, { len: 32, w: 10, dmg: 7 }); sfx("slash"); } },
       { dur: 0.5, lunge: 30, dash: true, start: (s) => { arc(s, { span: 3.4, r: 20, W: 7, pal: P.koa, dir: -1, dur: 0.3, style: "jag" }); iai(s, 50, P.koa); hitLine(s, 0.14, { len: 52, w: 14, dmg: 19, stop: 0.08, shake: 0.45 }); sfx("slash", 0.12); } },
     ] },
-    { id: "newa", name: "Newa", cls: "Hawaiian · War club", col: "#c8883a", unlock: "Village chief's longhouse", moves: [
+    { id: "newa", name: "Newa", cls: "Hawaiian · War club", col: "#c8883a", unlock: "Clear the Volcanic Highlands (Zone 1)", moves: [
       { dur: 0.4, lunge: 6, start: (s) => { arc(s, { span: 2.2, r: 20, W: 11, pal: P.koa, dir: 1, dur: 0.36 }); hitArc(s, 0.12, { range: 38, span: 2.4, dmg: 14, stop: 0.07, shake: 0.35 }); sfx("heavy"); } },
       { dur: 0.4, lunge: 6, start: (s) => { arc(s, { span: 2.2, r: 20, W: 11, pal: P.koa, dir: -1, dur: 0.36 }); hitArc(s, 0.12, { range: 38, span: 2.4, dmg: 15, stop: 0.07, shake: 0.35 }); sfx("heavy"); } },
       { dur: 0.7, lunge: 12, start: (s) => { arc(s, { span: 1.6, r: 18, W: 12, pal: P.koa, dir: 1, dur: 0.3, sq: 0.4, from: s.a - Math.PI * 0.85 }); smash(s, 24, P.koa, 0.22); hitCircle(s, 0.24, { fwd: 24, r: 32, dmg: 30, stop: 0.13, shake: 0.85, flash: 0.15 }); sfx("boom", 0.22); } },
     ] },
-    { id: "pololu", name: "Pololū", cls: "Hawaiian · Long spear", col: "#f0c088", unlock: "Warriors' training ground (this hut!)", moves: [
+    { id: "pololu", name: "Pololū", cls: "Hawaiian · Long spear", col: "#f0c088", unlock: "Zone 5, first land", moves: [
       { dur: 0.32, lunge: 6, start: (s) => { thrust(s, 64, P.koa); hitLine(s, 0.07, { len: 68, w: 10, dmg: 11 }); sfx("swing"); } },
       { dur: 0.46, lunge: 0, start: (s) => { arc(s, { span: 3.0, r: 40, W: 8, pal: P.koa, dir: 1, dur: 0.42, sq: 0.7 }); hitArc(s, 0.12, { range: 60, span: 3.1, dmg: 13 }); sfx("swing"); } },
       { dur: 0.6, lunge: 24, dash: true, start: (s) => { thrust(s, 58, P.koa, 0); thrust(s, 70, P.koa, 0.14); thrust(s, 80, P.koa, 0.28); for (let k = 0; k < 3; k++) hitLine(s, 0.07 + k * 0.14, { len: 60 + k * 10, w: 12, dmg: 9, stop: 0.05, shake: 0.3 }); sfx("swing"); sfx("swing", 0.14); sfx("swing", 0.28); } },
     ] },
-    { id: "kakau", name: "Kākau Bands", cls: "Tribal Symbol", col: "#f2b45e", unlock: "The kahuna's hale on the cliffs", moves: [
+    { id: "kakau", name: "Kākau Bands", cls: "Tribal Symbol", col: "#f2b45e", unlock: "The forge: 3 tribal shards", moves: [
       { dur: 0.4, lunge: 10, start: (s) => { const c = aimPoint(s, 26); arc(s, { span: 2.6, r: 24, W: 10, pal: P.kakau, dir: 1, dur: 0.42, style: "niho" }); C.events.push({ t: at(0.08), fn: () => { sigil(c.x, c.y + 10, 24, 0.7, 0); embers(c.x, c.y, 14); } }); glyphs(s, 5, 0.06); hitCircle(s, 0.1, { fwd: 26, r: 26, dmg: 11, stop: 0.06, shake: 0.35 }); sfx("tribalSwing"); } },
       { dur: 0.5, lunge: 8, start: (s) => { arc(s, { span: 2.8, r: 26, W: 10, pal: P.kakau, dir: -1, dur: 0.45, style: "niho" }); arc(s, { span: 2.4, r: 20, W: 8, pal: P.kakau, dir: 1, dur: 0.45, style: "niho", tilt: 0.5 }); band(s.x, s.y, 0.8); glyphs(s, 6, 0.1); hitArc(s, 0.1, { range: 50, span: 3, dmg: 13, stop: 0.06, shake: 0.35 }); sfx("tribalSwing"); sfx("drum", 0.12); } },
       { dur: 0.8, lunge: 6, start: (s) => { const c = aimPoint(s, 30); C.events.push({ t: at(0.12), fn: () => { sigil(c.x, c.y + 8, 40, 0.9, 1); embers(c.x, c.y, 26); ring(c.x, c.y + 8, 50, P.kakau, 0.45); } }); glyphs(s, 8, 0.1); hitCircle(s, 0.16, { fwd: 30, r: 40, dmg: 22, stop: 0.11, shake: 0.7, flash: 0.15 }); sfx("drum"); sfx("tribalHit", 0.12); } },
     ], ult: { name: "The Awakening", dur: 1.6, lunge: 0, start: (s) => { awaken(s); sfx("tribalFinale"); } } },
-    { id: "chain", name: "Makau Kaula", cls: "Chain-sickle", col: "#c8d6e8", unlock: "The shipwreck on the north reef", moves: [
+    { id: "chain", name: "Makau Kaula", cls: "Chain-sickle", col: "#c8d6e8", unlock: "Zone 4, first land", moves: [
       // short in-close slash: the sickle whips out and back across the front
       { dur: 0.34, lunge: 6, start: (s) => { chainSwing(s, 0.34, (u) => [-1.1 + 2.2 * easeOut(u), 22 + 14 * Math.sin(Math.PI * u)], 1); sfx("chainWhip"); } },
       // a full orbit around the body at medium length
@@ -171,50 +176,56 @@
       // spiral finisher: the chain plays out while it spins, carving a widening spiral round you
       { dur: 1.35, lunge: 0, start: (s) => { chainSwing(s, 1.35, (u) => [TAU * 3.2 * u, 16 + 100 * Math.sin(Math.min(1, u * 1.15) * Math.PI * 0.5) * (u > 0.85 ? 1 - (u - 0.85) / 0.15 * 0.85 : 1)], 1, false, true); sfx("chainSpin"); sfx("chainSpin", 0.35); sfx("chainSpin", 0.7); sfx("heavy", 1.1); } },
     ] },
-    { id: "fangs", name: "Mako Fangs", cls: "Slasher", col: "#ff5a6a", unlock: "Temple — first trial", moves: [
+    { id: "fangs", name: "Mako Fangs", cls: "Slasher", col: "#ff5a6a", unlock: "The forge: 3 blood shards", moves: [
       { dur: 0.13, lunge: 4, start: (s) => { arc(s, { span: 1.9, r: 17, W: 4, pal: P.crimson, dir: 1, dur: 0.16, style: "thin" }); hitArc(s, 0.04, { range: 32, span: 2.2, dmg: 4 }); sfx("slash"); } },
       { dur: 0.13, lunge: 4, start: (s) => { arc(s, { span: 1.9, r: 17, W: 4, pal: P.crimson, dir: -1, dur: 0.16, style: "thin" }); hitArc(s, 0.04, { range: 32, span: 2.2, dmg: 4 }); sfx("slash"); } },
       { dur: 0.13, lunge: 4, start: (s) => { arc(s, { span: 1.6, r: 19, W: 4, pal: P.crimson, dir: 1, dur: 0.16, style: "thin", tilt: 0.6 }); hitArc(s, 0.04, { range: 32, span: 2.2, dmg: 4 }); sfx("slash"); } },
       { dur: 0.13, lunge: 4, start: (s) => { arc(s, { span: 1.6, r: 19, W: 4, pal: P.crimson, dir: -1, dur: 0.16, style: "thin", tilt: -0.6 }); hitArc(s, 0.04, { range: 32, span: 2.2, dmg: 5 }); sfx("slash"); } },
       { dur: 0.62, lunge: 14, dash: true, start: (s) => { cuts(s, 26, 18, 0.5); for (let k = 0; k < 7; k++) hitCircle(s, 0.06 + k * 0.06, { fwd: 26, r: 22, dmg: 3, stop: 0.02, shake: 0.12, quiet: k % 2 }); sfx("slash"); for (let k = 1; k < 6; k++) sfx("slash", k * 0.07); } },
     ] },
-    { id: "koi", name: "Koʻi", cls: "Hawaiian · Stone axe", col: "#c8b8a0", unlock: "The adze quarry on Mauna Kea's slopes", moves: [
+    { id: "koi", name: "Koʻi", cls: "Hawaiian · Stone axe", col: "#c8b8a0", unlock: "Zone 6, first land", moves: [
       { dur: 0.46, lunge: 8, start: (s) => { arc(s, { span: 2.0, r: 22, W: 13, pal: P.stone, dir: 1, dur: 0.38, sq: 0.45, from: s.a - Math.PI * 0.75 }); hitCircle(s, 0.14, { fwd: 26, r: 24, dmg: 15, stop: 0.08, shake: 0.45 }); C.events.push({ t: at(0.14), fn: () => { const c = aimPoint(s, 26); splinters(c.x, c.y); } }); sfx("heavy"); sfx("chop", 0.13); } },
       { dur: 0.46, lunge: 6, start: (s) => { arc(s, { span: 3.2, r: 26, W: 12, pal: P.stone, dir: -1, dur: 0.4 }); hitArc(s, 0.12, { range: 48, span: 3.2, dmg: 14, stop: 0.07, shake: 0.4 }); sfx("heavy"); sfx("chop", 0.12); } },
       { dur: 0.85, lunge: 20, dash: true, start: (s) => { arc(s, { span: TAU * 1.1, r: 28, W: 14, pal: P.stone, dir: 1, dur: 0.5, sq: 0.7, from: s.a }); smash(s, 30, P.stone, 0.42); hitCircle(s, 0.2, { x: 0, y: 0, r: 46, dmg: 12, stop: 0.06, shake: 0.4 }); hitCircle(s, 0.44, { fwd: 30, r: 36, dmg: 30, stop: 0.14, shake: 0.9 }); C.events.push({ t: at(0.44), fn: () => { const c = aimPoint(s, 30); splinters(c.x, c.y); splinters(c.x, c.y); } }); sfx("heavy"); sfx("boom", 0.42); } },
     ] },
-    { id: "maul", name: "Lava Maul", cls: "Blunt", col: "#ff8a3a", unlock: "Lava fields — break the basalt gate", moves: [
+    { id: "maul", name: "Lava Maul", cls: "Blunt", col: "#ff8a3a", unlock: "The forge: 3 magma shards", moves: [
       { dur: 0.48, lunge: 6, start: (s) => { arc(s, { span: 2.6, r: 26, W: 12, pal: P.magma, dir: 1, dur: 0.44, style: "magma" }); hitArc(s, 0.16, { range: 46, span: 2.8, dmg: 16, stop: 0.07, shake: 0.4 }); sfx("heavy"); } },
       { dur: 0.75, lunge: 10, start: (s) => { arc(s, { span: 1.4, r: 20, W: 12, pal: P.magma, dir: 1, dur: 0.3, style: "magma", sq: 0.45, from: s.a - Math.PI * 0.8 }); smash(s, 30, P.magma, 0.24); hitCircle(s, 0.26, { fwd: 30, r: 40, dmg: 34, stop: 0.14, shake: 1, flash: 0.25 }); sfx("boom", 0.24); } },
     ] },
-    { id: "heel", name: "Ember Heel", cls: "Fire", col: "#ff8a3a", unlock: "Pele's shrine on the volcano", moves: [
+    { id: "firestaff", name: "Ahi Staff", cls: "Fire · Twirling staff", col: "#ff9a3a", unlock: "The forge: 3 fire shards", moves: [
+      { dur: 0.34, lunge: 7, start: (s) => { fire(s, { span: 2.6, r: 22, W: 9, dir: 1, dur: 0.34 }); hitArc(s, 0.08, { range: 42, span: 2.8, dmg: 11, burn: 1 }); sfx("fire"); } },
+      { dur: 0.34, lunge: 7, start: (s) => { fire(s, { span: 2.6, r: 22, W: 9, dir: -1, dur: 0.34 }); hitArc(s, 0.08, { range: 42, span: 2.8, dmg: 12, burn: 1 }); sfx("fire"); } },
+      { dur: 0.55, lunge: 4, start: (s) => { fire(s, { span: TAU * 1.1, r: 26, W: 10, dir: 1, dur: 0.5, sq: 0.7, from: s.a + Math.PI }); hitCircle(s, 0.2, { x: 0, y: 0, r: 46, dmg: 16, burn: 1, shake: 0.35, stop: 0.06 }); sfx("fire"); sfx("fire", 0.2); } },
+      { dur: 0.85, lunge: 0, start: (s) => { fire(s, { span: TAU * 2.1, r: 30, W: 12, dir: -1, dur: 0.7, sq: 0.75, from: s.a }); bloom(s, 0, 0.42); hitCircle(s, 0.45, { x: 0, y: 0, r: 60, dmg: 30, burn: 1, stop: 0.12, shake: 0.9, flash: 0.3 }); sfx("fire"); sfx("boom", 0.45); } },
+    ] },
+    { id: "heel", name: "Ember Heel", cls: "Fire", col: "#ff8a3a", unlock: "A gift of Pele, in lands to come", moves: [
       { dur: 0.42, lunge: 8, start: (s) => { fire(s, { span: 3.6, r: 20, W: 11, dir: 1, dur: 0.5 }); hitArc(s, 0.12, { range: 40, span: 3.6, dmg: 12, burn: 1 }); sfx("fire"); } },
       { dur: 0.48, lunge: 10, start: (s) => { fire(s, { span: 5.2, r: 24, W: 12, dir: -1, dur: 0.55, sq: 0.6 }); hitArc(s, 0.16, { range: 44, span: 5.2, dmg: 14, burn: 1 }); sfx("fire"); } },
       { dur: 0.8, lunge: 16, start: (s) => { fire(s, { span: 2.2, r: 18, W: 13, dir: 1, dur: 0.4, sq: 0.35, from: s.a - Math.PI * 0.9 }); bloom(s, 30, 0.26); hitCircle(s, 0.3, { fwd: 30, r: 36, dmg: 34, stop: 0.14, shake: 0.9, flash: 0.3, burn: 1 }); sfx("boom", 0.28); sfx("fire", 0.3); } },
     ] },
-    { id: "storm", name: "Stormcaller", cls: "Storm", col: "#a8c4ff", unlock: "Summit of Mauna Lani in a storm", moves: [
+    { id: "storm", name: "Stormcaller", cls: "Storm", col: "#a8c4ff", unlock: "The forge: 3 storm shards", moves: [
       { dur: 0.4, lunge: 6, start: (s) => { arc(s, { span: 2.8, r: 26, W: 8, pal: P.storm, dir: 1, dur: 0.38, style: "elec" }); forks(s, 3, 70, 0.08); hitArc(s, 0.08, { range: 48, span: 3, dmg: 10, shock: 1 }); sfx("stormSwing"); } },
       { dur: 0.55, lunge: 4, start: (s) => { thrust(s, 44, P.storm); const c = aimPoint(s, 60); cloud(c.x, c.y - 46, 0.7, 1.3); cloud(c.x - 34, c.y - 40, 0.7, 0.9); cloud(c.x + 32, c.y - 42, 0.7, 1.0); chain(s, 0.12, 6, 190); bolt(c.x, c.y, 0.22, 1); hitLine(s, 0.08, { len: 50, w: 14, dmg: 8, shock: 1 }); sfx("zap", 0.1); sfx("thunder", 0.22); } },
       { dur: 0.9, lunge: 0, start: (s) => { const t = aimPoint(s, 46); cloud(t.x, t.y - 40, 0.85, 1.2); for (let k = 0; k < 3; k++) { bolt(t.x + (k - 1) * 14, t.y, 0.3 + k * 0.12); hitCircle(s, 0.32 + k * 0.12, { at: { x: t.x + (k - 1) * 14, y: t.y }, r: 20, dmg: 12, stop: 0.08, shake: 0.6, flash: 0.4, shock: 1 }); } sfx("thunder", 0.3); } },
     ], ult: { name: "Tempest", dur: 1.5, lunge: 0, start: (s) => { tempest(s); sfx("stormCast"); } } },
-    { id: "tide", name: "Tidecutter", cls: "Water", col: "#5ab8ff", unlock: "Ocean shrine beneath the reef", moves: [
+    { id: "tide", name: "Tidecutter", cls: "Water", col: "#5ab8ff", unlock: "The forge: 3 water shards", moves: [
       { dur: 0.36, lunge: 8, start: (s) => { arc(s, { span: 2.8, r: 24, W: 10, pal: P.water, dir: 1, dur: 0.42, style: "water" }); hitArc(s, 0.08, { range: 44, span: 3, dmg: 10 }); sfx("water"); } },
       { dur: 0.36, lunge: 8, start: (s) => { arc(s, { span: 2.8, r: 26, W: 10, pal: P.water, dir: -1, dur: 0.42, style: "water" }); hitArc(s, 0.08, { range: 44, span: 3, dmg: 11 }); sfx("water"); } },
       { dur: 0.8, lunge: 20, start: (s) => { arc(s, { span: TAU * 1.6, r: 14, grow: 22, W: 11, pal: P.water, dir: 1, dur: 0.75, style: "water", sq: 0.72, from: s.a }); splash(s.x, s.y - 4, 26, P.water); for (let k = 0; k < 3; k++) hitCircle(s, 0.18 + k * 0.16, { x: 0, y: 0, r: 46, dmg: 10, stop: 0.06, shake: 0.35 }); sfx("water"); sfx("water", 0.3); } },
     ] },
-    { id: "glowtide", name: "Glowtide", cls: "Water · Bioluminescent", col: "#5af2e8", unlock: "Ana ʻŌlino — the glowing sea cave", moves: [
+    { id: "glowtide", name: "Glowtide", cls: "Water · Bioluminescent", col: "#5af2e8", unlock: "The forge: 3 glowing-water shards", moves: [
       { dur: 0.42, lunge: 9, start: (s) => { biolum(s, { span: 3.0, r: 26, W: 15, dir: 1, dur: 0.6 }); hitArc(s, 0.09, { range: 50, span: 3.1, dmg: 11 }); sfx("glowSwing"); } },
       { dur: 0.42, lunge: 9, start: (s) => { biolum(s, { span: 3.0, r: 28, W: 15, dir: -1, dur: 0.6 }); hitArc(s, 0.09, { range: 52, span: 3.1, dmg: 12 }); sfx("glowSwing"); } },
       { dur: 0.5, lunge: 12, start: (s) => { biolum(s, { span: 5.8, r: 22, W: 17, dir: 1, dur: 0.7, sq: 0.6 }); hitCircle(s, 0.14, { x: 0, y: 0, r: 50, dmg: 13, stop: 0.05 }); sfx("glowSwing"); sfx("glowSwing", 0.12); } },
       { dur: 0.85, lunge: 6, start: (s) => { wave(s, P.glow, 0.85); for (let k = 0; k < 3; k++) hitCircle(s, 0.15 + k * 0.17, { fwd: 22 + k * 18, r: 26, dmg: 11, stop: 0.06, shake: 0.35 }); sfx("glowSwing"); sfx("chime", 0.2); } },
     ], ult: { name: "Glowing Maelstrom", dur: 1.3, lunge: 0, start: (s) => { vortex(s); sfx("glowBurst"); } } },
-    { id: "starfall", name: "Starfall", cls: "Celestial", col: "#c8b4ff", unlock: "Temple of the Sun — final chamber", moves: [
+    { id: "starfall", name: "Starfall", cls: "Celestial", col: "#c8b4ff", unlock: "The forge: 3 celestial shards", moves: [
       { dur: 0.4, lunge: 8, start: (s) => { arc(s, { span: 3.0, r: 27, W: 11, pal: P.star, dir: 1, dur: 0.5, style: "star" }); constellation(s, 1, 0.08); hitArc(s, 0.08, { range: 50, span: 3.1, dmg: 12 }); sfx("celSwing"); } },
       { dur: 0.4, lunge: 8, start: (s) => { arc(s, { span: 3.0, r: 30, W: 11, pal: P.star, dir: -1, dur: 0.5, style: "star" }); constellation(s, -1, 0.08); hitArc(s, 0.08, { range: 52, span: 3.1, dmg: 13 }); sfx("celSwing"); } },
       { dur: 0.6, lunge: 18, dash: true, start: (s) => { arc(s, { span: 3.8, r: 34, W: 16, pal: P.star, dir: 1, dur: 0.6, style: "star", sq: 0.55 }); iai(s, 90, P.star); hitLine(s, 0.16, { len: 90, w: 20, dmg: 20, stop: 0.09, shake: 0.5, flash: 0.25 }); sfx("celSwing"); sfx("celHit", 0.16); } },
       { dur: 0.95, lunge: 0, start: (s) => { const c = aimPoint(s, 42); for (let k = 0; k < 5; k++) { const a = k * 1.3, d = k ? 15 : 0; star(c.x + Math.cos(a) * d, c.y + Math.sin(a) * d * 0.7, 0.3 + k * 0.08); hitCircle(s, 0.4 + k * 0.08, { at: { x: c.x + Math.cos(a) * d, y: c.y + Math.sin(a) * d * 0.7 }, r: 16, dmg: 9, stop: 0.05, shake: 0.35 }); sfx("chime", 0.36 + k * 0.08); } sfx("celSwing"); } },
     ], ult: { name: "The Heavens", dur: 1.7, lunge: 0, start: (s) => { heavens(s); sfx("celFinale"); } } },
-    { id: "stone", name: "Pele's Grip", cls: "Stone · Gauntlet", col: "#d8c49a", unlock: "Deep basalt halls under the volcano", moves: [
+    { id: "stone", name: "Pele's Grip", cls: "Stone · Gauntlet", col: "#d8c49a", unlock: "The forge: 3 stone shards", moves: [
       { dur: 0.36, lunge: 8, start: (s) => { punch(s); spikes(s, 1, 24, 0.08); hitCircle(s, 0.1, { fwd: 22, r: 18, dmg: 12, stop: 0.06, shake: 0.4 }); sfx("stone", 0.06); } },
       { dur: 0.7, lunge: 0, start: (s) => { stomp(s); spikes(s, 6, 20, 0.12, 13); for (let k = 0; k < 6; k++) hitCircle(s, 0.14 + k * 0.06, { fwd: 20 + k * 13, r: 14, dmg: 6, stop: 0.03, shake: 0.25, quiet: k % 2 }); sfx("stone", 0.12); sfx("stone", 0.3); } },
       { dur: 0.95, lunge: 0, start: (s) => { stomp(s); ring(s.x, s.y, 50, P.stone, 0.5); for (let k = 0; k < 10; k++) { const a = (k / 10) * TAU; spikeAt(s.x + Math.cos(a) * 34, s.y + Math.sin(a) * 24, 0.16 + (k % 2) * 0.05, 16 + (k % 3) * 3); } hitCircle(s, 0.2, { x: 0, y: 0, r: 52, dmg: 30, stop: 0.13, shake: 0.9, flash: 0.2 }); sfx("boom", 0.18); sfx("stone", 0.2); } },
@@ -242,6 +253,10 @@
     for (let i = f0; i < C.fx.length; i++) if (!C.fx[i].p) C.fx[i].p = actor;
     for (let i = e0; i < C.events.length; i++) { const ev = C.events[i], f = ev.fn; if (ev.bound) continue; ev.bound = true; ev.fn = () => withActor(actor, real, f); }
   }
+  // a talisman's blast: every foe within r of (x, y) takes the hit (actor = whose blast it is)
+  C.blast = function (actor, x, y, r, o, real) {
+    withActor(actor, real === undefined ? true : real, () => { for (const d of C.targets) { if (d.dead || d.untouchable) continue; const dd = Math.hypot(d.x - x, (d.y - 10 - y) / 0.85); if (dd < r + (d.big || 0)) damage(d, Object.assign({ stop: 0.05, shake: 0.3 }, o), Math.atan2(d.y - y, d.x - x)); } });
+  };
   C.ghost = function (actor, wi, mi, a, real) {
     const w = WEAPONS[wi]; if (!w) return;
     const m = mi < 0 ? w.ult : w.moves[mi]; if (!m) return;
@@ -266,18 +281,19 @@
       if (d.onBlock) d.onBlock(ang);
       sfx("guardHit"); return;
     }
-    const crit = Math.random() < 0.14;
-    const mom = 1 + 0.15 * C.momTier();                      // momentum makes every hit heavier
+    const crit = Math.random() < 0.14 + (C.critBonus || 0);
+    const mom = (1 + 0.15 * C.momTier()) * (C.dmgMul ? C.dmgMul(WEAPONS[C.cur].id) : 1);                      // momentum makes every hit heavier
     const dmg = Math.max(1, Math.round(o.dmg * (0.9 + Math.random() * 0.2) * (crit ? 1.7 : 1) * mom * (d.armor || 1)));   // armor <1 = guarded, >1 = exposed
     d.hp -= dmg; d.flash = 0.12; d.angV += Math.cos(ang) * (0.9 + dmg * 0.05); d.hitT = C.clock;
     if (d.onHit) d.onHit(dmg, ang, crit);
-    if (d.enemy) { C.momentum = Math.min(100, C.momentum + (crit ? 9 : 5)); C.momT = C.clock; }
+    if (d.enemy) { C.momentum = Math.min(100, C.momentum + (crit ? 9 : 5) * (C.momMul || 1)); C.momT = C.clock; }
     const w = WEAPONS[C.cur];
     C.nums.push({ x: d.x + (Math.random() - 0.5) * 10, y: d.y - 40, v: dmg, crit, t0: C.clock, col: crit ? "#fff1a0" : w.col });
     stopFor((o.stop || 0.045) * (crit ? 1.3 : 1));
     C.shake = Math.min(1, C.shake + (o.shake || 0.22) * (crit ? 1.3 : 1));
     if (o.flash) { C.flash = Math.max(C.flash, o.flash); C.flashCol = o.shock ? "220,230,255" : o.burn ? "255,200,140" : "255,255,255"; }
     impact(d.x, d.y - 20, w, crit);
+    if (d.enemy) landed(d, dmg, o, ang);
     if (o.burn) for (let k = 0; k < 8; k++) part({ x: d.x + (Math.random() - 0.5) * 14, y: d.y - 10 - Math.random() * 24, vx: (Math.random() - 0.5) * 20, vy: -20 - Math.random() * 30, life: 0.6, col: ["#ffb63c", "#ec561c", "#fff4b8"][k % 3], size: 1, kind: "ember" });
     if (o.shock) for (let k = 0; k < 6; k++) part({ x: d.x, y: d.y - 20, vx: (Math.random() - 0.5) * 120, vy: (Math.random() - 0.5) * 120, life: 0.25, col: "#fff4a4", size: 1, kind: "spark" });
     C.combo++; C.comboT = C.clock;
@@ -294,6 +310,19 @@
     }
   }
 
+  // gear effects on a blow you land: blood cloth heals every so many hits; storm cloth arcs lightning on
+  function landed(d, dmg, o, ang) {
+    if (C.lifesteal) { C.lsCount = (C.lsCount || 0) + 1; if (C.lsCount >= C.lifesteal) { C.lsCount = 0; C.onHeal && C.onHeal(1); } }
+    if (C.chainChance && !o.chained && Math.random() < C.chainChance) {
+      let best = null, bd = 70;
+      for (const q of C.targets) if (q !== d && !q.dead && !q.untouchable) { const dd = Math.hypot(q.x - d.x, q.y - d.y); if (dd < bd) { bd = dd; best = q; } }
+      if (best) {
+        for (let k = 0; k <= 8; k++) part({ x: d.x + (best.x - d.x) * k / 8 + (Math.random() - 0.5) * 6, y: d.y - 14 + (best.y - d.y) * k / 8, vx: 0, vy: 0, life: 0.2, col: "#e8f0ff", size: 1, kind: "spark" });
+        damage(best, { dmg: Math.max(1, Math.round(dmg * 0.45)), shock: 1, chained: true, stop: 0, shake: 0.08, quiet: false }, ang);
+        sfx("zap");
+      }
+    }
+  }
   // a hit that is only partly ours to resolve. d.net: our swing on an enemy the host simulates (show
   // the hit and earn momentum; the host applies the damage). !local: the partner's swing on the host
   // (apply the damage, but the partner's momentum and hit-stop are theirs, not ours).
@@ -303,7 +332,7 @@
     d.flash = 0.12; d.angV += Math.cos(ang) * 0.6;
     if (local) {
       C.nums.push({ x: d.x + (Math.random() - 0.5) * 10, y: d.y - 40, v: dmg, crit, t0: C.clock, col: crit ? "#fff1a0" : w.col });
-      C.momentum = Math.min(100, C.momentum + (crit ? 9 : 5)); C.momT = C.clock; C.combo++; C.comboT = C.clock;
+      C.momentum = Math.min(100, C.momentum + (crit ? 9 : 5) * (C.momMul || 1)); C.momT = C.clock; C.combo++; C.comboT = C.clock;
       stopFor((o.stop || 0.045) * (crit ? 1.3 : 1)); C.shake = Math.min(1, C.shake + (o.shake || 0.22) * (crit ? 1.3 : 1));
       impact(d.x, d.y - 20, w, crit);
       if (C.swing && C.swing.final && !C.swing.counted && C.swing.w.ult) { C.swing.counted = true; const ww = C.swing.w; ww.charge = Math.min(C.SURGE, (ww.charge || 0) + 1); if (ww.charge === C.SURGE) { C.readyT = C.clock; sfx("ultReady"); } }
@@ -455,8 +484,8 @@
   // C.loadout, and only those are switched between (Q/R, wheel, 1-5). In the dojo every rack weapon is
   // free to try.
   C.LOADOUT_MAX = 5;
-  C.unlocked = new Set(["spear", "pahoa", "newa"]);
-  C.loadout = ["spear", "pahoa", "newa"];
+  C.unlocked = new Set(["spear", "pahoa"]);
+  C.loadout = ["spear", "pahoa"];
   C.allUnlocked = false;
   const idOf = (i) => WEAPONS[i] && WEAPONS[i].id, indexOf = (id) => WEAPONS.findIndex((w) => w.id === id);
   C.indexOf = indexOf;

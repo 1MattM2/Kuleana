@@ -176,7 +176,7 @@
   }
 
   // Market stall: thatch roof, posts, counter of goods (fruit + potions as in the concept)
-  function makeStall(seed, variant) {
+  function makeStall(seed, variant, empty) {
     const w = 76, h = 70;
     const [c, ctx] = K.canvas(w, h);
     const r = K.rng(seed);
@@ -198,7 +198,7 @@
     // goods on the counter
     let gx = 6;
     const goods = variant === 0 ? ["pine", "pot:#a050d8", "pot:#3c7ee0", "fruit", "pot:#e04848", "coco", "pot:#50c070"] : ["fruit", "pot:#e04848", "bananas", "pot:#a050d8", "coco", "pot:#3c7ee0", "pine"];
-    for (const g of goods) {
+    for (const g of empty ? [] : goods) {
       if (g.startsWith("pot")) {
         const col = g.slice(4);
         rect(ctx, gx + 1, 33, 3, 1, "#5a3a24"); // cork
@@ -679,14 +679,15 @@
 
     // ---- market stalls + merchants
     World.npcs = [];
-    const stalls = [[37 * T, 15 * T + 8, 0, "Makani", ["Aloha, traveller! Fresh fruit and potions.", "The old temple woke up when the sun stones glowed...", "Come back when you have shells to trade!"]],
-                    [38 * T, 26 * T + 8, 1, "Leilani", ["E komo mai! Welcome to Kuleana.", "Mind the lava rocks to the east, they bite.", "They say the tide carries treasure at dusk."]]];
+    // Makani's stall: empty and dusty until he is rescued from the Scorched Crown (end of Zone 1)
+    const stalls = [[37 * T, 15 * T + 8, 0, "Makani", ["Aloha, and mahalo for bringing me home!", "Shells are what we trade in here: common, uncommon, and the rare ones from the great beasts.", "Bring me shells and I'll trade you what I have."]]];
     for (const [sx, sy, v, name, lines] of stalls) {
-      const img = makeStall(sx * 7 + sy, v);
-      objs.push(spriteObj(img, sx, sy, { box: [-36, -16, 36, 0], shadow: [38, 5, 0.25] }));
+      const img = makeStall(sx * 7 + sy, v), bare = makeStall(sx * 7 + sy, v, true), so = spriteObj(img, sx, sy, { box: [-36, -16, 36, 0], shadow: [38, 5, 0.25] }), d0 = so.draw;
+      so.draw = function (ctx, ox, oy, t) { this.img = window.Gear && Gear.rescued("vendor") ? img : bare; return d0.call(this, ctx, ox, oy, t); };
+      objs.push(so); World.stall = { x: sx, y: sy };
       taken.push([sx, sy - 10, 52]);
       keepOut.push([sx - 50, sy - 70, sx + 50, sy + 40]);
-      const npc = { x: sx - 46, y: sy + 4, name, lines, kind: "npc", phase: r() * 5, box: [sx - 52, sy - 2, sx - 40, sy + 4] };
+      const npc = { x: sx - 46, y: sy + 4, name, lines, kind: "npc", vendor: true, phase: r() * 5, box: [sx - 52, sy - 2, sx - 40, sy + 4] };
       World.npcs.push(npc);
       objs.push(npc);
     }

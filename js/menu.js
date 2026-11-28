@@ -2,7 +2,7 @@
 // how to work the menu itself. Solo play pauses while it is open; co-op keeps running.
 (function () {
   const M = (window.Menu = { open: false, tab: "coop", el: null });
-  const TABS = [["coop", "Co-op"], ["controls", "Controls"], ["sound", "Sound"], ["menu", "Menu"]];
+  const TABS = [["gear", "Gear"], ["book", "Bestiary"], ["coop", "Co-op"], ["controls", "Controls"], ["sound", "Sound"], ["menu", "Menu"]];
   const CONTROLS = [
     ["Move", "W A S D  /  Arrow keys"], ["Run", "Shift (hold)"], ["Attack", "J  /  Left click. Press again mid-swing to chain a combo"],
     ["Dodge roll", "Space  /  K  /  Right click. Roll just as a blow lands for a perfect dodge"],
@@ -17,6 +17,8 @@
     el.innerHTML = `<div class="mn-box">
       <div class="mn-head"><span class="mn-title">SETTINGS</span><span class="mn-x" data-a="close">Esc ✕</span></div>
       <div class="mn-tabs">${TABS.map(([k, n]) => `<button class="mn-tab" data-tab="${k}">${n}</button>`).join("")}</div>
+      <div class="mn-page" data-page="gear"><div class="mn-gearwrap"></div></div>
+      <div class="mn-page" data-page="book"><div class="mn-bookwrap"></div></div>
       <div class="mn-page" data-page="coop">
         <p class="mn-note">Play with up to two friends over the internet. One of you hosts and shares the 5-letter code; the others join with it.</p>
         <div class="mn-row"><button data-a="host">Host a game</button><button data-a="leave">Leave co-op</button></div>
@@ -55,6 +57,16 @@
       #menu .mn-note{margin:0 0 6px;color:#e8dcc0}
       #menu .mn-list{margin:10px 0 0;padding-left:18px;color:#c8bca0;font-size:14px;line-height:1.45}
       #menu .mn-table{width:100%;border-collapse:collapse}
+      #menu .mn-dim{color:#a89880;font-size:13px}
+      #menu .mn-beast{padding:5px 0;border-bottom:1px solid #2e2234;font-size:14px}
+      #menu .mn-bookwrap{max-height:52vh;overflow:auto}
+      #menu .mn-gear{display:flex;flex-direction:column;gap:5px;margin-top:6px}
+      #menu .mn-armor{display:flex;align-items:center;gap:8px;text-align:left;background:#1a1220;border:1px solid #4a3a50;color:#f4e6c8;padding:6px 8px;font:inherit;cursor:pointer}
+      #menu .mn-armor.on{border-color:#f2d070;background:#2a1e30}
+      #menu .mn-armor i{width:10px;height:14px;display:inline-block;border:1px solid #0c0810}
+      #menu .mn-armor span{flex:0 0 auto;min-width:120px} #menu .mn-armor small{color:#a89880;font-size:12px}
+      #menu .mn-shards{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:4px;font-size:13px}
+      #menu .mn-shard i{display:inline-block;width:6px;height:9px;margin-right:5px;transform:rotate(45deg) scale(0.8)}
       #menu .mn-table td{padding:5px 6px;border-bottom:1px solid #2e2234;vertical-align:top}
       #menu .mn-table td:first-child{color:#f2d070;white-space:nowrap;width:34%}
       #menu .mn-vol input{flex:1}`;
@@ -97,6 +109,8 @@
   };
   M.refresh = function () {
     if (!M.el) return;
+    const gw = M.el.querySelector(".mn-gearwrap"); if (gw && window.Gear && M.tab === "gear") Gear.renderTab(gw);
+    const bw = M.el.querySelector(".mn-bookwrap"); if (bw && window.Gear && M.tab === "book") Gear.renderBook(bw);
     const s = M.el.querySelector(".mn-status"), N = window.Net;
     const code = N && N.role === "host" && N.code && N.count() < N.MAX ? `<div class="mn-big">${N.code}</div>` : "";
     s.innerHTML = code + ((N && N.status) || "Playing solo.");

@@ -193,7 +193,7 @@
           ] },
       ],
       gates: [{ x: 14.5, y: 44.4, to: "sanctum" }, { x: 10.4, y: 8.8, to: "sanctum" }],
-      shrine: { x: 7.6, y: 11.2, unlock: "kakau" },
+      shrine: { x: 7.6, y: 11.2, unlock: "newa" },
     },
     canopy: {
       title: "CANOPY PASSES", sub: "Forest on the mountains' backs", bg: "valley", cliff: 110, wallFace: 26, ivy: 0.5, amb: "highlands", zone: 1, level: 2,
@@ -273,7 +273,7 @@
           waves: [[{e: "gecko", x: 38, y: 23, enter: "scurry"}, {e: "gecko", x: 50, y: 23, enter: "scurry"}, {e: "gecko", x: 40, y: 29, enter: "scurry"}, {e: "gecko", x: 48, y: 29, enter: "scurry"}],
                   [{e: "snake", x: 44, y: 22, enter: "scurry"}, {e: "snake", x: 38, y: 29, enter: "scurry"}, {e: "gecko", x: 36, y: 26, enter: "scurry"}, {e: "gecko", x: 52, y: 26, enter: "scurry"}],
                   [{e: "vine", x: 38, y: 27, enter: "burst"}, {e: "vine", x: 50, y: 27, enter: "burst"}, {e: "gecko", x: 44, y: 30, enter: "scurry"}]] },
-        { title: "THE GARDEN OF MANY HEADS", rect: [5, 2, 27, 13], seals: [[5.6, 12.6, 10.4, 13.4]], unlocks: "crown",
+        { title: "THE GARDEN OF MANY HEADS", rect: [5, 2, 27, 13], seals: [[5.6, 12.6, 10.4, 13.4]], unlocks: "crown", reward: "armor:kapa",
           waves: [[{e: "hydra", x: 16, y: 7.5, enter: "burst"}, {e: "vine", x: 8, y: 6, enter: "burst"}, {e: "vine", x: 24, y: 9, enter: "burst"}]] },
       ],
       gates: [{ x: 12, y: 50.4, to: "sanctum" }, { x: 22, y: 5.8, to: "sanctum" }],
@@ -351,7 +351,7 @@
           waves: [[{e: "firedancer", x: 29, y: 29}, {e: "firedancer", x: 39, y: 29}, {e: "firegecko", x: 27, y: 33, enter: "scurry"}, {e: "firegecko", x: 41, y: 33, enter: "scurry"}],
                   [{e: "wisp", x: 30, y: 28, enter: "descend"}, {e: "wisp", x: 38, y: 28, enter: "descend"}, {e: "wisp", x: 34, y: 34, enter: "descend"}, {e: "firedancer", x: 34, y: 27}, {e: "firegecko", x: 25, y: 31, enter: "scurry"}],
                   [{e: "firedancer", x: 28, y: 32}, {e: "firedancer", x: 40, y: 32}, {e: "spear", x: 31, y: 27, tribe: 21}, {e: "spear", x: 37, y: 27, tribe: 21}, {e: "dart", x: 34, y: 35, tribe: 21}]] },
-        { title: "KAHU-AHI", rect: [38, 2, 70, 17], seals: [[57.6, 16.6, 62.4, 17.4]], final: 1, unlocks: "isles", reward: "heel",
+        { title: "KAHU-AHI", rect: [38, 2, 70, 17], seals: [[57.6, 16.6, 62.4, 17.4]], final: 1, unlocks: "isles", reward: "rescue:vendor",
           waves: [[{e: "hive", x: 52, y: 9.4, enter: "burst"}]] },
       ],
       gates: [{ x: 12, y: 48.4, to: "sanctum" }, { x: 45, y: 6.6, to: "sanctum" }],
@@ -864,6 +864,7 @@
     if (!Level.netGuest) for (const e of coopRoster(def.enemies || [], b)) { const en = Enemies.spawn(e.e, e.x * T, e.y * T, e.tribe || 0, L); if (en) L.enemies.push(en); }
     L.solids = [];
     for (const p of L.props) if (p.solids) L.solids.push(...p.solids);
+    if (def.sea && !Level.netGuest) { const r = K.rng(name.length * 41 + 7); for (let k = 0, n = 0; k < 600 && n < 9; k++) { const x = r() * b.W, y = r() * b.H, i = (y | 0) * b.W + (x | 0); if (b.terr[i] !== SAND || !b.water || b.water.landDist[i] > 12 || b.water.landDist[i] < 3) continue; L.pickups.push({ x, y, t0: 0, beach: 1, shell: Gear.randomShell(r() < 0.85 ? 0 : 1) }); n++; } }
     for (const n of L.npcs) L.solids.push([n.x - 7, n.y - 5, n.x + 7, n.y + 1]);
     L.spawn = { x: def.spawn.x * T, y: def.spawn.y * T };
     L.birds = def.bg === "valley" ? Array.from({ length: 9 }, () => ({ x: Math.random() * b.W, y: Math.random() * b.H, a: Math.random() * 6, sp: 22 + Math.random() * 12, ph: Math.random() * 6, h: def.cliff * (0.35 + Math.random() * 0.4) })) : [];
@@ -985,9 +986,9 @@
       if (b.vy !== undefined) { b.vy += 220 * dt; b.y += b.vy * dt; if (b.vy > 0 && t - b.t0 > 0.3) { delete b.vy; onGround(b); } }
       // picked up from a generous reach, and drawn the last few pixels toward the hero
       for (const q of heroes) { const dd = Math.hypot(q.x - b.x, q.y - 8 - b.y); if (!b.got && !q.dead && dd < 40 && dd > 1 && b.vy === undefined) { const k = Math.min(1, dt * 6); b.x += (q.x - b.x) * k; b.y += (q.y - 8 - b.y) * k; } }
-      for (const q of heroes) if (!b.got && !q.dead && Math.hypot(q.x - b.x, q.y - 8 - b.y) < 26) { b.got = true; api.heal(2, q); api.sfx("berry"); }
+      for (const q of heroes) if (!b.got && !q.dead && Math.hypot(q.x - b.x, q.y - 8 - b.y) < 26) { b.got = true; if (b.el) api.shard(b.el, q); else if (b.shell) api.shell(b.shell, q); else { api.heal(2, q); api.sfx("berry"); } }
     }
-    L.pickups = L.pickups.filter((b) => !b.got && t - b.t0 < 40);
+    L.pickups = L.pickups.filter((b) => !b.got && (b.beach || t - b.t0 < (b.el || b.shell ? 90 : 40)));
   };
   function rewards(heroes, P0, L, t) {
     const Pc = heroes.find((q) => !q.dead) || P0, nb = 3 + 2 * (heroes.length - 1);
@@ -999,7 +1000,7 @@
     L.banner = { title: "THE WAY IS OPEN", t0: t };
     if (a.unlocks || a.final) { Level.cleared.add(L.name); if (Level.onUnlock) Level.onUnlock(); }
     if (a.unlocks && !Level.unlocked.has(a.unlocks)) { Level.unlock(a.unlocks); L.banner = { title: "THE WAY IS OPEN", sub: "A new land glows on Kahu Lā's globe", t0: t }; }
-    if (a.final) L.banner = { title: a.zoneDone || "ZONE 1 CLEARED", sub: a.zoneSub || "The Volcanic Highlands are at peace. The Ember Heel is yours.", t0: t };
+    if (a.final) L.banner = { title: a.zoneDone || "ZONE 1 CLEARED", sub: a.zoneSub || "The Volcanic Highlands are at peace", t0: t };
     if (a.reward && Level.onReward) Level.onReward(a.reward);
   }
   // a stampede: herds of geckos thunder across the arena from every side while smaller waves press
@@ -1046,10 +1047,10 @@
   Level.unlock = (n) => { if (!DEFS[n] || Level.unlocked.has(n)) return; Level.unlocked.add(n); if (Level.onUnlock) Level.onUnlock(n); };
   // the parts of a level the guest needs from the host each tick
   Level.serialize = function (L) {
-    return { pk: L.pickups.map((b) => [Math.round(b.x), Math.round(b.y), b.vy !== undefined ? 1 : 0]), se: L.seals, ar: L.arenas.map((a) => a.state), po: L.portalOpen ? 1 : 0, sh: L.shrineTaken ? 1 : 0, tm: L.timer ? Math.round(L.timer * 10) / 10 : 0, vs: window.Sea ? Sea.serialize(L) : null };
+    return { pk: L.pickups.map((b) => [Math.round(b.x), Math.round(b.y), b.vy !== undefined ? 1 : 0, b.el || 0, b.shell || 0]), se: L.seals, ar: L.arenas.map((a) => a.state), po: L.portalOpen ? 1 : 0, sh: L.shrineTaken ? 1 : 0, tm: L.timer ? Math.round(L.timer * 10) / 10 : 0, vs: window.Sea ? Sea.serialize(L) : null };
   };
   Level.applySnap = function (L, S, t) {
-    L.pickups = S.pk.map(([x, y]) => ({ x, y, t0: t }));
+    L.pickups = S.pk.map(([x, y, , el, sh]) => ({ x, y, t0: t, el: el || undefined, shell: sh || undefined }));
     L.seals = S.se; S.ar.forEach((st, i) => { if (L.arenas[i]) L.arenas[i].state = st; });
     if (S.po) L.portalOpen = true; if (S.sh) L.shrineTaken = true; L.timer = S.tm || 0; if (S.vs && window.Sea) Sea.apply(L, S.vs, t);
   };
@@ -1079,6 +1080,8 @@
     }
   };
   Level.dropBerry = (x, y, t) => Level.cur.pickups.push({ x, y: y - 10, t0: t, vy: -70 });
+  Level.dropShard = (x, y, el, t) => Level.cur.pickups.push({ x, y: y - 10, t0: t, vy: -90, el });
+  Level.dropShell = (x, y, k, t) => Level.cur.pickups.push({ x, y: y - 10, t0: t, vy: -80, shell: k });
   // a berry that lands in rock, a prop or over a drop rolls out to the nearest ground you can stand on
   function onGround(b) {
     const ok = (x, y) => walk(tAt(x, y + 8)) && !Level.solidAt(x, y + 8) && !Level.solidAt(x - 5, y + 8) && !Level.solidAt(x + 5, y + 8);
@@ -1129,8 +1132,17 @@
     if (L.water) { Water.render(ctx, ox, oy, LW, LH, t, L.water); Sea.drawUnder(ctx, L, ox, oy, LW, LH, t); }
     eachBridge(ox, oy, LW, LH, (v, X, Y, tx, ty) => { const tm = L.tm, a = v === BH ? tm.at(tx, ty - 1) !== v : tm.at(tx - 1, ty) !== v, b = v === BH ? tm.at(tx, ty + 1) !== v : tm.at(tx + 1, ty) !== v; ctx.drawImage(bridgeTile(v, (tx * 7 + ty * 3) % 3, a, b), X, Y); });
     for (const v of L.vines) if (v.x > ox - 10 && v.x < ox + LW + 10 && v.y > oy - 60 && v.y < oy + LH + 10) Ruins.drawVine(ctx, v.x - ox, v.y - oy, v.len, t, v.ph);
-    for (const b of L.pickups) { const bob = b.vy === undefined ? Math.round(Math.sin(t * 3 + b.x) * 1.5) : 0; ctx.drawImage(Ruins.berry, Math.round(b.x - 4 - ox), Math.round(b.y - 6 - oy + bob)); }
+    for (const b of L.pickups) { const bob = b.vy === undefined ? Math.round(Math.sin(t * 3 + b.x) * 1.5) : 0; if (b.el) drawShard(ctx, b, b.x - ox, b.y - oy + bob, t); else if (b.shell) { ctx.drawImage(Gear.shellArt(b.shell), Math.round(b.x - 6 - ox), Math.round(b.y - 10 - oy + bob)); if (Math.sin(t * 3 + b.x) > 0.85) { ctx.fillStyle = "#ffffff"; ctx.fillRect(Math.round(b.x + 3 - ox), Math.round(b.y - 11 - oy + bob), 1, 1); } } else ctx.drawImage(Ruins.berry, Math.round(b.x - 4 - ox), Math.round(b.y - 6 - oy + bob)); }
   };
+  // an elemental shard: a faceted crystal in its element's colour, turning and glinting
+  function drawShard(ctx, b, x, y, t) {
+    const E = Gear.ELEMENTS[b.el], c = E.col, X = Math.round(x), Y = Math.round(y - 4), w = Math.abs(Math.cos(t * 2 + b.x)) * 3 + 1;
+    ctx.fillStyle = "rgba(10,12,16,0.3)"; ctx.fillRect(X - 3, Math.round(y + 3), 7, 2);
+    ctx.fillStyle = "#140c16"; ctx.fillRect(X - Math.ceil(w) - 1, Y - 6, Math.ceil(w) * 2 + 3, 13);
+    for (let k = -6; k <= 6; k++) { const hw = Math.round(w * (1 - Math.abs(k) / 7)); ctx.fillStyle = k < -2 ? "#ffffff" : c; ctx.fillRect(X - hw, Y + k, hw * 2 + 1, 1); }
+    ctx.fillStyle = "rgba(255,255,255,0.8)"; ctx.fillRect(X - 1, Y - 3, 1, 3);
+    if (Math.sin(t * 5 + b.y) > 0.8) { ctx.fillStyle = "#ffffff"; ctx.fillRect(X + 3, Y - 7, 1, 1); }
+  }
   function eachBridge(ox, oy, LW, LH, fn) {
     const tm = Level.cur.tm;
     for (let ty = Math.max(0, ((oy - Level.cur.def.cliff) / T) | 0); ty <= Math.min(tm.th - 1, ((oy + LH) / T) | 0); ty++) for (let tx = Math.max(0, (ox / T - 1) | 0); tx <= Math.min(tm.tw - 1, ((ox + LW) / T) | 0); tx++) {
@@ -1187,7 +1199,7 @@
       g.fillStyle = gr; g.beginPath(); g.moveTo(x - nx * w * 0.35, y - ny * w * 0.35); g.lineTo(x + nx * w * 0.35, y + ny * w * 0.35); g.lineTo(x + dx * L2 + nx * w * 0.6, y + dy * L2 + ny * w * 0.6); g.lineTo(x + dx * L2 - nx * w * 0.6, y + dy * L2 - ny * w * 0.6); g.fill();
       for (let k = 0; k < 16; k++) { const u = ((k * 0.137 + t * 0.03) % 1), v = Math.sin(k * 7.1 + t * 0.4) * 0.45, px = x + dx * L2 * u + nx * w * v * (0.35 + u * 0.25), py = y + dy * L2 * u + ny * w * v * (0.35 + u * 0.25); g.fillStyle = `rgba(255,245,210,${0.55 * (1 - u)})`; g.fillRect(Math.round(px), Math.round(py), 1, 1); }
     }
-    for (const b of L.pickups) glowAt(g, b.x - ox, b.y - oy - 4, 14, "255,120,110", 0.45);
+    for (const b of L.pickups) glowAt(g, b.x - ox, b.y - oy - 4, b.el ? 22 : 14, b.el ? Gear.ELEMENTS[b.el].glow : b.shell ? "255,240,210" : "255,120,110", b.el ? 0.6 : b.shell ? 0.25 : 0.45);
     for (const m of L.air.motes) { const x = m.x - ox, y = m.y - oy; if (x < -10 || x > 490 || y < -10 || y > 280) continue; if (Math.sin(t * (m.ember ? 6 : 1.7) + m.ph) > (m.ember ? -0.4 : 0.1)) glowAt(g, x + (m.ember ? 0 : Math.sin(t * 0.4 * m.sp + m.ph) * 10), y, m.ember ? 6 : 5, m.ember ? "255,140,60" : "255,230,140", m.ember ? 0.5 : 0.35); }
     for (const [ex, ey] of L.embers) { if (ex < ox - 30 || ex > ox + 510 || ey < oy - 30 || ey > oy + 300) continue; glowAt(g, ex - ox, ey - oy, 18, "255,110,40", 0.16 + 0.1 * Math.sin(t * 1.3 + ex * 0.1)); }
   };
