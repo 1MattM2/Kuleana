@@ -119,6 +119,7 @@
     const hf = filt("lowpass", 240, 0.7); humG.connect(hf); hf.connect(master); hf.connect(wet);
     for (const [g, outs] of [[windG, [master]], [rustleG, [master]], [surfG, [master]], [washG, [master]], [riverG, [master]], [bugG, [master]], [droneG, [master, wet]], [lapG, [master, wet]], [cicG, [master]], [rumbleG, [master, wet]], [humG, [hf]]]) layer(g, outs);
     nextBird = ac.currentTime + 1.5;
+    loadLeaves();
   };
   Amb.setScene = function (sc) { Amb.scene = sc; if (wet) set(wet.gain, sc === "cave" || sc === "sanctum" ? 0.7 : 0.25, 0.8); };
   // a water drop falling into the pool, echoing round the cave
@@ -281,7 +282,25 @@
   }
   // leaves rustling: a crowd of tiny bright bursts (each a leaf brushing another) over a soft breath of
   // foliage. Each layer is one noise source whose loudness follows a curve of random little peaks.
+  // recorded leaf rustles (js/sounds_data.js), decoded once; a short one for a blow, a long one for the finale
+  const LEAF = { short: [], long: [] }; let leafLoading = false;
+  function loadLeaves() {
+    if (leafLoading || !window.SOUND_DATA) return; leafLoading = true;
+    for (const [k, url] of Object.entries(SOUND_DATA)) {
+      if (!k.startsWith("leaves_")) continue;
+      const b64 = url.split(",")[1], bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+      ac.decodeAudioData(buf.buffer).then((ab) => { (ab.duration > 1.3 ? LEAF.long : LEAF.short).push(ab); }).catch(() => {});
+    }
+  }
+  function leaves(t, peak, long) {
+    loadLeaves();
+    const pool = long && LEAF.long.length ? LEAF.long : LEAF.short.length ? LEAF.short : LEAF.long;
+    if (!pool.length) return false;
+    const s = ac.createBufferSource(); s.buffer = pool[(Math.random() * pool.length) | 0]; s.playbackRate.value = 0.92 + Math.random() * 0.16;
+    const g = ac.createGain(); g.gain.value = peak; s.connect(g); out(g, (Math.random() - 0.5) * 0.5); s.start(t); return true;
+  }
   function rustle(t, dur, peak, pan) {
+    if (leaves(t, peak * 1.4, dur > 1)) return;
     const n = 96, layer = (f, q, pk, grains) => {
       const s = src(white, t, dur), fl = filt2("bandpass", t, f * rnd(0.9, 1.1), f * rnd(0.8, 1.2), dur, q), g = ac.createGain(), cv = new Float32Array(n);
       for (let k = 0; k < grains; k++) { const at0 = Math.pow(Math.random(), 0.8) * (n - 4), w = 1 + Math.random() * 2.5, a = pk * (0.4 + Math.random() * 0.6) * (1 - at0 / n * 0.6); for (let i = 0; i < 6; i++) { const j = Math.floor(at0 + i); if (j < n) cv[j] = Math.max(cv[j], a * Math.exp(-i / w)); } }

@@ -221,7 +221,7 @@
       addFx({ type: "darken", dur: 1.5, tint: "8,34,6" }); roots(s, 0, 0.18, 10, 1.2);
       for (let k = 0; k < 8; k++) { const a = (k / 8) * TAU, d = 50 + (k % 2) * 22, c = { x: s.x + Math.cos(a) * d, y: s.y - 6 + Math.sin(a) * d * 0.7 }; C.events.push({ t: at(0.4 + k * 0.07), fn: () => { rootsAt(c.x, c.y + 6, 5, 0.9, a); leaves(c.x, c.y, 14); if (k % 2 === 0 && window.Ambience && Ambience.sfx) Ambience.sfx("roots"); } }); hitCircle(s, 0.4 + k * 0.07, { at: c, r: 28, dmg: 16, stop: 0.04, shake: 0.4, quiet: k % 2 }); }
       hitCircle(s, 0.2, { x: 0, y: 0, r: 56, dmg: 22, stop: 0.1, shake: 0.9 });
-      C.events.push({ t: at(1.1), fn: () => { addFx({ type: "grove", x: C.p.x, y: C.p.y, dur: 1.1, seed: Math.random() * 99 }); ring(C.p.x, C.p.y + 4, 100, P.life, 0.6); leaves(C.p.x, C.p.y - 20, 50); C.flash = 0.5; C.flashCol = "200,255,170"; } });
+      C.events.push({ t: at(1.1), fn: () => { ring(C.p.x, C.p.y + 4, 100, P.life, 0.6); leaves(C.p.x, C.p.y - 20, 50); C.flash = 0.5; C.flashCol = "200,255,170"; } });
       hitCircle(s, 1.1, { x: 0, y: 0, r: 100, dmg: 30, stop: 0.12, shake: 1, flash: 0.4 }); sfx("lifeFinale"); sfx("boom", 1.1); } } },
     { id: "firestaff", name: "Ahi Staff", cls: "Fire · Twirling staff", col: "#ff9a3a", unlock: "The forge: 3 fire shards", moves: [
       { dur: 0.34, lunge: 7, start: (s) => { fire(s, { span: 2.6, r: 22, W: 9, dir: 1, dur: 0.34 }); hitArc(s, 0.08, { range: 42, span: 2.8, dmg: 11, burn: 1 }); sfx("fire"); } },
