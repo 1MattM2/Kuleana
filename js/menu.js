@@ -35,7 +35,7 @@
         <div class="mn-row mn-vol"><span>Volume</span><input type="range" min="0" max="100" value="100" data-a="vol"><span class="mn-volv">100%</span></div>
         <div class="mn-row"><button data-a="mute">Mute</button></div>
       </div>
-      <div class="mn-page" data-page="menu"><table class="mn-table">${MENU_KEYS.map(([a, k]) => `<tr><td>${a}</td><td>${k}</td></tr>`).join("")}</table></div>
+      <div class="mn-page" data-page="menu"><div class="mn-row"><button data-a="save">Save game</button><button data-a="quit">Quit to title</button></div><table class="mn-table">${MENU_KEYS.map(([a, k]) => `<tr><td>${a}</td><td>${k}</td></tr>`).join("")}</table></div>
     </div>`;
     const st = document.createElement("style");
     st.textContent = `#menu{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(8,6,12,.55);z-index:6;font:16px 'Pixelify Sans',monospace;color:#fff6dc}
@@ -67,6 +67,8 @@
       else if (a === "host") Net.host();
       else if (a === "join") Net.join(el.querySelector(".mn-code").value);
       else if (a === "leave") Net.leave();
+      else if (a === "save") { window.Game && Game.save(); t.textContent = "Saved"; setTimeout(() => (t.textContent = "Save game"), 1200); }
+      else if (a === "quit") { M.toggle(false); window.Game && Game.quit(); }
       else if (a === "mute") { window.Ambience && Ambience.toggleMute(); M.refresh(); }
     });
     el.querySelector('[data-a="vol"]').addEventListener("input", (e) => { const v = +e.target.value; window.Ambience && Ambience.setVolume(v / 100); el.querySelector(".mn-volv").textContent = v + "%"; });

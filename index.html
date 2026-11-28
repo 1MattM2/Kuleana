@@ -7,7 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <title>Kuleana</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&family=Marcellus+SC&family=Josefin+Sans:wght@400;600&display=swap" rel="stylesheet" />
   <style>
     html, body { margin: 0; height: 100%; background: #0c0a12; overflow: hidden; }
     canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
@@ -17,6 +17,7 @@
   <canvas id="game"></canvas>
   <!-- snaps soft (anti-aliased) effect edges to hard pixel-art alpha, on the GPU -->
   <svg width="0" height="0" style="position:absolute"><filter id="hardAlpha" color-interpolation-filters="sRGB"><feComponentTransfer><feFuncA type="discrete" tableValues="0 0 0 1 1 1 1 1"/></feComponentTransfer></filter></svg>
+  <script src="js/title.js"></script>
   <script src="js/assets_data.js"></script>
   <script src="js/util.js"></script>
   <script src="js/charart.js"></script>

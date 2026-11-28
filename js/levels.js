@@ -984,6 +984,7 @@
   function finishArena(a, L, t, api) {
     a.state = "done"; L.seals = []; api.sfx("sealDown");
     L.banner = { title: "THE WAY IS OPEN", t0: t };
+    if (a.unlocks || a.final) { Level.cleared.add(L.name); if (Level.onUnlock) Level.onUnlock(); }
     if (a.unlocks && !Level.unlocked.has(a.unlocks)) { Level.unlock(a.unlocks); L.banner = { title: "THE WAY IS OPEN", sub: "A new land glows on Kahu Lā's globe", t0: t }; }
     if (a.final) L.banner = { title: "ZONE 1 CLEARED", sub: "The Volcanic Highlands are at peace", t0: t };
   }
@@ -1027,8 +1028,8 @@
     { name: "???", lon: 4.3, lat: -0.45, levels: [] },
   ];
   Level.unlocked = new Set(["highlands"]);
-  try { const v = JSON.parse(localStorage.getItem("kuleana.unlocked") || "[]"); for (const n of v) if (DEFS[n]) Level.unlocked.add(n); } catch (e) { /* storage off: progress lasts this session */ }
-  Level.unlock = (n) => { if (!DEFS[n] || Level.unlocked.has(n)) return; Level.unlocked.add(n); try { localStorage.setItem("kuleana.unlocked", JSON.stringify([...Level.unlocked])); } catch (e) {} if (Level.onUnlock) Level.onUnlock(n); };
+  Level.cleared = new Set();
+  Level.unlock = (n) => { if (!DEFS[n] || Level.unlocked.has(n)) return; Level.unlocked.add(n); if (Level.onUnlock) Level.onUnlock(n); };
   // the parts of a level the guest needs from the host each tick
   Level.serialize = function (L) {
     return { pk: L.pickups.map((b) => [Math.round(b.x), Math.round(b.y), b.vy !== undefined ? 1 : 0]), se: L.seals, ar: L.arenas.map((a) => a.state), po: L.portalOpen ? 1 : 0, sh: L.shrineTaken ? 1 : 0, tm: L.timer ? Math.round(L.timer * 10) / 10 : 0 };

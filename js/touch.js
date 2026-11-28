@@ -71,5 +71,5 @@
   addEventListener("pointerup", end); addEventListener("pointercancel", end);
 
   // hide the controls while the settings menu is open
-  (function tick() { el.style.display = window.Menu && Menu.open ? "none" : "block"; requestAnimationFrame(tick); })();
+  (function tick() { el.style.display = (window.Menu && Menu.open) || (window.Title && Title.open) ? "none" : "block"; requestAnimationFrame(tick); })();
 })();

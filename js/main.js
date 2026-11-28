@@ -102,6 +102,7 @@
   const keys = {};
   let pressedE = false;
   addEventListener("keydown", (e) => {
+    if (window.Title && Title.open) return;
     if (e.target && e.target.tagName === "INPUT") return;          // typing a join code
     if (window.Menu && Menu.open) { if (!e.repeat) Menu.key(e); for (const k in keys) keys[k] = false; return; }
     if (globe.open) { if (!e.repeat) globeKey(e.code); for (const k in keys) keys[k] = false; e.preventDefault(); return; }
@@ -119,7 +120,7 @@
     if (e.code.startsWith("Arrow") || e.code === "Space" || e.code === "Tab") e.preventDefault();
   });
   addEventListener("keyup", (e) => (keys[e.code] = false));
-  addEventListener("pointerdown", (e) => { window.Ambience && Ambience.start(); if (window.Menu && Menu.open) return; if (globe.open) { globeTap(e); return; } if (e.pointerType !== "mouse" || player.dead) return; if (e.button === 0 && !dialog && fade.dir === 0) Combat.attack(); if (e.button === 2 && !dialog && fade.dir === 0) startRoll(); });
+  addEventListener("pointerdown", (e) => { if (window.Title && Title.open) return; window.Ambience && Ambience.start(); if (window.Menu && Menu.open) return; if (globe.open) { globeTap(e); return; } if (e.pointerType !== "mouse" || player.dead) return; if (e.button === 0 && !dialog && fade.dir === 0) Combat.attack(); if (e.button === 2 && !dialog && fade.dir === 0) startRoll(); });
   addEventListener("contextmenu", (e) => e.preventDefault());
   addEventListener("wheel", (e) => Combat.cycle(e.deltaY > 0 ? 1 : -1), { passive: true });
   addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
@@ -241,6 +242,7 @@
   if (window.Net) {
     Net.onData = onNet;
     Net.onConnect = (slot) => {
+      if (window.Title && Title.open) Title.quickStart();
       if (Net.isHost()) {
         banner = { title: "CO-OP", sub: `A partner has joined (${Net.count()} heroes)`, t0: time };
         Net.sendTo(slot, { t: "scene", to: sceneName(), n: Net.count() }); Net.sendTo(slot, { t: "sync", portal: Level.portalUnlocked ? 1 : 0, heel: Level.heelTaken ? 1 : 0, un: [...Level.unlocked] });
@@ -556,7 +558,7 @@
       Combat.allUnlocked = scene === "dojo"; Combat.ensureOpen();
       parts.length = 0;
       Ambience.setScene && Ambience.setScene(scene === "level" ? Level.cur.def.amb || Level.cur.name : scene);
-    } else if (fade.dir === -1 && fade.a <= 0) { fade.a = 0; fade.dir = 0; }
+    } else if (fade.dir === -1 && fade.a <= 0) { fade.a = 0; fade.dir = 0; Game.save(); }
   }
 
   let rackHover = -1;
@@ -1287,7 +1289,9 @@
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000 || 0);
     last = now;
-    time += dt;
+    if (window.Title && Title.open) { requestAnimationFrame(frame); return; }   // the title screen is up: the world waits
+    time += dt; playT += dt;
+    if (time - saveT > 60) Game.save();
     if (flowT > 0) flowT -= dt;
     // the settings menu pauses solo play (a co-op world keeps going)
     if (window.Menu && Menu.open && !(window.Net && Net.active())) { netTick(dt); render(time); requestAnimationFrame(frame); return; }
@@ -1339,30 +1343,61 @@
   async function boot() {
     resize();
     sctx.fillStyle = "#0c0a12"; sctx.fillRect(0, 0, screen.width, screen.height);
-    sctx.fillStyle = "#ffe08a"; sctx.textAlign = "center";
-    sctx.font = `${10 * SCALE}px 'Pixelify Sans', monospace`;
-    sctx.fillText("Weaving the island…", screen.width / 2, screen.height / 2);
-    sctx.textAlign = "left";
+    // the title screen (js/title.js) shows progress while the world is built; each step yields so it can update
+    const step = (f, line) => { window.Title && Title.progress(f, line); return new Promise((r) => setTimeout(r, 16)); };
+    await step(0.08, "Gathering the art");
     await loadAssets();
-    await new Promise((r) => setTimeout(r, 30));
+    await step(0.2, "Raising the island");
     const t0 = performance.now();
     World.build(A);
+    await step(0.48, "Filling the sea");
     Water.init(A);
+    await step(0.56, "Planting the palms");
     Props.build(A);
     for (const b of World.bridges) makeBridge(b);
+    await step(0.7, "Waking the sea cave");
     Cave.build(A);
+    await step(0.82, "Hanging the weapons");
     Combat.init();
     Dojo.build();
+    await step(0.9, "Lighting the sun gate");
     Level.init(A); Enemies.init(A);
     Combat.ensureOpen();
     buildHero(); buildPartner();
     buildClouds();
     buildVignette();
+    DEFAULT_WEAPONS = [...Combat.unlocked];
     console.log("world built in", Math.round(performance.now() - t0), "ms");
     player.x = World.START.x; player.y = World.START.y;
     addEventListener("resize", resize);
     requestAnimationFrame((n) => { last = n; frame(n); });
+    if (window.Title) Title.ready(); else Game.begin(0, null);
   }
+  // ------------------------------------------------------------------ saves (three slots, see js/title.js)
+  let DEFAULT_WEAPONS = [], playT = 0, saveT = 0, slot = 0;
+  const placeName = () => scene === "level" ? (Level.cur.name === "sanctum" ? "Sun Gate Sanctum" : Level.cur.def.title.replace(/\b\w+/g, (w) => w[0] + w.slice(1).toLowerCase())) : scene === "cave" ? "Ana ʻŌlino, the Sea Cave" : scene === "dojo" ? "Hale Koa" : "The Sunward Shore";
+  const Game = (window.Game = {
+    snapshot() {
+      return { v: 1, t: Date.now(), play: playT, where: scene === "level" ? Level.cur.name : "island", x: Math.round(scene === "island" ? player.x : World.START.x), y: Math.round(scene === "island" ? player.y : World.START.y),
+        unlocked: [...Level.unlocked], cleared: Level.cleared.size, clearedList: [...Level.cleared], heel: !!Level.heelTaken, portal: !!Level.portalUnlocked, weapons: [...Combat.unlocked], cur: Combat.cur, place: placeName() };
+    },
+    save() { if (!slot || !window.Title || fade.dir !== 0) return; Title.store.set(slot, Game.snapshot()); saveT = time; },
+    begin(n, d) {
+      slot = n; playT = d ? d.play || 0 : 0; saveT = time;
+      Level.unlocked = new Set(d ? d.unlocked : ["highlands"]); Level.cleared = new Set(d ? d.clearedList || [] : []);
+      Level.heelTaken = d ? !!d.heel : false; Level.portalUnlocked = d ? !!d.portal : false; Level.dest = null;
+      Combat.unlocked = new Set(d ? d.weapons : DEFAULT_WEAPONS); Combat.cur = d ? d.cur || 0 : 0; Combat.ensureOpen();
+      player.hp = player.maxHp; player.dead = false; player.downed = false;
+      scene = "island"; player.x = d ? d.x : World.START.x; player.y = d ? d.y : World.START.y; player.dir = "down";
+      if (blocked(player.x, player.y)) unstick();
+      Ambience.setScene && Ambience.setScene("island");
+      if (d && d.where !== "island" && Level.DEFS[d.where]) { fade.a = 1; fade.dir = 1; fade.to = d.where; fade.from = "load"; }
+      else { fade.a = 1; fade.dir = -1; banner = { title: "KULEANA", sub: d ? "Welcome back" : "The Sunward Shore", t0: time + 0.6 }; hintTimer = 12; }
+      if (!d) setTimeout(() => Game.save(), 500);
+    },
+    quit() { Game.save(); if (window.Net && Net.active()) Net.leave(); window.Title && Title.show(); },
+  });
+  Level.onUnlock = ((prev) => (n) => { prev && prev(n); setTimeout(() => Game.save(), 50); })(Level.onUnlock);
   window.__kuleana = { player, cam, keys, mates, rev, goTo: (s) => goTo(s), get scene() { return scene; } };
   boot().catch((e) => { console.error(e); document.body.insertAdjacentHTML("beforeend", `<pre style="color:#f88;position:fixed;top:0;left:0">${e.stack || e}</pre>`); });
 })();
