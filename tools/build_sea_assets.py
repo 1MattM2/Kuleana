@@ -51,6 +51,10 @@ u = np.clip((lum - lo) / (hi - lo), 0, 1) * (len(ROSE) - 1)
 i0 = np.floor(u).astype(int).clip(0, len(ROSE) - 2); f = (u - i0)[..., None]
 pink = coral.copy(); pink[..., :3] = np.round(ROSE[i0] * (1 - f) + ROSE[i0 + 1] * f).astype(np.int32)
 put("tex_pinkcoral", pink)
+# two more atoll grounds, from their own concepts: bleached dead coral, and a living reef in every colour
+DEAD = load("atoll_tile_concept.png"); LIVE = load("atoll_tile_2_concept.png")
+put("tex_coraldead", texture(DEAD[24:-24, 24:-24].copy(), (64, 64), 14))
+put("tex_corallive", texture(LIVE[24:-24, 24:-24].copy(), (64, 64), 22))
 
 # the flora sit on a blue-grey grid: key it away from the edges in
 def grid_bg(q):
