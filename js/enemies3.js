@@ -266,7 +266,7 @@
     }
     e.dodgeCd = 0.25; return false;
   }
-  E.SETUP.crab = E.SETUP.spitcrab = (e) => { e.zig = Math.random() < 0.5 ? 1 : -1; e.zigT = 0; e.cd = rnd(0.6, 1.6); e.dryOnly = true; };   // crabs keep to the sand and the shallows
+  E.SETUP.crab = E.SETUP.spitcrab = (e) => { e.zig = Math.random() < 0.5 ? 1 : -1; e.zigT = 0; e.cd = rnd(0.3, 0.9); e.dryOnly = true; };   // crabs keep to the sand and the shallows
   AI.crab = function (e, dt, t, P, L, api, d, live) {
     const toP = Math.atan2(P.y - e.y, P.x - e.x), pack = packOf(e, live || []), inPack = pack.length > 1;
     e.untouchable = e.state === "under" || e.state === "rise";
@@ -279,19 +279,19 @@
         let ring = 0;
         if (inPack) {
           // take a place on a ring round the hero, spread from the others
-          const idx = pack.indexOf(e), n = pack.length, P2 = PACKS[e.tribe] || (PACKS[e.tribe] = { next: t + rnd(2, 3), ph: Math.random() * TAU });
+          const idx = pack.indexOf(e), n = pack.length, P2 = PACKS[e.tribe] || (PACKS[e.tribe] = { next: t + rnd(1, 1.8), ph: Math.random() * TAU });
           const slotA = P2.ph + (idx / n) * TAU + Math.sin(t * 0.6) * 0.3, R0 = e.type === "spitcrab" ? 90 : 46, gx = P.x + Math.cos(slotA) * R0, gy = P.y + Math.sin(slotA) * R0 * 0.8;
           const ga = Math.atan2(gy - e.y, gx - e.x), gd = Math.hypot(gx - e.x, gy - e.y);
           if (gd > 8) e.dash = { a: ga + e.zig * 0.5, t: rnd(0.16, 0.26), sp: 120 }; else e.dash = { a: toP + Math.PI / 2 * e.zig, t: 0.12, sp: 60 };
           e.zig = -e.zig;
-          if (t > P2.next && e.type === "crab") { P2.next = t + rnd(3.2, 4.6); P2.ph = Math.random() * TAU; for (const o of pack) if (o.type === "crab" && (o.state === "skitter" || o.state === "idle") && Math.hypot(o.x - P.x, o.y - P.y) < 90) { o.state = "windPinch"; o.st = -Math.random() * 0.12; o.aim = Math.atan2(P.y - o.y, P.x - o.x); o.dash = null; } sfx(api, "clack"); }
+          if (t > P2.next && e.type === "crab") { P2.next = t + rnd(1.7, 2.6); P2.ph = Math.random() * TAU; for (const o of pack) if (o.type === "crab" && (o.state === "skitter" || o.state === "idle") && Math.hypot(o.x - P.x, o.y - P.y) < 90) { o.state = "windPinch"; o.st = -Math.random() * 0.12; o.aim = Math.atan2(P.y - o.y, P.x - o.x); o.dash = null; } sfx(api, "clack"); }
           ring = 1;
         }
         if (!ring) {
           // alone: zigzag in, a diagonal each way in turn
           const lean = d > 40 ? 0.75 : d < 24 ? -0.4 : 0;
           e.dash = { a: toP + e.zig * (Math.PI / 2 - lean), t: rnd(0.22, 0.34), sp: 125 }; e.zig = -e.zig;
-          if (d < 32 && e.cd <= 0) { e.state = "windPinch"; e.st = 0; e.dash = null; e.aim = toP; sfx(api, "clack"); }
+          if (d < 42 && e.cd <= 0) { e.state = "windPinch"; e.st = 0; e.dash = null; e.aim = toP; sfx(api, "clack"); }
           else if (e.dig <= 0 && d > 60 && d < 200 && Level.tileAt(e.x, e.y) === Level.T_.SAND) { e.state = "dig"; e.st = 0; e.dash = null; sfx(api, "hop"); }
         }
       }
@@ -299,7 +299,7 @@
     else if (e.state === "pinch") {
       tryMove(e, Math.cos(e.aim) * 190 * dt, Math.sin(e.aim) * 190 * dt);
       hitAny(e, e.x + Math.cos(e.aim) * 7, e.y - 5, 13, 1, e.hitSet, "pinch");
-      if (e.st > 0.15) { e.snips--; if (e.snips > 0) { e.st = -0.1; e.hitSet = {}; e.aim = Math.atan2(P.y - e.y, P.x - e.x); sfx(api, "clack"); } else { e.state = "recover"; e.st = 0; e.cd = rnd(1, 1.8); e.dash = { a: e.aim + Math.PI + e.zig * 0.8, t: 0.25, sp: 150 }; } }
+      if (e.st > 0.15) { e.snips--; if (e.snips > 0) { e.st = -0.1; e.hitSet = {}; e.aim = Math.atan2(P.y - e.y, P.x - e.x); sfx(api, "clack"); } else { e.state = "recover"; e.st = 0; e.cd = rnd(0.45, 0.9); e.dash = { a: e.aim + Math.PI + e.zig * 0.8, t: 0.2, sp: 150 }; } }
     } else if (e.state === "dig") { if (Math.random() < 0.6) Combat.addPart({ x: e.x + rnd(-5, 5), y: e.y, vx: rnd(-40, 40), vy: rnd(-60, -20), g: 220, life: 0.5, col: "#e8d0a0", size: 1, kind: "debris" }); if (e.st > 0.45) { e.state = "under"; e.st = 0; } }
     else if (e.state === "under") {
       const a = Math.atan2(P.y - e.y, P.x - e.x), dd = Math.hypot(P.x - e.x, P.y - e.y);
@@ -650,7 +650,7 @@
       }
       if (e.st > 1.5) { e.scalded = false; e.state = "stalk"; e.st = 0; e.next = rnd(1.2, 2); }
     }
-    e.hist.unshift([e.x, e.y]); if (e.hist.length > 36) e.hist.length = 36;
+    e.hist.unshift([e.x, e.y]); if (e.hist.length > 64) e.hist.length = 64;   // (long enough for the tiger shark's whole body)
   }
   function nearestWater(e) { for (let r = 8; r < 160; r += 8) for (let k = 0; k < 16; k++) { const a = (k / 16) * TAU, x = e.x + Math.cos(a) * r, y = e.y + Math.sin(a) * r; if (SHARK_WATER.includes(wetAt(x, y))) return { x, y }; } return { x: e.x, y: e.y }; }
   AI.shark = AI.bigshark = AI.tshark = sharkAI;
@@ -674,7 +674,11 @@
     const TOP = thermal ? [[150, 92, 80], [190, 120, 96], [110, 60, 52]] : big ? [[96, 120, 110], [130, 156, 140], [64, 84, 76]] : [[104, 132, 152], [140, 168, 186], [70, 96, 116]], BELLY = [226, 232, 234];
     // a shark under the water is re-rasterised every other frame (half of them each frame); in between, last
     // frame's silhouette is drawn where it now is. Its shape barely changes in a 60th of a second.
-    const frame = Math.floor(t * 60), redraw = out || fl || !e.S.p || (frame + e.id) % 2 === 0 || e.lastFrame === undefined;
+    // (counted per shark draw, not from the clock: at a low frame rate the clock skips frames, and a clock
+    // parity could then never come round, leaving the shark frozen in its last, surfaced look)
+    e.drawN = (e.drawN || 0) + 1;
+    const frame = e.drawN, redraw = out || fl || e.wasOut || !e.S.p || frame % 2 === 0 || e.lastFrame === undefined;
+    e.wasOut = out;
     if (!redraw && e.lastHas) { ctx.globalAlpha = e.state === "line" ? 0.68 : 0.5; ctx.drawImage(S.c, Math.round(e.x - cx - ox), Math.round(e.y - cy - oy - (e.z || 0))); ctx.globalAlpha = 1; drawSharkExtras(e, ctx, ox, oy, t, g, out, full, thermal, big, sc, pts); return; }
     e.lastFrame = frame;
     // only the box round the body is scanned (the whole surface was most of the frame with a dozen sharks)
@@ -774,6 +778,23 @@
       if (e.st > 0.9) { L.fx.push({ kind: "shock", x: e.x, y: e.y, t: 0, dur: 0.45, R: 52, dmg: 1 }); sfx(api, "electrocute"); Combat.shake = Math.min(1, Combat.shake + 0.15); e.state = "glide"; e.st = 0; e.cd = rnd(2, 3); e.dir = -e.dir; }
       return;
     }
+    if (e.state === "windRush") {
+      // it hangs back, turning to face you, crackling brighter and brighter: then it comes
+      fly(e.x - Math.cos(e.aim) * 4, e.y - Math.sin(e.aim) * 4, 18, 3);
+      e.aim += angDiff(Math.atan2(P.y - e.y, P.x - e.x), e.aim) * Math.min(1, dt * 4); e.va += angDiff(e.aim, e.va) * Math.min(1, dt * 6);
+      if (e.st > 0.7) { e.state = "rush"; e.st = 0; e.hitSet = {}; e.vx = Math.cos(e.aim) * 260; e.vy = Math.sin(e.aim) * 260; sfx(api, "zap"); }
+      return;
+    }
+    if (e.state === "rush") {
+      // a charge straight through, live with current: anyone it touches is shocked, and at the end of
+      // the run it lets the whole charge go around it
+      if (!swim(e, e.vx * dt, e.vy * dt, RAY_WATER)) e.st = 9;
+      e.va += angDiff(Math.atan2(e.vy, e.vx), e.va) * Math.min(1, dt * 8); e.flp = (e.flp || 0) + dt * 4;
+      hitAny(e, e.x, e.y - 4, 16, 1, e.hitSet, "zap");
+      if (Math.random() < 0.5) Combat.addPart({ x: e.x + rnd(-8, 8), y: e.y + rnd(-5, 5), vx: rnd(-30, 30), vy: rnd(-30, 30), drag: 3, life: 0.35, col: Math.random() < 0.5 ? "#cfefff" : "#ffffff", size: 1, kind: "spark", glow: true });
+      if (e.st > 0.5) { L.fx.push({ kind: "shock", x: e.x, y: e.y, t: 0, dur: 0.45, R: 48, dmg: 1 }); sfx(api, "electrocute"); Combat.shake = Math.min(1, Combat.shake + 0.15); e.state = "glide"; e.st = 0; e.cd = rnd(1.8, 2.8); e.skim = 1.2; e.dir = -e.dir; }
+      return;
+    }
     if (e.state === "current") {
       // an arc of current thrown up the shore at a hero on land
       fly(e.x, e.y, 10, 3);
@@ -783,13 +804,15 @@
     }
     e.state = "glide";
     if (e.alerted && d < 240) {
-      // the lingering wheel round its hero, the circle swelling and tightening
+      // it keeps its distance, wheeling round its hero well out of reach, and every so often winds up and
+      // charges straight in
       e.skim = (e.skim || 0) - dt;
-      const R0 = e.skim > 0 ? 90 : 42 + Math.sin(t * 0.6 + e.ph) * 14;
+      const R0 = e.skim > 0 ? 120 : 96 + Math.sin(t * 0.6 + e.ph) * 16;
       e.orbA += dt * (e.skim > 0 ? 1.8 : 1.05) * e.dir;
       fly(P.x + Math.cos(e.orbA) * R0, P.y + Math.sin(e.orbA) * R0 * 0.75, e.skim > 0 ? 110 : 82, 2.2);
       if (Math.random() < dt * 0.12) e.dir = -e.dir;
       if (e.cd <= 0 && d < 56 && wetAt(P.x, P.y)) { e.state = "charge"; e.st = 0; sfx(api, "charge"); }
+      else if (e.cd <= 0 && d < 170 && wetAt(P.x, P.y)) { e.state = "windRush"; e.st = 0; e.aim = Math.atan2(P.y - e.y, P.x - e.x); sfx(api, "charge"); }
       else if (e.cur <= 0) { const Q = (E.alive || []).find((q) => !wetAt(q.x, q.y) && Math.hypot(q.x - e.x, q.y - e.y) < 72); if (Q) { e.state = "current"; e.st = 0; e.tq = Q; sfx(api, "charge"); } else e.cur = 0.5; }
     } else {
       // unseen, it wanders slow loops
@@ -799,9 +822,11 @@
     }
   };
   E.DRAW.ray = (e, ctx, ox, oy, t, g, introY, fl) => {
-    const ch = e.state === "charge" ? Math.min(1, e.st / 0.9) : e.state === "current" ? Math.min(1, e.st / 0.75) : 0;
+    const ch = e.state === "charge" ? Math.min(1, e.st / 0.9) : e.state === "current" ? Math.min(1, e.st / 0.75) : e.state === "windRush" ? Math.min(1, e.st / 0.7) : e.state === "rush" ? 1 : 0;
     drawRay(ctx, e.x - ox, e.y - oy, e.va, e.flp !== undefined ? e.flp : t, e.ph, 1.15, 0.66, ch, fl);
     if (ch > 0) { telegraph(ctx, e.x - ox, e.y - oy - 16, t); if (g) glow(g, e.x - ox, e.y - oy, 30 + ch * 34, "140,200,255", 0.3 + ch * 0.45); }
+    // the line it's about to charge along, crackling on the water
+    if (e.state === "windRush") { const u = Math.min(1, e.st / 0.7), len = 130 * u; for (let s2 = 14; s2 < len; s2 += 5) { const x2 = e.x + Math.cos(e.aim) * s2 - ox, y2 = e.y + Math.sin(e.aim) * s2 - oy + (K.hash2(s2, (t * 20) | 0, 3) - 0.5) * 2; px(ctx, x2, y2, 2, 1, `rgba(200,236,255,${0.8 * (1 - s2 / (len + 14))})`); } }
   };
 
   // ================================================================== Kai-Uila, the Storm Ray (L3 boss)
@@ -1247,6 +1272,6 @@
   // ================================================================== network: what guests need to draw these
   const net = { ser: (q, o, r1) => { if (q.va !== undefined) o.va = Math.round(q.va * 100) / 100; if (q.bank) o.bk = Math.round(q.bank * 100) / 100; if (q.z !== undefined) o.z = r1(q.z); if (q.untouchable) o.ut = 1; if (q.form !== undefined) o.fm = Math.round(q.form * 100) / 100; if (q.aim !== undefined) o.am2 = Math.round(q.aim * 100) / 100; if (q.rock) o.rk = 1; if (q.stranded) o.sd = 1; },
     app: (e, o) => { if (o.va !== undefined) e.va = o.va; e.bank = o.bk || 0; if (o.z !== undefined) e.nz = o.z; e.untouchable = !!o.ut; if (o.fm !== undefined) e.form = o.fm; if (o.am2 !== undefined) e.aim = o.am2; e.rock = o.rk ? 1 : 0; e.stranded = !!o.sd; },
-    tick: (e, dt) => { if (e.nz !== undefined) e.z = (e.z || 0) + (e.nz - (e.z || 0)) * Math.min(1, dt * 12); if (e.hist) { e.hist.unshift([e.x, e.y]); if (e.hist.length > 36) e.hist.length = 36; } } };
+    tick: (e, dt) => { if (e.nz !== undefined) e.z = (e.z || 0) + (e.nz - (e.z || 0)) * Math.min(1, dt * 12); if (e.hist) { e.hist.unshift([e.x, e.y]); if (e.hist.length > 64) e.hist.length = 64; } } };
   for (const k of ["crab", "spitcrab", "brute", "shark", "bigshark", "tshark", "ray", "giantray", "rayling", "pueo"]) E.NET[k] = net;
 })();
