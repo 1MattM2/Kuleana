@@ -780,19 +780,28 @@
     }
     if (e.state === "windRush") {
       // it hangs back, turning to face you, crackling brighter and brighter: then it comes
+      // it reads where you're going: the point you'll reach by the time it arrives, and a spot just beside it
+      // on an angled line (it glides in at a slant rather than straight down your throat), so that the burst
+      // at the end of its run catches you if you hold still or only shift a little
       fly(e.x - Math.cos(e.aim) * 4, e.y - Math.sin(e.aim) * 4, 18, 3);
-      e.aim += angDiff(Math.atan2(P.y - e.y, P.x - e.x), e.aim) * Math.min(1, dt * 4); e.va += angDiff(e.aim, e.va) * Math.min(1, dt * 6);
-      if (e.st > 0.7) { e.state = "rush"; e.st = 0; e.hitSet = {}; e.vx = Math.cos(e.aim) * 260; e.vy = Math.sin(e.aim) * 260; sfx(api, "zap"); }
+      const dd0 = Math.hypot(P.x - e.x, P.y - e.y), tArr = Math.min(0.75, dd0 / 250) + 0.1;
+      const px2 = P.x + (P.vx || 0) * tArr, py2 = P.y + (P.vy || 0) * tArr, toT = Math.atan2(py2 - e.y, px2 - e.x), perp = toT + Math.PI / 2 * (e.side || 1);
+      e.tx = px2 + Math.cos(perp) * 22; e.ty = py2 + Math.sin(perp) * 22;
+      e.aim += angDiff(Math.atan2(e.ty - e.y, e.tx - e.x), e.aim) * Math.min(1, dt * 5); e.va += angDiff(e.aim, e.va) * Math.min(1, dt * 6);
+      if (e.st > 0.7) { e.state = "rush"; e.st = 0; e.hitSet = {}; e.rushT = Math.min(0.8, Math.hypot(e.tx - e.x, e.ty - e.y) / 250 + 0.05); e.vx = Math.cos(e.aim) * 250; e.vy = Math.sin(e.aim) * 250; sfx(api, "zap"); }
       return;
     }
     if (e.state === "rush") {
       // a charge straight through, live with current: anyone it touches is shocked, and at the end of
       // the run it lets the whole charge go around it
-      if (!swim(e, e.vx * dt, e.vy * dt, RAY_WATER)) e.st = 9;
+      // a gliding curve onto the spot it chose
+      const ta = Math.atan2(e.ty - e.y, e.tx - e.x), sp0 = Math.hypot(e.vx, e.vy), ca0 = Math.atan2(e.vy, e.vx), na = ca0 + angDiff(ta, ca0) * Math.min(1, dt * 3);
+      e.vx = Math.cos(na) * sp0; e.vy = Math.sin(na) * sp0;
+      if (!swim(e, e.vx * dt, e.vy * dt, RAY_WATER) || Math.hypot(e.tx - e.x, e.ty - e.y) < 8) e.st = Math.max(e.st, e.rushT || 0.5);
       e.va += angDiff(Math.atan2(e.vy, e.vx), e.va) * Math.min(1, dt * 8); e.flp = (e.flp || 0) + dt * 4;
       hitAny(e, e.x, e.y - 4, 16, 1, e.hitSet, "zap");
       if (Math.random() < 0.5) Combat.addPart({ x: e.x + rnd(-8, 8), y: e.y + rnd(-5, 5), vx: rnd(-30, 30), vy: rnd(-30, 30), drag: 3, life: 0.35, col: Math.random() < 0.5 ? "#cfefff" : "#ffffff", size: 1, kind: "spark", glow: true });
-      if (e.st > 0.5) { L.fx.push({ kind: "shock", x: e.x, y: e.y, t: 0, dur: 0.45, R: 48, dmg: 1 }); sfx(api, "electrocute"); Combat.shake = Math.min(1, Combat.shake + 0.15); e.state = "glide"; e.st = 0; e.cd = rnd(1.8, 2.8); e.skim = 1.2; e.dir = -e.dir; }
+      if (e.st >= (e.rushT || 0.5)) { L.fx.push({ kind: "shock", x: e.x, y: e.y, t: 0, dur: 0.45, R: 52, dmg: 1 }); sfx(api, "electrocute"); Combat.shake = Math.min(1, Combat.shake + 0.15); e.state = "glide"; e.st = 0; e.cd = rnd(1.8, 2.8); e.skim = 1.2; e.dir = -e.dir; }
       return;
     }
     if (e.state === "current") {
@@ -812,7 +821,7 @@
       fly(P.x + Math.cos(e.orbA) * R0, P.y + Math.sin(e.orbA) * R0 * 0.75, e.skim > 0 ? 110 : 82, 2.2);
       if (Math.random() < dt * 0.12) e.dir = -e.dir;
       if (e.cd <= 0 && d < 56 && wetAt(P.x, P.y)) { e.state = "charge"; e.st = 0; sfx(api, "charge"); }
-      else if (e.cd <= 0 && d < 170 && wetAt(P.x, P.y)) { e.state = "windRush"; e.st = 0; e.aim = Math.atan2(P.y - e.y, P.x - e.x); sfx(api, "charge"); }
+      else if (e.cd <= 0 && d < 170 && wetAt(P.x, P.y)) { e.state = "windRush"; e.st = 0; e.aim = Math.atan2(P.y - e.y, P.x - e.x); e.side = Math.random() < 0.5 ? 1 : -1; sfx(api, "charge"); }
       else if (e.cur <= 0) { const Q = (E.alive || []).find((q) => !wetAt(q.x, q.y) && Math.hypot(q.x - e.x, q.y - e.y) < 72); if (Q) { e.state = "current"; e.st = 0; e.tq = Q; sfx(api, "charge"); } else e.cur = 0.5; }
     } else {
       // unseen, it wanders slow loops
@@ -826,7 +835,7 @@
     drawRay(ctx, e.x - ox, e.y - oy, e.va, e.flp !== undefined ? e.flp : t, e.ph, 1.15, 0.66, ch, fl);
     if (ch > 0) { telegraph(ctx, e.x - ox, e.y - oy - 16, t); if (g) glow(g, e.x - ox, e.y - oy, 30 + ch * 34, "140,200,255", 0.3 + ch * 0.45); }
     // the line it's about to charge along, crackling on the water
-    if (e.state === "windRush") { const u = Math.min(1, e.st / 0.7), len = 130 * u; for (let s2 = 14; s2 < len; s2 += 5) { const x2 = e.x + Math.cos(e.aim) * s2 - ox, y2 = e.y + Math.sin(e.aim) * s2 - oy + (K.hash2(s2, (t * 20) | 0, 3) - 0.5) * 2; px(ctx, x2, y2, 2, 1, `rgba(200,236,255,${0.8 * (1 - s2 / (len + 14))})`); } }
+    if (e.state === "windRush") { const u = Math.min(1, e.st / 0.7), len = Math.min(170, Math.hypot((e.tx ?? e.x) - e.x, (e.ty ?? e.y) - e.y)) * u; for (let s2 = 14; s2 < len; s2 += 5) { const x2 = e.x + Math.cos(e.aim) * s2 - ox, y2 = e.y + Math.sin(e.aim) * s2 - oy + (K.hash2(s2, (t * 20) | 0, 3) - 0.5) * 2; px(ctx, x2, y2, 2, 1, `rgba(200,236,255,${0.8 * (1 - s2 / (len + 14))})`); } }
   };
 
   // ================================================================== Kai-Uila, the Storm Ray (L3 boss)
