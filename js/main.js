@@ -1411,25 +1411,20 @@
     if (id === "tonic" || id === "salve" || Gear.TALISMANS[id]) { ctx.drawImage(ItemArt.item(id, 16), x, y); if (Gear.TALISMANS[id]) { ctx.fillStyle = Gear.ELEMENTS[Gear.TALISMANS[id].el].col; ctx.fillRect(x + 1, y + 14, 14, 1); } }
   }
   function drawItems(ctx) {
-    if (Gear.battle) {
-      // two clear slots, bottom left above the weapons: the heal (H) and the talisman (T); each is spent once
-      const pk2 = Gear.pack(), heal = pk2.find((q) => Gear.isHeal(q)), tal = pk2.find((q) => !Gear.isHeal(q)), y = VH - 29;
-      itemsHud = { battle: true, slots: [] };
-      [[heal, TOUCH ? "HEAL" : "H", "#ff8a8a"], [tal, TOUCH ? "SUPER" : "T", "#ffd27a"]].forEach(([id, key, col], i) => {
-        const x = 8 + i * 30, ready = !!id, pulse = ready && i === 0 && player.hp <= player.maxHp / 3 ? 0.5 + 0.5 * Math.sin(time * 8) : 0;
-        ctx.fillStyle = "#140c16"; ctx.fillRect(x - 1, y - 1, 26, 26); ctx.fillStyle = ready ? (pulse > 0.5 ? "#ff8a8a" : "#5a3a4a") : "#241a26"; ctx.fillRect(x, y, 24, 24); ctx.fillStyle = "#1e1420"; ctx.fillRect(x + 1, y + 1, 22, 22);
-        if (ready) { ctx.drawImage(ItemArt.item(id, 16), x + 4, y + 3); }
-        else { ctx.globalAlpha = 0.35; ctx.fillStyle = "#8a7a8a"; ctx.fillRect(x + 6, y + 11, 12, 2); ctx.globalAlpha = 1; }
-        ctx.fillStyle = "#140c16"; ctx.fillRect(x + 15, y + 17, key.length > 1 ? 0 : 9, 8); ctx.font = "6px 'Pixelify Sans', monospace"; ctx.textBaseline = "top"; ctx.textAlign = "left"; ctx.fillStyle = ready ? col : "#6a5a6a"; ctx.fillText(key, key.length > 1 ? x : x + 17, key.length > 1 ? y + 25 : y + 17);
-        itemsHud.slots.push({ x, y, w: 24, h: 24, act: i === 0 ? "heal" : "talisman" });
-      });
-      return;
-    }
-    const nt = Gear.count("tonic"), ns = Gear.count("salve"), pk = Gear.pick();
-    let x = VW - 8, y = 6;
-    if (pk) { const E = Gear.ELEMENTS[Gear.TALISMANS[pk].el]; x -= 18; ctx.fillStyle = "#140c16"; ctx.fillRect(x, y, 16, 16); ctx.fillStyle = E.col; ctx.fillRect(x + 1, y + 1, 14, 14); ctx.fillStyle = "#140c16"; ctx.fillRect(x + 3, y + 3, 10, 10); ctx.fillStyle = E.col; ctx.fillRect(x + 6, y + 4, 4, 8); ctx.fillRect(x + 4, y + 6, 8, 4); ctx.fillStyle = "#ffffff"; ctx.fillRect(x + 7, y + 7, 2, 2); }
-    if (nt || ns) { x -= 18; ctx.fillStyle = "#140c16"; ctx.fillRect(x, y, 16, 16); ctx.fillStyle = "#3a2a3e"; ctx.fillRect(x + 1, y + 1, 14, 14); ctx.fillStyle = "#8a5a30"; ctx.fillRect(x + 6, y + 3, 4, 2); ctx.fillStyle = "#c84a5a"; ctx.fillRect(x + 4, y + 5, 8, 8); ctx.fillStyle = "#ff9aa8"; ctx.fillRect(x + 5, y + 6, 2, 3); }
-    itemsHud = { x, y, nt, ns, pk };
+    // the battle pack, top right: the heal (H) and the talisman (T) you're carrying; in a level each is
+    // spent once (the slot empties); outside a level they show what's packed for the next fight
+    if (!Gear.battle) Gear.packTidy(true);
+    const pk2 = Gear.pack(), heal = pk2.find((q) => Gear.isHeal(q)), tal = pk2.find((q) => !Gear.isHeal(q)), y = 6;
+    itemsHud = { battle: true, slots: [] };
+    [[heal, TOUCH ? "HEAL" : "H", "#ff8a8a"], [tal, TOUCH ? "SUPER" : "T", "#ffd27a"]].forEach(([id, key, col], i) => {
+      const x = VW - 60 + i * 28, ready = !!id, pulse = ready && i === 0 && Gear.battle && player.hp <= player.maxHp / 3 ? 0.5 + 0.5 * Math.sin(time * 8) : 0;
+      ctx.fillStyle = "#140c16"; ctx.fillRect(x - 1, y - 1, 26, 26); ctx.fillStyle = ready ? (pulse > 0.5 ? "#ff8a8a" : "#5a3a4a") : "#241a26"; ctx.fillRect(x, y, 24, 24); ctx.fillStyle = "#1e1420"; ctx.fillRect(x + 1, y + 1, 22, 22);
+      if (ready) ctx.drawImage(ItemArt.item(id, 16), x + 4, y + 3);
+      else { ctx.globalAlpha = 0.35; ctx.fillStyle = "#8a7a8a"; ctx.fillRect(x + 6, y + 11, 12, 2); ctx.globalAlpha = 1; }
+      ctx.font = "6px 'Pixelify Sans', monospace"; ctx.textBaseline = "top"; ctx.textAlign = "center"; ctx.fillStyle = ready ? col : "#6a5a6a"; ctx.fillText(key, x + 12, y + 26);
+      itemsHud.slots.push({ x, y, w: 24, h: 24, act: i === 0 ? "heal" : "talisman" });
+    });
+    ctx.textAlign = "left";
   }
   let itemsHud = null;
   // your shells, under the hearts
