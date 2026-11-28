@@ -190,6 +190,23 @@ def clean_frame(box, OW, OH):
         flat = op & ~pad_[:-2, 1:-1] & ~pad_[2:, 1:-1]; out[flat] = 0
         op = out[..., 3] > 0; pad_ = np.pad(op, 1)
         thin = op & ~pad_[1:-1, :-2] & ~pad_[1:-1, 2:]; out[thin] = 0
+    # (and once more after trimming: nothing left floating)
+    op = out[..., 3] > 0; seen3 = np.zeros_like(op); parts = []
+    for y in range(OH):
+        for x in range(OW):
+            if not op[y, x] or seen3[y, x]: continue
+            comp = [(y, x)]; seen3[y, x] = True; q = deque([(y, x)])
+            while q:
+                cy, cx = q.popleft()
+                for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    yy, xx = cy + dy, cx + dx
+                    if 0 <= yy < OH and 0 <= xx < OW and op[yy, xx] and not seen3[yy, xx]: seen3[yy, xx] = True; q.append((yy, xx)); comp.append((yy, xx))
+            parts.append(comp)
+    if parts:
+        big = max(parts, key=len)
+        for comp in parts:
+            if comp is not big:
+                for (yy, xx) in comp: out[yy, xx] = 0
     # sel-out: the outermost pixels of the figure darkened to a deep tint of their own colour (no added ring)
     op = out[..., 3] > 0; pad_ = np.pad(op, 1)
     rim = op & ~(pad_[:-2, 1:-1] & pad_[2:, 1:-1] & pad_[1:-1, :-2] & pad_[1:-1, 2:])
