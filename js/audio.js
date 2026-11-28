@@ -119,7 +119,7 @@
     const hf = filt("lowpass", 240, 0.7); humG.connect(hf); hf.connect(master); hf.connect(wet);
     for (const [g, outs] of [[windG, [master]], [rustleG, [master]], [surfG, [master]], [washG, [master]], [riverG, [master]], [bugG, [master]], [droneG, [master, wet]], [lapG, [master, wet]], [cicG, [master]], [rumbleG, [master, wet]], [humG, [hf]]]) layer(g, outs);
     nextBird = ac.currentTime + 1.5;
-    loadLeaves();
+    loadLeaves(); loadThunder();
   };
   Amb.setScene = function (sc) { Amb.scene = sc; if (wet) set(wet.gain, sc === "cave" || sc === "sanctum" ? 0.7 : 0.25, 0.8); };
   // a water drop falling into the pool, echoing round the cave
@@ -284,6 +284,22 @@
   // foliage. Each layer is one noise source whose loudness follows a curve of random little peaks.
   // recorded leaf rustles (js/sounds_data.js), decoded once; a short one for a blow, a long one for the finale
   const LEAF = { short: [], long: [] }; let leafLoading = false;
+  // the recorded thunder crack (a real storm, CC0): decoded once
+  let THUNDER = null, thunderLoading = false;
+  function loadThunder() {
+    if (thunderLoading || !window.SOUND_DATA || !SOUND_DATA.thunder_crack) return; thunderLoading = true;
+    const bin = atob(SOUND_DATA.thunder_crack.split(",")[1]), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    ac.decodeAudioData(u8.buffer).then((ab) => { THUNDER = ab; }).catch(() => {});
+  }
+  // play it: a strike is the crack and the first of the roll (from just before the peak, ~1.7s); the big
+  // calls play the whole thing, rolling away. A little pitch play keeps repeated strikes from sounding alike.
+  function thunderRec(t, peak, short) {
+    loadThunder(); if (!THUNDER) return false;
+    const s = ac.createBufferSource(); s.buffer = THUNDER; s.playbackRate.value = short ? 1.02 + Math.random() * 0.1 : 0.9 + Math.random() * 0.08;
+    const off = short ? 0.85 : 0, len = short ? 1.7 : THUNDER.duration, g = ac.createGain();
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak * 1.6, t + 0.012); g.gain.setValueAtTime(peak * 1.6, t + len * 0.55); g.gain.linearRampToValueAtTime(0, t + len);
+    s.connect(g); out(g, (Math.random() - 0.5) * 0.3, !short); s.start(t, off, len + 0.05); return true;
+  }
   function loadLeaves() {
     if (leafLoading || !window.SOUND_DATA) return; leafLoading = true;
     for (const [k, url] of Object.entries(SOUND_DATA)) {
@@ -324,6 +340,8 @@
     const f = filt2(type, t, f0, f1, dur, 0.9), g = amp(t, 0.0008, dur, peak); s.connect(pre); pre.connect(sh); sh.connect(f); f.connect(g); out(g, 0, sky);
   }
   function thunder(t, peak, short) {
+    // the real thing when it's loaded, with the bolt's electric tear and a sub drop laid over it
+    if (thunderRec(t, peak, short)) { arc(t, 0.3, 0.55 * peak, 2600, 900); zapChirp(t, 0.16, 2400, 80, 0.22 * peak); oscLayer("sine", t, 90, 26, short ? 0.8 : 1.4, 0.004, 0.7 * peak); return; }
     blast(t, white, 0.09, 700, 2200, 1.3 * peak, "highpass", true);                 // the crack
     arc(t, 0.38, 0.9 * peak, 2600, 800);                                              // the bolt tearing down
     zapChirp(t, 0.2, 2400, 70, 0.35 * peak);
