@@ -6,7 +6,7 @@
   const screen = document.getElementById("game");
   const sctx = screen.getContext("2d");
   const HARD_FILTER = typeof sctx.filter === "string" && !!document.getElementById("hardAlpha");
-  let layerA, actx, layerB, bctx, hud, hctx, fxL, fctx, hardL, hardCtx, glowL, gctx, VW = BASE_W, VH = BASE_H, SCALE = 3;
+  let weapL, wctx, layerA, actx, layerB, bctx, hud, hctx, fxL, fctx, hardL, hardCtx, glowL, gctx, VW = BASE_W, VH = BASE_H, SCALE = 3;
 
   // ------------------------------------------------------------------ assets
   const A = { img: {}, px: {}, flip: {}, meta: window.ASSET_META || {} };
@@ -1128,6 +1128,7 @@
     [fxL, fctx] = K.canvas(VW + 1, VH + 1);
     [hardL, hardCtx] = K.canvas(VW + 1, VH + 1);
     [glowL, gctx] = K.canvas(VW + 1, VH + 1);
+    [weapL, wctx] = K.canvas(VW + 1, VH + 1);
     sctx.imageSmoothingEnabled = false;
     if (World.W) buildVignette();
   }
@@ -1343,7 +1344,7 @@
     if (!player.dead && Combat.behindHero(player)) Combat.drawWeapon(actx, ox, oy, player, scene === "cave");
     sctx.drawImage(layerA, -sx, -sy, LW * SCALE, LH * SCALE);
     // the hero is a dark silhouette, rimmed by the pool's light
-    drawHero(t, heroSil);
+    drawHero(t, heroSil); drawHeldWeapon(true);
     sctx.drawImage(layerB, -sx, -sy, LW * SCALE, LH * SCALE);
     composeFx(ox, oy, sx, sy, true);
     sctx.drawImage(hud, 0, 0, VW * SCALE, VH * SCALE);
@@ -1358,6 +1359,14 @@
     if (m[key]) return m[key];
     const [c, x] = K.canvas(img.width, img.height); x.drawImage(img, 0, 0); x.globalCompositeOperation = "source-in"; x.fillStyle = col; x.fillRect(0, 0, img.width, img.height);
     return (m[key] = c);
+  }
+  function drawHeldWeapon(sil) {
+    if (player.dead || Combat.behindHero(player)) return;
+    const ox = Math.floor(cam.fx), oy = Math.floor(cam.fy), sx = Math.round((cam.fx - ox) * SCALE), sy = Math.round((cam.fy - oy) * SCALE);
+    wctx.clearRect(0, 0, VW + 1, VH + 1);
+    Combat.drawWeapon(wctx, ox, oy, player, sil);
+    sctx.imageSmoothingEnabled = false;
+    sctx.drawImage(weapL, -sx, -sy, (VW + 1) * SCALE, (VH + 1) * SCALE);
   }
   function drawHero(t, frames) {
     const hx = Math.round((player.x - cam.fx) * SCALE), hy = Math.round((player.y - cam.fy) * SCALE);
@@ -1422,7 +1431,6 @@
   function composeFx(ox, oy, sx, sy, sil) {
     const LW = VW + 1, LH = VH + 1;
     fctx.clearRect(0, 0, LW, LH);
-    if (!player.dead && !Combat.behindHero(player)) Combat.drawWeapon(fctx, ox, oy, player, sil);
     const any = Combat.drawAir(fctx, gctx, ox, oy);
     const [dk, tint] = Combat.darkness();
     if (dk > 0.01) { sctx.fillStyle = `rgba(${tint},${dk * 0.62})`; sctx.fillRect(0, 0, screen.width, screen.height); }
@@ -1542,7 +1550,7 @@
     drawMate(ox, oy, t);
     if (!player.dead && Combat.behindHero(player)) Combat.drawWeapon(actx, ox, oy, player, scene === "cave");
     sctx.drawImage(layerA, -sx, -sy, LW * SCALE, LH * SCALE);
-    drawHero(t, framesFor(mySlot(), Gear.wornId()));
+    drawHero(t, framesFor(mySlot(), Gear.wornId())); drawHeldWeapon(false);
     sctx.drawImage(layerB, -sx, -sy, LW * SCALE, LH * SCALE);
     composeFx(ox, oy, sx, sy);
     sctx.drawImage(hud, 0, 0, VW * SCALE, VH * SCALE);
@@ -1581,7 +1589,7 @@
     drawMate(ox, oy, t);
     if (!player.dead && Combat.behindHero(player)) Combat.drawWeapon(actx, ox, oy, player, scene === "cave");
     sctx.drawImage(layerA, -sx, -sy, LW * SCALE, LH * SCALE);
-    drawHero(t, framesFor(mySlot(), Gear.wornId()));
+    drawHero(t, framesFor(mySlot(), Gear.wornId())); drawHeldWeapon(false);
     sctx.drawImage(layerB, -sx, -sy, LW * SCALE, LH * SCALE);
     composeFx(ox, oy, sx, sy);
     if (flowT > 0) { sctx.fillStyle = `rgba(120,200,255,${0.12 * Math.min(1, flowT * 4)})`; sctx.fillRect(0, 0, screen.width, screen.height); }
@@ -1717,7 +1725,7 @@
     drawMate(ox, oy, t);
     if (!player.dead && Combat.behindHero(player)) Combat.drawWeapon(actx, ox, oy, player, scene === "cave");
     sctx.drawImage(layerA, -sx, -sy, LW * SCALE, LH * SCALE);
-    drawHero(t, framesFor(mySlot(), Gear.wornId()));
+    drawHero(t, framesFor(mySlot(), Gear.wornId())); drawHeldWeapon(false);
     sctx.drawImage(layerB, -sx, -sy, LW * SCALE, LH * SCALE);
     composeFx(ox, oy, sx, sy);
     sctx.drawImage(hud, 0, 0, VW * SCALE, VH * SCALE);
