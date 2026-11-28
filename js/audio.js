@@ -279,6 +279,17 @@
     for (let k = 0; k < 4; k++) noiseLayer(white, "highpass", t + Math.random() * len * 0.8, 0.012, 3500, 3500, 0.7, 0.001, 0.9 * peak);
     noiseLayer(white, "highpass", t + len * 0.5, len, 6000, 4000, 0.7, 0.02, 0.18 * peak);
   }
+  // leaves rustling: a crowd of tiny bright bursts (each a leaf brushing another) over a soft breath of
+  // foliage. Each layer is one noise source whose loudness follows a curve of random little peaks.
+  function rustle(t, dur, peak, pan) {
+    const n = 96, layer = (f, q, pk, grains) => {
+      const s = src(white, t, dur), fl = filt2("bandpass", t, f * rnd(0.9, 1.1), f * rnd(0.8, 1.2), dur, q), g = ac.createGain(), cv = new Float32Array(n);
+      for (let k = 0; k < grains; k++) { const at0 = Math.pow(Math.random(), 0.8) * (n - 4), w = 1 + Math.random() * 2.5, a = pk * (0.4 + Math.random() * 0.6) * (1 - at0 / n * 0.6); for (let i = 0; i < 6; i++) { const j = Math.floor(at0 + i); if (j < n) cv[j] = Math.max(cv[j], a * Math.exp(-i / w)); } }
+      cv[0] = 0; cv[n - 1] = 0; g.gain.setValueAtTime(0, t); g.gain.setValueCurveAtTime(cv, t + 0.001, dur);
+      s.connect(fl); fl.connect(g); out(g, pan !== undefined ? pan : rnd(-0.3, 0.3));
+    };
+    layer(4300, 1.1, peak, 30); layer(2200, 0.9, peak * 0.8, 22); layer(900, 0.7, peak * 0.45, 10);
+  }
   // a distorted sawtooth sweeping down: the "zzap" of a bolt
   function zapChirp(t, dur, f0, f1, peak) {
     const o = ac.createOscillator(); o.type = "sawtooth"; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
@@ -482,11 +493,11 @@
       case "glowBurst": gush(t, 1.3, 1.1); noiseLayer(brownB, "lowpass", t, 1.2, 100, 600, 0.7, 0.6, 1.4); bubbles(t + 0.2, 1.0, 50, 200, 700, 0.35); choir(t + 0.1, 1.4, [147, 220], 0.06);
                         splash(t + 1.0, 1.4); impact(t + 1.0, 1.3); crunch(t + 1.0, 1.0); thoom(t + 1.0, 0.8); break;
       // ---- life (the Ola Maul): leaves, the creak and crack of roots, the forest answering
-      case "roots":     for (let k = 0; k < 6; k++) noiseLayer(brownB, "bandpass", t + k * rnd(0.02, 0.06), rnd(0.08, 0.16), rnd(260, 520), 180, 6, 0.002, 0.9); knock(t, 0.5); knock(t + 0.12, 0.35);
+      case "roots":     rustle(t + 0.05, 0.7, 0.6); for (let k = 0; k < 6; k++) noiseLayer(brownB, "bandpass", t + k * rnd(0.02, 0.06), rnd(0.08, 0.16), rnd(260, 520), 180, 6, 0.002, 0.9); knock(t, 0.5); knock(t + 0.12, 0.35);
                         noiseLayer(brownB, "lowpass", t, 0.9, 90, 220, 0.9, 0.04, 0.9); for (let k = 0; k < 10; k++) noiseLayer(white, "bandpass", t + 0.1 + k * rnd(0.03, 0.07), 0.06, rnd(3000, 5200), 2600, 2, 0.004, 0.18);
                         oscLayer("sine", t + 0.05, 110, 70, 0.6, 0.05, 0.2); break;
-      case "hitLife":   for (let k = 0; k < 6; k++) noiseLayer(white, "bandpass", t + k * 0.025, 0.07, rnd(2800, 5000), 2400, 2, 0.003, 0.22); knock(t, 0.35); break;
-      case "lifeFinale": rush(t, 1.2, 0.8); noiseLayer(brownB, "lowpass", t + 0.2, 1.6, 60, 180, 0.9, 0.5, 1.2, 0, true); oscLayer("sine", t + 0.2, 70, 46, 1.4, 0.4, 0.35);
+      case "hitLife":   rustle(t, 0.42, 0.7); knock(t, 0.35); break;
+      case "lifeFinale": rustle(t + 0.1, 1.4, 0.8); rush(t, 1.2, 0.8); noiseLayer(brownB, "lowpass", t + 0.2, 1.6, 60, 180, 0.9, 0.5, 1.2, 0, true); oscLayer("sine", t + 0.2, 70, 46, 1.4, 0.4, 0.35);
                         for (let k = 0; k < 8; k++) { const tt = t + 0.4 + k * 0.08; for (let j = 0; j < 3; j++) noiseLayer(brownB, "bandpass", tt + j * 0.02, 0.1, rnd(250, 500), 180, 6, 0.002, 0.7); }
                         for (let k = 0; k < 6; k++) { const f = rnd(2400, 3600); tone(t + 1.0 + k * 0.09, f, f * 1.25, 0.08, 0.05, rnd(-0.8, 0.8)); }   // the forest's birds startled into song
                         impact(t + 1.1, 1.3); thoom(t + 1.1, 0.9); choir(t + 0.9, 1.2, [196, 247, 294], 0.05); break;
@@ -584,7 +595,7 @@
       else if (el === "sky") flurry(t0, 3 + ((Math.random() * 5) | 0), 3, 0.04, 0.28, 1);
       else if (el === "storm") arc(t0 + 0.03, dur, 0.55, 1500, 3200);
       else if (el === "stone") grind(t0 + dur * 0.4, 0.3, 0.4);
-      else if (el === "life") { for (let k = 0; k < 5; k++) noiseLayer(white, "bandpass", t0 + k * dur * 0.18, 0.08, rnd(3000, 5200), 2600, 2, 0.004, 0.16); noiseLayer(brownB, "bandpass", t0 + dur * 0.5, 0.12, 320, 220, 5, 0.01, 0.3); }
+      else if (el === "life") { rustle(t0 + 0.02, dur + 0.35, 0.55); noiseLayer(brownB, "bandpass", t0 + dur * 0.5, 0.12, 320, 220, 5, 0.01, 0.3); }
       else if (el === "plasma") { arc(t0 + 0.02, dur, 0.3, 2400, 5200, true); oscLayer("sine", t0, 80, 50, dur + 0.1, 0.02, 0.3); }
     }
   };

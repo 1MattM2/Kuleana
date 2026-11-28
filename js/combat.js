@@ -884,15 +884,50 @@
     }
     if (f.hot) glowDot(g, f.x - ox, f.y - oy, 30, "255,120,40", 0.45 * fade);
   }
-  // roots: knotted tendrils of bark bursting up and out along the ground, sprouting leaves, then sinking
+  // roots: coarse, gnarled bark roots shoving up out of the ground in jerky spurts, each pixel-stamped in the
+  // bark ramp (dark rim, body, lit top), knotted, branching into rootlets, soil crumbs thrown at their tips
+  // and the ground cracked where they burst out; leaves sprout once they're grown, and at the end they draw
+  // back down into the earth
+  function rootPath(rt) {
+    if (rt.path) return rt.path;
+    const segs = 10, step = rt.len / segs, mk = (x, y, a, n, st, salt) => { const pts = [[x, y]]; for (let k = 1; k <= n; k++) { a += (K.hash2(k, salt, rt.seed) - 0.5) * 0.9; x += Math.cos(a) * st; y += Math.sin(a) * st * 0.55; pts.push([x, y]); } return pts; };
+    const main = mk(Math.cos(rt.a) * 4, Math.sin(rt.a) * 2.2, rt.a, segs, step, 2), br = [];
+    for (const at0 of [3, 6]) { if (K.hash2(at0, 9, rt.seed) < 0.25) continue; const side = K.hash2(at0, 8, rt.seed) > 0.5 ? 1 : -1, [bx, by] = main[at0], a2 = Math.atan2((main[at0 + 1][1] - by) / 0.55, main[at0 + 1][0] - bx) + side * (0.7 + K.hash2(at0, 7, rt.seed) * 0.5); br.push({ at: at0 / segs, pts: mk(bx, by, a2, 5, step * 0.7, 10 + at0), w: 0.55 }); }
+    return (rt.path = { main, br });
+  }
   function drawRoots(f, ctx, g, ox, oy, age) {
-    const p = age / f.dur, grow = easeOut(p / 0.18), sink = p > 0.7 ? 1 - easeIn((p - 0.7) / 0.3) : 1;
-    for (const rt of f.list) {
-      const pts = []; let x = f.x - ox, y = f.y - oy, a = rt.a; const L = rt.len * grow;
-      for (let k = 0; k <= 7; k++) { if (k) { a += (K.hash2(k, 2, rt.seed) - 0.5) * 0.8; x += Math.cos(a) * L / 7; y += Math.sin(a) * L / 7 * 0.5; } pts.push([x, y - Math.sin((k / 7) * Math.PI) * 7 * sink * grow]); }
-      for (let k = 0; k < 7; k++) { const w = Math.max(0.6, rt.w * (1 - k / 8) * sink); pathLine(ctx, [pts[k], pts[k + 1]], w + 1.6, "#1e120a"); pathLine(ctx, [pts[k], pts[k + 1]], w, "#5a3a1e"); pathLine(ctx, [[pts[k][0], pts[k][1] - w * 0.3], [pts[k + 1][0], pts[k + 1][1] - w * 0.3]], Math.max(0.5, w * 0.35), "#8a6234"); }
-      if (sink > 0.4) for (let k = 2; k < 7; k += 2) { const q = pts[k], s2 = K.hash2(k, 5, rt.seed) > 0.5 ? 1 : -1; ctx.fillStyle = LEAF[(k + (rt.seed | 0)) % 5]; ctx.fillRect(Math.round(q[0] + s2 * 2), Math.round(q[1] - 2), 2, 1); ctx.fillRect(Math.round(q[0] + s2 * 3), Math.round(q[1] - 3), 1, 1); }
+    const p = age / f.dur, BK = PAL.R.bark.map((c) => PAL.css(c)), SO = PAL.R.soil.map((c) => PAL.css(c));
+    // growth in coarse spurts, a hold, then the draw back into the ground
+    const steps = 8, raw = Math.min(1, p / 0.3), grown = Math.ceil(easeOut(raw) * steps) / steps, vis = grown * (p > 0.72 ? 1 - easeIn((p - 0.72) / 0.28) : 1);
+    const X0 = Math.round(f.x - ox), Y0 = Math.round(f.y - oy), sink = p > 0.72 ? 1 - (p - 0.72) / 0.28 : 1;
+    // the ground cracked and heaved where they burst out
+    for (let k = 0; k < 9; k++) { const a = (k / 9) * TAU + (f.x % 1), L = 6 + K.hash2(k, 3, f.x | 0) * 8 * Math.min(1, raw * 2); ctx.fillStyle = SO[0]; for (let s2 = 2; s2 < L; s2++) ctx.fillRect(Math.round(X0 + Math.cos(a) * s2 + (s2 % 3 === 0 ? 1 : 0)), Math.round(Y0 + Math.sin(a) * s2 * 0.55), 1, 1); }
+    const stamp = (pts, frac, w0, salt, out) => {
+      const n = pts.length - 1, upto = frac * n;
+      for (let i = 0; i < n && i < upto; i++) {
+        const [ax, ay] = pts[i], [bx, by] = pts[i + 1], segLen = Math.hypot(bx - ax, by - ay), end = Math.min(1, upto - i);
+        for (let s2 = 0; s2 <= segLen * end; s2 += 0.6) {
+          const u = (i + s2 / (segLen || 1)) / n, x = X0 + ax + (bx - ax) * (s2 / (segLen || 1)), lift = Math.sin(Math.min(1, u * 1.4) * Math.PI) * 3.2 * sink, y = Y0 + ay + (by - ay) * (s2 / (segLen || 1)) - lift;
+          const knot = 1 + 0.6 * Math.max(0, Math.cos(u * 23 + salt)) ** 6, w = Math.max(0.5, w0 * Math.pow(1 - u, 0.9) * knot * (0.55 + 0.45 * sink));
+          const r = Math.floor(w), xx = Math.round(x), yy = Math.round(y);
+          if (out) { ctx.fillStyle = BK[0]; ctx.fillRect(xx - r - 1, yy - r, r * 2 + 3, r * 2 + 1); }
+          else {
+            ctx.fillStyle = BK[K.hash2(Math.round(u * 40), salt | 0, 3) > 0.8 ? 1 : 3]; ctx.fillRect(xx - r, yy - r + 1, r * 2 + 1, Math.max(1, r * 2 - 1));
+            ctx.fillStyle = BK[5]; ctx.fillRect(xx - r + 1, yy - r + 1, Math.max(1, r * 2 - 1), 1);                                  // the lit top
+            if (r > 1 && ((s2 * 1.7 + salt) | 0) % 5 === 0) { ctx.fillStyle = BK[1]; ctx.fillRect(xx, yy, 1, 1); }                    // bark grain
+          }
+        }
+      }
+      // soil thrown up at the growing tip
+      if (!out && frac > 0.05 && frac < 1 && p < 0.34) { const k2 = Math.min(n, Math.floor(upto)), q = pts[k2]; for (let c = 0; c < 4; c++) { ctx.fillStyle = SO[2 + (c % 3)]; ctx.fillRect(Math.round(X0 + q[0] + (K.hash2(c, (age * 30) | 0, salt) - 0.5) * 8), Math.round(Y0 + q[1] - K.hash2(c, 4, (age * 30) | 0) * 6), c % 2 ? 2 : 1, 1); } }
+    };
+    for (const out of [true, false]) for (const rt of f.list) {
+      const P2 = rootPath(rt);
+      stamp(P2.main, vis, rt.w * 0.6, rt.seed, out);
+      for (const b of P2.br) { const bv = Math.max(0, (vis - b.at) / (1 - b.at)); if (bv > 0) stamp(b.pts, bv, rt.w * b.w, rt.seed + 17, out); }
     }
+    // leaves sprouting along them once they're grown
+    if (p > 0.32 && sink > 0.3) for (const rt of f.list) { const m = rootPath(rt).main; for (let k = 3; k < m.length - 1; k += 3) { const q = m[k], s2 = K.hash2(k, 5, rt.seed) > 0.5 ? 1 : -1; ctx.fillStyle = LEAF[(k + (rt.seed | 0)) % 5]; ctx.fillRect(Math.round(X0 + q[0] + s2 * 2), Math.round(Y0 + q[1] - 4), 2, 1); ctx.fillRect(Math.round(X0 + q[0] + s2 * 3), Math.round(Y0 + q[1] - 5), 1, 1); ctx.fillStyle = LEAF[2]; ctx.fillRect(Math.round(X0 + q[0] + s2 * 4), Math.round(Y0 + q[1] - 5), 1, 1); } }
     glowDot(g, f.x - ox, f.y - oy, 34, "150,230,100", 0.3 * (1 - p));
   }
   // Wildwood's crown: a great tangle of roots heaving up in the middle, throwing off leaves
