@@ -1,7 +1,7 @@
 # Kuleana roadmap
 
 Done: Zones 1 and 2 (six levels, four bosses), 3-player co-op, mobile controls, title and saves, the globe,
-shards, armour and cloth, the forge, shells, gold and the shop, battle prep, the inventory, weapon specials.
+shards, armour and cloth, the forge, shells and the shop, battle prep, the inventory, weapon specials.
 
 ## Next
 - Zones 3-6 (globe has room). First-land weapons are planned: Koa Blade (3), Makau Kaula (4), Pololū (5), Koʻi (6);
